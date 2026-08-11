@@ -1464,7 +1464,7 @@ renderBreadcrumbs($breadcrumbs);
         </div>
     </section>
 
-    <?php if (!$isFindContactPage && !$isAvailabilityPage): ?>
+    <?php if (!$isFindContactPage && !$isAvailabilityPage && !$isAssignPage): ?>
     <section class="rcas-card rcas-assignment-card">
         <div class="rcas-record-head">
             <div>
@@ -1776,6 +1776,10 @@ renderBreadcrumbs($breadcrumbs);
     };
 
     const renderProcess = () => {
+        if (!groupSelect || !topic || !required || !matchList || !matchEmpty) {
+            return;
+        }
+
         renderGroups();
 
         const group = groups.find((item) => {
@@ -1940,11 +1944,11 @@ renderBreadcrumbs($breadcrumbs);
             if (available) available.textContent = data.stats?.available ?? 0;
             if (assigned) assigned.textContent = data.stats?.assigned ?? 0;
             const syncText = `Synced ${data.last_sync || 'just now'}`;
-            lastSync.textContent = syncText;
+            if (lastSync) lastSync.textContent = syncText;
             updateRecordMeta(isRetrieveMode ? groups.length : rows.length, syncText);
             render();
         } catch (error) {
-            lastSync.textContent = 'Sync paused';
+            if (lastSync) lastSync.textContent = 'Sync paused';
         } finally {
             refreshing = false;
         }
@@ -2007,7 +2011,7 @@ renderBreadcrumbs($breadcrumbs);
             if (pending) pending.textContent = data.stats?.pending ?? 0;
             if (available) available.textContent = data.stats?.available ?? 0;
             if (assigned) assigned.textContent = data.stats?.assigned ?? 0;
-            lastSync.textContent = `Synced ${data.last_sync || 'just now'}`;
+            if (lastSync) lastSync.textContent = `Synced ${data.last_sync || 'just now'}`;
             showNotice(data.message || 'Assignment saved.', 'ok');
             render();
         } catch (error) {
