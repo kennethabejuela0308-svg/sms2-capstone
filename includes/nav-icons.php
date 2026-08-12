@@ -36,6 +36,7 @@ if (!function_exists('smsNavPageIcon')) {
             'proposal-submission-tracking' => 'fa-clipboard-list',
             'register-proposal' => 'fa-file-signature',
             'research-group-number' => 'fa-users',
+            'capstone-group-student-registry' => 'fa-clipboard-list',
             'adviser-panel-assignment' => 'fa-user-tie',
             'research-coordinator-management' => 'fa-user-cog',
             'research-grants-funding-assistance' => 'fa-hand-holding-usd',
