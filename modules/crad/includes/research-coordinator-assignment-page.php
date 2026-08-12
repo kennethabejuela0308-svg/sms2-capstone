@@ -56,6 +56,7 @@ function rcAssignmentEnsureSchema(PDO $pdo): void
             group_number VARCHAR(40) DEFAULT NULL,
             adviser_name VARCHAR(150) NOT NULL DEFAULT '',
             adviser_email VARCHAR(190) NOT NULL DEFAULT '',
+            adviser_user_id INT UNSIGNED DEFAULT NULL,
             expertise VARCHAR(255) NOT NULL DEFAULT '',
             availability_status VARCHAR(40) NOT NULL DEFAULT 'Pending',
             assignment_status VARCHAR(40) NOT NULL DEFAULT 'Pending',
@@ -72,6 +73,15 @@ function rcAssignmentEnsureSchema(PDO $pdo): void
     ");
 
     smsAssignmentNotificationEnsureSentSchema($pdo);
+
+    try {
+        $col = $pdo->query("SHOW COLUMNS FROM research_adviser_assignments LIKE 'adviser_user_id'")->fetch();
+        if (!$col) {
+            $pdo->exec("ALTER TABLE research_adviser_assignments ADD COLUMN adviser_user_id INT UNSIGNED DEFAULT NULL AFTER adviser_email, ADD KEY idx_raa_user (adviser_user_id)");
+        }
+    } catch (Throwable $e) {
+        error_log('Research adviser user link column skipped: ' . $e->getMessage());
+    }
 
     try {
         $pdo->exec("
@@ -1256,7 +1266,7 @@ renderBreadcrumbs($breadcrumbs);
 .rcas-flow-step i { color: #2563eb; margin-right: 0.35rem; }
 .rcas-flow-step strong { display: block; color: var(--sms-heading); font-size: 0.78rem; }
 .rcas-flow-step span { display: block; margin-top: 0.2rem; color: var(--sms-text-muted); font-size: 0.7rem; line-height: 1.35; }
-.rcas-match-list { display: grid; gap: 0.7rem; padding: 0.8rem; }
+.rcas-match-list { display: grid; gap: 0.7rem; padding: 0.8rem; max-height: 340px; min-height: 0; overflow-y: auto; overflow-x: hidden; }
 .rcas-match { position: relative; display: grid; grid-template-columns: 1fr auto; gap: 0.9rem; align-items: center; padding: 0.85rem; border: 1px solid var(--sms-border, #e2e8f0); border-radius: 8px; background: var(--sms-surface-solid, #fff); box-shadow: 0 1px 0 rgba(15,23,42,0.03); }
 .rcas-match:hover { border-color: rgba(37,99,235,0.36); box-shadow: 0 8px 20px rgba(15,23,42,0.07); }
 .rcas-score { min-width: 66px; padding: 0.45rem 0.55rem; border-radius: 8px; text-align: center; color: #047857; background: #d1fae5; font-weight: 950; }

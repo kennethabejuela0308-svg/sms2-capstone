@@ -37,6 +37,7 @@ if (!function_exists('smsNavPageIcon')) {
             'register-proposal' => 'fa-file-signature',
             'research-group-number' => 'fa-users',
             'adviser-panel-assignment' => 'fa-user-tie',
+            'research-coordinator-management' => 'fa-user-cog',
             'research-grants-funding-assistance' => 'fa-hand-holding-usd',
             'research-defense-scheduling' => 'fa-calendar-check',
             'documentation-publication-management' => 'fa-book',

@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Aug 10, 2026 at 05:52 PM
+-- Generation Time: Aug 12, 2026 at 11:03 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -102,6 +102,7 @@ CREATE TABLE `research_adviser_assignments` (
   `group_number` varchar(40) DEFAULT NULL,
   `adviser_name` varchar(150) NOT NULL DEFAULT '',
   `adviser_email` varchar(190) NOT NULL DEFAULT '',
+  `adviser_user_id` int(10) UNSIGNED DEFAULT NULL,
   `expertise` varchar(255) NOT NULL DEFAULT '',
   `availability_status` varchar(40) NOT NULL DEFAULT 'Pending',
   `assignment_status` varchar(40) NOT NULL DEFAULT 'Pending',
@@ -114,13 +115,30 @@ CREATE TABLE `research_adviser_assignments` (
   `notification_sent_by` int(10) UNSIGNED DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- --------------------------------------------------------
+
 --
--- Dumping data for table `research_adviser_assignments`
+-- Table structure for table `research_coordinator_assignments`
 --
 
-INSERT INTO `research_adviser_assignments` (`id`, `research_group_id`, `proposal_id`, `proposal_number`, `group_number`, `adviser_name`, `adviser_email`, `expertise`, `availability_status`, `assignment_status`, `notes`, `assigned_by`, `assigned_at`, `created_at`, `updated_at`, `notification_sent_at`, `notification_sent_by`) VALUES
-(14, 19, NULL, 'CRD-2026-00026', 'RG-2026-019', 'Dr. Roberto M. Santos', 'rsantos@bestlink.edu.ph', 'Artificial Intelligence / Machine Learning', 'Available', 'Assigned', 'Matched based on AI research topic; ready for coordinator contact.', 40, '2026-08-09 18:51:55', '2026-08-09 18:51:51', '2026-08-09 18:52:05', '2026-08-09 18:52:05', 40),
-(15, 19, NULL, 'CRD-2026-00026', 'RG-2026-019', 'Prof. Clara T. Reyes', 'creyes@bestlink.edu.ph', 'Data Analytics / Educational Technology', 'Available', 'Pending', 'Secondary adviser match for AI-assisted title review.', NULL, NULL, '2026-08-09 18:51:51', '2026-08-09 18:51:51', NULL, NULL);
+CREATE TABLE `research_coordinator_assignments` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `research_group_id` int(10) UNSIGNED DEFAULT NULL,
+  `proposal_id` int(10) UNSIGNED DEFAULT NULL,
+  `title_approval_id` int(10) UNSIGNED DEFAULT NULL,
+  `proposal_number` varchar(30) DEFAULT NULL,
+  `group_number` varchar(40) DEFAULT NULL,
+  `group_name` varchar(120) NOT NULL DEFAULT '',
+  `research_title` varchar(255) NOT NULL DEFAULT '',
+  `coordinator_user_id` int(10) UNSIGNED DEFAULT NULL,
+  `coordinator_name` varchar(200) NOT NULL DEFAULT '',
+  `coordinator_email` varchar(200) NOT NULL DEFAULT '',
+  `status` enum('Active','Inactive') NOT NULL DEFAULT 'Active',
+  `assigned_by` int(10) UNSIGNED DEFAULT NULL,
+  `assigned_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -181,7 +199,15 @@ CREATE TABLE `research_groups` (
 INSERT INTO `research_groups` (`id`, `proposal_id`, `title_approval_id`, `proposal_number`, `group_number`, `group_name`, `research_title`, `college_dept`, `adviser`, `academic_year`, `leader_name`, `leader_id`, `leader_email`, `leader_contact`, `status`, `date_assigned`, `created_by`, `created_at`) VALUES
 (18, 25, NULL, 'CRD-2026-00025', 'RG-2026-001', 'Group 01', 'AI ASSISTEND TITLE OPENGPT 4.1', 'College of Computer Studies', 'Dr. Roberto M. Santos', 'A.Y. 2026-2027', 'User, Student A.', 'S230000001', 's230000001@bcp.edu.ph', '09171234567', 'Approved', '2026-08-09', 3, '2026-08-09 10:38:47'),
 (19, 26, NULL, 'CRD-2026-00026', 'RG-2026-019', 'Group 19', 'AI ASSISTEND TITLE OPENGPT 4.1', 'College of Computer Studies', 'Dr. Roberto M. Santos', 'A.Y. 2026-2027', 'User, Student A.', 'S230000001', 's230000001@bcp.edu.ph', '09171234567', 'Approved', '2026-08-09', 3, '2026-08-09 10:51:29'),
-(20, 27, NULL, 'CRD-2026-00027', 'RG-2026-020', 'Group 20', 'AI ASSISTEND TITLE OPENGPT 4.1', 'College of Computer Studies', 'Dr. Roberto M. Santos', 'A.Y. 2026-2027', 'User, Student A.', 'S230000001', 's230000001@bcp.edu.ph', '09171234567', 'Approved', '2026-08-10', 3, '2026-08-10 12:59:18');
+(20, 27, NULL, 'CRD-2026-00027', 'RG-2026-020', 'Group 20', 'AI ASSISTEND TITLE OPENGPT 4.1', 'College of Computer Studies', 'Dr. Roberto M. Santos', 'A.Y. 2026-2027', 'User, Student A.', 'S230000001', 's230000001@bcp.edu.ph', '09171234567', 'Approved', '2026-08-10', 3, '2026-08-10 12:59:18'),
+(21, NULL, 1, 'TAP-2026-00001', 'RG-2026-021', 'Group 21', 'ASDA', 'College of Computer Studies', 'Dr. Roberto M. Santos', '2026-2027', 'Student User', 'S230000001', '', '', 'Approved', '2026-08-11', 3, '2026-08-11 10:17:32'),
+(22, NULL, 2, 'TAP-2026-00002', 'RG-2026-022', 'Group 22', 'AI ASSISTEND OPEN GPT AI', 'College of Computer Studies', 'Dr. Roberto M. Santos', '2026-2027', 'Student User', 'S230000001', '', '', 'Approved', '2026-08-11', 3, '2026-08-11 11:11:27'),
+(23, NULL, 4, 'TAP-2026-00004', 'RG-2026-023', 'Group 23', 'DEVELOPMENT OF AI ASSSTEND GOOGLE OR TOOLS , OPEN GPT 5.5', 'College of Computer Studies', 'Dr. Roberto M. Santos', '2026-2027', 'Student User', 'S230000001', '', '', 'Approved', '2026-08-11', 3, '2026-08-11 11:32:29'),
+(24, NULL, 5, 'TAP-2026-00005', 'RG-2026-024', 'Group 24', 'DEVELOPMENT OF AI ASSISSTED OPEN GPT 5.5', 'College of Computer Studies', 'Dr. Roberto M. Santos', '2026-2027', 'Student User', 'S230000001', '', '', 'Approved', '2026-08-11', 3, '2026-08-11 11:46:42'),
+(25, NULL, 6, 'TAP-2026-00006', 'RG-2026-025', 'Group 25', 'DEVELOPMENT OF AI ASSISTED DOCUMENT AND SCHEDULING OPEN GPT 5.5', 'College of Computer Studies', 'Dr. Roberto M. Santos', '2026-2027', 'Student User', 'S230000001', '', '', 'Approved', '2026-08-12', 3, '2026-08-12 08:27:57'),
+(26, NULL, 7, NULL, 'RG-9999-901', 'Group T1', 'CLI TRIGGER TEST TITLE A', '', '', '', '', '', '', '', 'Approved', '2026-08-12', NULL, '2026-08-12 08:43:00'),
+(27, NULL, 8, NULL, 'RG-9999-902', 'Group T2', 'CLI TRIGGER TEST TITLE B', '', '', '', '', '', '', '', 'Approved', '2026-08-12', NULL, '2026-08-12 08:43:00'),
+(28, NULL, 9, 'TAP-2026-00009', 'RG-2026-028', 'Group 28', 'AI ASSISTED DOCUMENT ANALYSIS', 'College of Computer Studies', 'Dr. Roberto M. Santos', '2026-2027', 'Student User', 'S230000001', '', '', 'Approved', '2026-08-12', 3, '2026-08-12 08:59:08');
 
 -- --------------------------------------------------------
 
@@ -285,6 +311,23 @@ CREATE TABLE `title_approvals` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
+-- Triggers `title_approvals`
+--
+DELIMITER $$
+CREATE TRIGGER `trg_title_approvals_after_delete` AFTER DELETE ON `title_approvals` FOR EACH ROW BEGIN
+                    DELETE FROM research_coordinator_assignments
+                    WHERE title_approval_id = OLD.id
+                       OR research_group_id IN (SELECT id FROM research_groups WHERE title_approval_id = OLD.id)
+                       OR group_number IN (SELECT group_number FROM research_groups WHERE title_approval_id = OLD.id);
+
+                    DELETE FROM research_adviser_assignments
+                    WHERE research_group_id IN (SELECT id FROM research_groups WHERE title_approval_id = OLD.id)
+                       OR group_number IN (SELECT group_number FROM research_groups WHERE title_approval_id = OLD.id);
+                END
+$$
+DELIMITER ;
+
+--
 -- Indexes for dumped tables
 --
 
@@ -325,7 +368,18 @@ ALTER TABLE `research_adviser_assignments`
   ADD KEY `idx_raa_group` (`research_group_id`),
   ADD KEY `idx_raa_proposal` (`proposal_id`),
   ADD KEY `idx_raa_group_number` (`group_number`),
-  ADD KEY `idx_raa_status` (`assignment_status`);
+  ADD KEY `idx_raa_status` (`assignment_status`),
+  ADD KEY `idx_raa_user` (`adviser_user_id`);
+
+--
+-- Indexes for table `research_coordinator_assignments`
+--
+ALTER TABLE `research_coordinator_assignments`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uniq_rca_group_number` (`group_number`),
+  ADD KEY `idx_rca_group` (`research_group_id`),
+  ADD KEY `idx_rca_title_approval` (`title_approval_id`),
+  ADD KEY `idx_rca_status` (`status`);
 
 --
 -- Indexes for table `research_defense_schedules`
@@ -397,7 +451,7 @@ ALTER TABLE `proposal_drafts`
 -- AUTO_INCREMENT for table `proposal_members`
 --
 ALTER TABLE `proposal_members`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=37;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
 
 --
 -- AUTO_INCREMENT for table `proposal_status_logs`
@@ -409,7 +463,13 @@ ALTER TABLE `proposal_status_logs`
 -- AUTO_INCREMENT for table `research_adviser_assignments`
 --
 ALTER TABLE `research_adviser_assignments`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=102;
+
+--
+-- AUTO_INCREMENT for table `research_coordinator_assignments`
+--
+ALTER TABLE `research_coordinator_assignments`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `research_defense_schedules`
@@ -421,7 +481,7 @@ ALTER TABLE `research_defense_schedules`
 -- AUTO_INCREMENT for table `research_groups`
 --
 ALTER TABLE `research_groups`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
 
 --
 -- AUTO_INCREMENT for table `research_proposals`
@@ -439,7 +499,7 @@ ALTER TABLE `research_venues`
 -- AUTO_INCREMENT for table `title_approvals`
 --
 ALTER TABLE `title_approvals`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- Constraints for dumped tables
@@ -474,8 +534,6 @@ ALTER TABLE `research_adviser_assignments`
 --
 ALTER TABLE `research_defense_schedules`
   ADD CONSTRAINT `fk_rds_proposal` FOREIGN KEY (`proposal_id`) REFERENCES `research_proposals` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
---
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

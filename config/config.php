@@ -412,6 +412,7 @@ $MODULES = [
             ],
             'Research Management' => [
                 'adviser-panel-assignment',
+                'research-coordinator-management',
                 'research-defense-scheduling',
             ],
             'Research Funding' => [
@@ -428,6 +429,7 @@ $MODULES = [
             ['slug' => 'register-proposal', 'title' => 'Register Proposal'],
             ['slug' => 'research-group-number', 'title' => 'Research Group Number'],
             ['slug' => 'adviser-panel-assignment', 'title' => 'Record Adviser/Panel Assignment'],
+            ['slug' => 'research-coordinator-management', 'title' => 'Research Coordinator Management'],
             ['slug' => 'research-grants-funding-assistance', 'title' => 'Research Grants & Funding Assistance'],
             ['slug' => 'research-defense-scheduling', 'title' => 'Research Defense Scheduling'],
             ['slug' => 'documentation-publication-management', 'title' => 'Documentation & Publication Management'],
