@@ -2,11 +2,11 @@
 /**
  * SMS 2 - CRAD - Overview
  */
-$pageTitle    = 'CRAD';
+$pageTitle    = 'Research Coordinator';
 $activeModule = 'crad';
 $activePage   = '';
 $breadcrumbs  = [
-    ['label' => 'CRAD', 'url' => null],
+    ['label' => 'Research Coordinator', 'url' => null],
 ];
 
 require_once __DIR__ . '/../../includes/breadcrumbs.php';
