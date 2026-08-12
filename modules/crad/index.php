@@ -2,11 +2,14 @@
 /**
  * SMS 2 - CRAD - Overview
  */
-$pageTitle    = 'Research Coordinator';
+require_once __DIR__ . '/../../includes/authentication.php';
+
+$cradOverviewLabel = getCurrentUserRoleKey() === 'research_coordinator' ? 'Research Coordinator' : 'CRAD';
+$pageTitle    = $cradOverviewLabel;
 $activeModule = 'crad';
 $activePage   = '';
 $breadcrumbs  = [
-    ['label' => 'Research Coordinator', 'url' => null],
+    ['label' => $cradOverviewLabel, 'url' => null],
 ];
 
 require_once __DIR__ . '/../../includes/breadcrumbs.php';
