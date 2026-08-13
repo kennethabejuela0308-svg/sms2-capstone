@@ -305,7 +305,7 @@ renderBreadcrumbs($breadcrumbs);
                 <div class="input-group input-group-sm">
                     <span class="input-group-text"><i class="fas fa-search" style="font-size:.72rem;"></i></span>
                     <input type="text" id="umSearch" class="form-control form-control-sm"
-                           placeholder="<?= $isArchiveView ? 'Search archived users…' : 'Search name or email…' ?>"
+                           placeholder="<?= $isArchiveView ? 'Search archived users…' : 'Search name, username or email…' ?>"
                            style="max-width:unset;">
                 </div>
             </div>
@@ -390,6 +390,7 @@ renderBreadcrumbs($breadcrumbs);
                         ?>
                         <tr class="um-user-row"
                             data-name="<?= htmlspecialchars($u['name']) ?>"
+                            data-username="<?= htmlspecialchars($u['username']) ?>"
                             data-email="<?= htmlspecialchars($u['email']) ?>"
                             data-role="<?= htmlspecialchars($u['role']) ?>"
                             data-status="<?= htmlspecialchars($u['status']) ?>">
