@@ -100,6 +100,26 @@ $studentResearchProposalHref = $studentReturnedTitleApprovalId > 0
     ? BASE_URL . '/notifications/view.php?type=returned_title_approval&title_approval=' . $studentReturnedTitleApprovalId
     : BASE_URL . '/modules/student-portal/pages/research-proposal-submission.php';
 
+// ── Check if student has an approved research group ──────────────────────────
+$studentHasResearchGroup = false;
+if ($isStudentPortal && isset($sidebarCrad) && $sidebarCrad instanceof PDO) {
+    try {
+        $checkGroupStmt = $sidebarCrad->prepare("
+            SELECT COUNT(*) FROM research_groups 
+            WHERE status = 'Approved'
+              AND (leader_id = :student_id OR leader_id = (SELECT student_id FROM sms2_db.users WHERE id = :user_id LIMIT 1))
+            LIMIT 1
+        ");
+        $checkGroupStmt->execute([
+            ':student_id' => $sidebarStudentId,
+            ':user_id' => $sidebarStudentUserId
+        ]);
+        $studentHasResearchGroup = ((int) $checkGroupStmt->fetchColumn() > 0);
+    } catch (Throwable $e) {
+        error_log('Student research group check failed: ' . $e->getMessage());
+    }
+}
+
 $studentNavGroups = [
     'Overview' => [
         ['slug' => 'dashboard', 'href' => BASE_URL . '/modules/student-portal/pages/dashboard.php', 'icon' => 'fa-tachometer-alt', 'label' => 'Dashboard', 'locked' => false],
@@ -127,6 +147,36 @@ $studentNavGroups = [
     ],
 ];
 
+// ── Add Research Development section if student has approved research group ──
+// DUPLICATE PREVENTION: Only add if not already present in array
+if ($studentHasResearchGroup && !isset($studentNavGroups['Research Development'])) {
+    $researchDevItems = [
+        ['slug' => 'my-research',       'href' => BASE_URL . '/modules/student-portal/pages/my-research.php',       'icon' => 'fa-book',        'label' => 'My Research',       'locked' => false],
+        ['slug' => 'research-plan',     'href' => BASE_URL . '/modules/student-portal/pages/research-plan.php',     'icon' => 'fa-project-diagram', 'label' => 'Research Plan',     'locked' => false],
+        ['slug' => 'milestones',        'href' => BASE_URL . '/modules/student-portal/pages/milestones.php',        'icon' => 'fa-tasks',       'label' => 'Milestones',        'locked' => false],
+        ['slug' => 'progress-updates',  'href' => BASE_URL . '/modules/student-portal/pages/progress-updates.php',  'icon' => 'fa-chart-line',  'label' => 'Progress Updates',  'locked' => false],
+        ['slug' => 'adviser-feedback',  'href' => BASE_URL . '/modules/student-portal/pages/adviser-feedback.php',  'icon' => 'fa-comments',    'label' => 'Adviser Feedback',  'locked' => false],
+    ];
+    
+    // Insert after 'Research' section, before 'System'
+    $insertPosition = array_search('System', array_keys($studentNavGroups));
+    if ($insertPosition !== false) {
+        $studentNavGroups = array_slice($studentNavGroups, 0, $insertPosition, true) +
+                           ['Research Development' => $researchDevItems] +
+                           array_slice($studentNavGroups, $insertPosition, null, true);
+    } else {
+        // Fallback: add before System
+        $temp = [];
+        foreach ($studentNavGroups as $key => $value) {
+            if ($key === 'System') {
+                $temp['Research Development'] = $researchDevItems;
+            }
+            $temp[$key] = $value;
+        }
+        $studentNavGroups = $temp;
+    }
+}
+
 $facultyAccountNavGroups = [
     'Dashboard' => [
         ['slug' => '', 'href' => BASE_URL . '/modules/faculty/index.php', 'icon' => 'fa-th-large', 'label' => 'Overview'],
@@ -140,6 +190,21 @@ $facultyAccountNavGroups = [
         ['slug' => 'research-progress', 'href' => BASE_URL . '/modules/faculty/pages/research-progress.php', 'icon' => 'fa-tasks', 'label' => 'Research Progress'],
         ['slug' => 'research-documents', 'href' => BASE_URL . '/modules/faculty/pages/research-documents.php', 'icon' => 'fa-folder-open', 'label' => 'Research Documents'],
     ],
+];
+
+// ── Add Research Monitoring section (DUPLICATE PREVENTION: Check if not already present) ──
+if (!isset($facultyAccountNavGroups['Research Monitoring'])) {
+    $facultyAccountNavGroups['Research Monitoring'] = [
+        ['slug' => 'my-research-groups', 'href' => BASE_URL . '/modules/faculty/pages/my-research-groups.php', 'icon' => 'fa-users', 'label' => 'My Research Groups'],
+        ['slug' => 'research-progress-monitoring', 'href' => BASE_URL . '/modules/faculty/pages/research-progress-monitoring.php', 'icon' => 'fa-chart-line', 'label' => 'Research Progress'],
+        ['slug' => 'milestones-overview', 'href' => BASE_URL . '/modules/faculty/pages/milestones-overview.php', 'icon' => 'fa-tasks', 'label' => 'Milestones'],
+        ['slug' => 'submitted-updates', 'href' => BASE_URL . '/modules/faculty/pages/submitted-updates.php', 'icon' => 'fa-inbox', 'label' => 'Submitted Updates'],
+        ['slug' => 'adviser-feedback-history', 'href' => BASE_URL . '/modules/faculty/pages/adviser-feedback-history.php', 'icon' => 'fa-comments', 'label' => 'Adviser Feedback'],
+    ];
+}
+
+// Continue with existing sections
+$facultyAccountNavGroups += [
     'Grades Portal' => [
         ['slug' => 'grade-entry', 'href' => BASE_URL . '/modules/faculty/pages/grade-entry.php', 'icon' => 'fa-pen', 'label' => 'Grade Entry'],
         ['slug' => 'grade-records', 'href' => BASE_URL . '/modules/faculty/pages/grade-records.php', 'icon' => 'fa-list-alt', 'label' => 'Grade Records'],
@@ -371,3 +436,15 @@ $researchDirectorNavGroups = [
 </aside>
 
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
+<script>
+/* Restore sidebar scroll position immediately to prevent visible jump */
+(function () {
+    try {
+        var sb = document.getElementById('smsSidebar');
+        var saved = sessionStorage.getItem('sidebarScrollTop');
+        if (sb && saved !== null) {
+            sb.scrollTop = parseInt(saved, 10) || 0;
+        }
+    } catch (e) {}
+})();
+</script>

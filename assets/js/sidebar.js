@@ -10,6 +10,36 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (!sidebar) return;
 
+    // ── Scroll position persistence ──────────────────────────────────────────
+    // Restore saved scroll position immediately so there's no visible jump.
+    (function restoreSidebarScroll() {
+        try {
+            var saved = sessionStorage.getItem('sidebarScrollTop');
+            if (saved !== null) {
+                sidebar.scrollTop = parseInt(saved, 10) || 0;
+            }
+        } catch (e) { /* ignore */ }
+    })();
+
+    // Save scroll position before the page unloads (link click or navigation).
+    function saveSidebarScroll() {
+        try {
+            sessionStorage.setItem('sidebarScrollTop', String(sidebar.scrollTop));
+        } catch (e) { /* ignore */ }
+    }
+
+    // Capture scroll position when any sidebar link is about to navigate.
+    sidebar.addEventListener('click', function (e) {
+        var link = e.target.closest('a.nav-link, a.sidebar-sub, a.crad-sidebar-link');
+        if (link && link.href && !link.href.startsWith('#')) {
+            saveSidebarScroll();
+        }
+    });
+
+    // Also save on page hide (back/forward navigation, tab close, etc.).
+    window.addEventListener('pagehide', saveSidebarScroll);
+    // ─────────────────────────────────────────────────────────────────────────
+
     const DESKTOP_BREAKPOINT = 992;
 
     function isDesktop() {

@@ -1,0 +1,341 @@
+<?php
+/**
+ * Faculty Module - Milestones Overview
+ * Detailed view of all milestones for a specific research group
+ */
+
+$pageTitle = 'Milestones Overview';
+$activeModule = 'faculty';
+$activePage = 'milestones-overview';
+
+$pageBannerIcon        = 'fa-tasks';
+$pageBannerDescription = 'Detailed view of all milestones for the selected research group.';
+
+require_once __DIR__ . '/../../../config/config.php';
+require_once __DIR__ . '/../../../includes/breadcrumbs.php';
+require_once __DIR__ . '/../../../modules/crad/config/config.php';
+require_once __DIR__ . '/../../../modules/crad/includes/research-progress-helpers.php';
+
+$breadcrumbs = [
+    ['label' => 'Faculty',            'url' => BASE_URL . '/modules/faculty/index.php'],
+    ['label' => 'My Research Groups', 'url' => BASE_URL . '/modules/faculty/pages/my-research-groups.php'],
+    ['label' => 'Milestones Overview','url' => null],
+];
+
+require_once __DIR__ . '/../../../includes/layout-start.php';
+renderBreadcrumbs($breadcrumbs);
+
+try {
+    $crad = cradDb();
+    $tablesCheck = $crad->query("SHOW TABLES LIKE 'research_plans'")->fetch();
+    if (!$tablesCheck) throw new Exception('Not installed.');
+} catch (Throwable $e) {
+    echo '<div class="alert alert-warning m-3"><i class="fas fa-exclamation-triangle me-2"></i><strong>Module Not Installed</strong></div>';
+    require_once ROOT_PATH . '/includes/layout-end.php';
+    exit;
+}
+
+$groupNumber = $_GET['group'] ?? '';
+if (empty($groupNumber)) {
+?>
+<div class="glass-dashboard"><div class="glass-board">
+    <div class="glass-panel"><div class="glass-panel-body rm-empty">
+        <div class="rm-empty-icon"><i class="fas fa-layer-group" style="color:#f59e0b;"></i></div>
+        <h6>No Research Group Specified</h6>
+        <p>Please select a research group first to view its milestones.</p>
+        <a href="<?= BASE_URL ?>/modules/faculty/pages/my-research-groups.php" class="btn btn-primary mt-3">
+            <i class="fas fa-users me-2"></i>View My Research Groups
+        </a>
+    </div></div>
+</div></div>
+<?php require_once ROOT_PATH . '/includes/layout-end.php'; exit; }
+
+$adviserUserId = (int) ($_SESSION['user_id'] ?? 0);
+
+try {
+    $groupStmt = $crad->prepare("
+        SELECT rg.*, raa.adviser_user_id, raa.assignment_status
+        FROM research_groups rg
+        INNER JOIN research_adviser_assignments raa ON raa.group_number = rg.group_number
+        WHERE rg.group_number = ?
+          AND raa.adviser_user_id = ?
+          AND raa.assignment_status = 'Confirmed'
+          AND rg.status = 'Approved'
+        LIMIT 1
+    ");
+    $groupStmt->execute([$groupNumber, $adviserUserId]);
+    $researchGroup = $groupStmt->fetch(PDO::FETCH_ASSOC);
+} catch (PDOException $e) { $researchGroup = null; }
+
+if (!$researchGroup) {
+?>
+<div class="glass-dashboard"><div class="glass-board">
+    <div class="glass-panel"><div class="glass-panel-body rm-empty">
+        <div class="rm-empty-icon"><i class="fas fa-ban" style="color:#ef4444;"></i></div>
+        <h6>Access Denied</h6>
+        <p>This research group is not assigned to you or does not exist.</p>
+        <a href="<?= BASE_URL ?>/modules/faculty/pages/my-research-groups.php" class="btn btn-primary mt-3">
+            <i class="fas fa-users me-2"></i>View My Research Groups
+        </a>
+    </div></div>
+</div></div>
+<?php require_once ROOT_PATH . '/includes/layout-end.php'; exit; }
+
+$groupId = (int) $researchGroup['id'];
+$plan    = rpGetOrCreateResearchPlan($crad, $groupId);
+
+try {
+    $milestonesStmt = $crad->prepare("
+        SELECT rm.*,
+               (SELECT COUNT(*) FROM research_progress_updates rpu WHERE rpu.milestone_id = rm.id) AS update_count,
+               (SELECT COUNT(*) FROM research_progress_updates rpu WHERE rpu.milestone_id = rm.id
+                  AND rpu.milestone_status = 'Submitted for Review') AS pending_count,
+               (SELECT rpu.submitted_at FROM research_progress_updates rpu WHERE rpu.milestone_id = rm.id
+                ORDER BY rpu.submitted_at DESC LIMIT 1) AS last_update_at
+        FROM research_milestones rm
+        WHERE rm.research_plan_id = ?
+        ORDER BY rm.milestone_order ASC
+    ");
+    $milestonesStmt->execute([$plan['id']]);
+    $milestones = $milestonesStmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) { $milestones = []; }
+
+$overallProgress = (float) $plan['overall_progress'];
+$totalMilestones = count($milestones);
+$completedCount  = 0;
+$inProgressCount = 0;
+$pendingTotal    = 0;
+foreach ($milestones as $m) {
+    if (in_array($m['status'], ['Approved', 'Completed'])) $completedCount++;
+    if ($m['status'] === 'In Progress') $inProgressCount++;
+    $pendingTotal += (int) $m['pending_count'];
+}
+
+$statusMeta = [
+    'Not Started'          => ['color' => '#94a3b8', 'bg' => '#f1f5f9', 'icon' => 'circle',                'dot' => '#94a3b8'],
+    'In Progress'          => ['color' => '#f59e0b', 'bg' => '#fef3c7', 'icon' => 'spinner fa-spin',       'dot' => '#f59e0b'],
+    'Submitted for Review' => ['color' => '#3b82f6', 'bg' => '#dbeafe', 'icon' => 'clock',                 'dot' => '#3b82f6'],
+    'Revision Requested'   => ['color' => '#ef4444', 'bg' => '#fee2e2', 'icon' => 'exclamation-triangle',  'dot' => '#ef4444'],
+    'Approved'             => ['color' => '#10b981', 'bg' => '#d1fae5', 'icon' => 'check-circle',          'dot' => '#10b981'],
+    'Completed'            => ['color' => '#059669', 'bg' => '#d1fae5', 'icon' => 'check-double',          'dot' => '#059669'],
+];
+?>
+
+<div class="glass-dashboard" data-live-update-page="milestones-overview" data-group-number="<?= htmlspecialchars($groupNumber) ?>">
+    <div class="glass-board">
+
+        <!-- ── Page Header ───────────────────────────────── -->
+        <div class="rm-page-header">
+            <div class="rm-page-header-left">
+                <h4><i class="fas fa-tasks me-2" style="color:var(--sms-primary);"></i>Milestones Overview</h4>
+                <p>Detailed view of all research milestones</p>
+            </div>
+            <div class="rm-page-header-right">
+                <div class="rm-live-badge"><span class="rm-live-dot"></span>Live</div>
+                <a href="<?= BASE_URL ?>/modules/faculty/pages/research-progress-monitoring.php?group=<?= urlencode($groupNumber) ?>"
+                   class="rm-back-btn"><i class="fas fa-arrow-left"></i>Back</a>
+            </div>
+        </div>
+
+        <!-- ── Group Hero ────────────────────────────────── -->
+        <div class="rm-group-hero">
+            <div class="rm-group-hero-body">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <span class="badge"><?= htmlspecialchars($researchGroup['group_number']) ?></span>
+                    <span class="badge"><?= htmlspecialchars($researchGroup['academic_year']) ?></span>
+                </div>
+                <h5 class="mt-2 mb-1"><?= htmlspecialchars($researchGroup['group_name']) ?></h5>
+                <p><?= htmlspecialchars($researchGroup['research_title']) ?></p>
+
+                <div class="rm-hero-progress">
+                    <div class="rm-hero-progress-header">
+                        <span class="rm-hero-progress-label">Overall Progress</span>
+                        <span class="rm-hero-progress-pct" data-overall-progress-text><?= number_format($overallProgress, 1) ?>%</span>
+                    </div>
+                    <div class="rm-hero-progress-track">
+                        <div class="rm-hero-progress-fill" style="width:<?= $overallProgress ?>%;" data-overall-progress-bar></div>
+                    </div>
+                </div>
+
+                <div class="rm-group-hero-stats">
+                    <div class="rm-hero-stat">
+                        <span class="rm-hero-stat-value"><?= $totalMilestones ?></span>
+                        <span class="rm-hero-stat-label">Total</span>
+                    </div>
+                    <div class="rm-hero-stat">
+                        <span class="rm-hero-stat-value"><?= $completedCount ?></span>
+                        <span class="rm-hero-stat-label">Completed</span>
+                    </div>
+                    <div class="rm-hero-stat">
+                        <span class="rm-hero-stat-value"><?= $inProgressCount ?></span>
+                        <span class="rm-hero-stat-label">In Progress</span>
+                    </div>
+                    <div class="rm-hero-stat">
+                        <span class="rm-hero-stat-value"><?= $pendingTotal ?></span>
+                        <span class="rm-hero-stat-label">Pending Review</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Milestone Cards ───────────────────────────── -->
+        <?php if (!empty($milestones)): ?>
+            <div class="row g-4" data-milestones-container>
+                <?php foreach ($milestones as $ms):
+                    $mp      = (float) $ms['progress_percentage'];
+                    $status  = $ms['status'];
+                    $pending = (int) $ms['pending_count'];
+                    $updates = (int) $ms['update_count'];
+                    $sc      = $statusMeta[$status] ?? $statusMeta['Not Started'];
+
+                    // Overdue check
+                    $isOverdue = false;
+                    if ($ms['target_date'] && !in_array($status, ['Approved','Completed'])) {
+                        $isOverdue = strtotime($ms['target_date']) < time();
+                    }
+                ?>
+                    <div class="col-xl-4 col-lg-6" data-milestone-id="<?= $ms['id'] ?>">
+                        <div class="glass-panel rm-milestone-card h-100">
+                            <div class="glass-panel-body d-flex flex-column h-100">
+
+                                <!-- Header row -->
+                                <div class="rm-milestone-header">
+                                    <div class="rm-milestone-number"><?= $ms['milestone_order'] ?></div>
+                                    <div class="rm-milestone-header-text">
+                                        <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                                            <?php if ($pending > 0): ?>
+                                                <span class="badge bg-warning text-dark" style="font-size:0.7rem;font-weight:800;">
+                                                    <i class="fas fa-clock me-1"></i><?= $pending ?> Pending
+                                                </span>
+                                            <?php endif; ?>
+                                            <?php if ($isOverdue): ?>
+                                                <span class="badge bg-danger" style="font-size:0.7rem;font-weight:800;">
+                                                    <i class="fas fa-exclamation-circle me-1"></i>Overdue
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
+                                        <h6 class="rm-milestone-name"><?= htmlspecialchars($ms['milestone_name']) ?></h6>
+                                        <?php if (!empty($ms['description'])): ?>
+                                            <p class="rm-milestone-desc"><?= htmlspecialchars($ms['description']) ?></p>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="rm-milestone-header-pct" style="color:<?= $sc['color'] ?>;">
+                                        <?= number_format($mp, 0) ?>%
+                                    </div>
+                                </div>
+
+                                <!-- Progress bar -->
+                                <div class="rm-milestone-progress">
+                                    <div class="rm-milestone-fill" style="width:<?= $mp ?>%;background:<?= $sc['color'] ?>;"></div>
+                                </div>
+
+                                <!-- Status pill -->
+                                <div class="mb-3">
+                                    <span class="rm-status-pill" style="background:<?= $sc['bg'] ?>;color:<?= $sc['color'] ?>;">
+                                        <i class="fas fa-<?= $sc['icon'] ?>"></i>
+                                        <?= htmlspecialchars($status) ?>
+                                    </span>
+                                </div>
+
+                                <!-- Dates grid -->
+                                <?php if ($ms['start_date'] || $ms['target_date'] || $ms['actual_completion_date']): ?>
+                                <div class="rm-milestone-dates">
+                                    <?php if ($ms['start_date']): ?>
+                                        <div>
+                                            <div class="rm-milestone-date-item-label"><i class="fas fa-play me-1"></i>Start</div>
+                                            <div class="rm-milestone-date-item-value"><?= date('M d, Y', strtotime($ms['start_date'])) ?></div>
+                                        </div>
+                                    <?php endif; ?>
+                                    <?php if ($ms['target_date']): ?>
+                                        <div>
+                                            <div class="rm-milestone-date-item-label" style="color:<?= $isOverdue ? '#ef4444' : '' ?>">
+                                                <i class="fas fa-flag-checkered me-1"></i>Target
+                                            </div>
+                                            <div class="rm-milestone-date-item-value" style="color:<?= $isOverdue ? '#ef4444' : '' ?>">
+                                                <?= date('M d, Y', strtotime($ms['target_date'])) ?>
+                                            </div>
+                                        </div>
+                                    <?php endif; ?>
+                                    <?php if ($ms['actual_completion_date']): ?>
+                                        <div class="<?= ($ms['start_date'] || $ms['target_date']) ? '' : '' ?>" style="grid-column:1/-1;">
+                                            <div class="rm-milestone-date-item-label" style="color:#10b981;">
+                                                <i class="fas fa-check-circle me-1"></i>Completed
+                                            </div>
+                                            <div class="rm-milestone-date-item-value" style="color:#10b981;">
+                                                <?= date('M d, Y', strtotime($ms['actual_completion_date'])) ?>
+                                            </div>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                                <?php endif; ?>
+
+                                <!-- Activity stats -->
+                                <div class="d-flex gap-3 mb-3 px-1" style="font-size:0.8rem;">
+                                    <div>
+                                        <span style="font-size:1.25rem;font-weight:800;color:var(--sms-heading);"><?= $updates ?></span>
+                                        <div style="color:var(--sms-text-muted);font-weight:600;">Updates</div>
+                                    </div>
+                                    <div>
+                                        <span style="font-size:1.25rem;font-weight:800;color:var(--sms-heading);">
+                                            <?= $ms['last_update_at'] ? date('M d', strtotime($ms['last_update_at'])) : '—' ?>
+                                        </span>
+                                        <div style="color:var(--sms-text-muted);font-weight:600;">Last Activity</div>
+                                    </div>
+                                </div>
+
+                                <!-- Notes -->
+                                <?php if (!empty($ms['researcher_notes'])): ?>
+                                    <div class="rm-note-block mb-2" style="background:#eff6ff;border-left:3px solid #3b82f6;color:#1e40af;">
+                                        <div style="font-size:0.68rem;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;color:#3b82f6;">
+                                            <i class="fas fa-user me-1"></i>Researcher Notes
+                                        </div>
+                                        <?= nl2br(htmlspecialchars($ms['researcher_notes'])) ?>
+                                    </div>
+                                <?php endif; ?>
+
+                                <?php if (!empty($ms['adviser_remarks'])): ?>
+                                    <div class="rm-note-block mb-2" style="background:#f0fdf4;border-left:3px solid #10b981;color:#065f46;">
+                                        <div style="font-size:0.68rem;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;color:#10b981;">
+                                            <i class="fas fa-user-tie me-1"></i>Your Remarks
+                                        </div>
+                                        <?= nl2br(htmlspecialchars($ms['adviser_remarks'])) ?>
+                                    </div>
+                                <?php endif; ?>
+
+                                <!-- View Updates button -->
+                                <div class="mt-auto pt-2">
+                                    <a href="<?= BASE_URL ?>/modules/faculty/pages/submitted-updates.php?group=<?= urlencode($groupNumber) ?>&milestone_id=<?= $ms['id'] ?>"
+                                       class="rm-primary-action" style="font-size:0.85rem;">
+                                        <i class="fas fa-eye"></i>View Updates
+                                        <?php if ($pending > 0): ?>
+                                            <span class="badge bg-warning text-dark ms-auto"><?= $pending ?></span>
+                                        <?php endif; ?>
+                                    </a>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+
+        <?php else: ?>
+            <div class="glass-panel">
+                <div class="glass-panel-body rm-empty">
+                    <div class="rm-empty-icon"><i class="fas fa-tasks"></i></div>
+                    <h6>No Milestones Found</h6>
+                    <p>Milestones have not been initialized for this research group yet.</p>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <!-- Live refresh bar -->
+        <div class="rm-refresh-bar" id="rmRefreshBar">
+            <i class="fas fa-sync-alt rm-refresh-icon" id="rmRefreshIcon"></i>
+            <span id="rmRefreshText">Last updated: <?= date('g:i:s A') ?></span>
+        </div>
+
+    </div>
+</div>
+
+<?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>
