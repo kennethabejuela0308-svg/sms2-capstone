@@ -22,6 +22,7 @@ $bodyClass = $bodyClass ?? '';
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="description" content="<?= e(APP_NAME) ?> - <?= e(INSTITUTION) ?>">
     <title><?= e($pageTitle) ?> | <?= e(APP_SHORT_NAME) ?></title>
+    <link rel="icon" type="image/png" href="<?= BASE_URL ?>/images/bcp-logo-source.png">
 
     <!-- Apply theme before paint to avoid flash of wrong theme.
          Also set inline background so there's no white flash while
