@@ -18,6 +18,7 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../../../includes/authentication.php';
+require_once __DIR__ . '/../../../includes/uploads.php';
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/research-progress-helpers.php';
 
@@ -33,7 +34,15 @@ if ($currentRole !== 'student') {
 }
 
 $method = $_SERVER['REQUEST_METHOD'];
-$action = $_GET['action'] ?? $_POST['action'] ?? '';
+$rpJsonInput = [];
+if ($method === 'POST') {
+    $rawInput = file_get_contents('php://input');
+    $decodedInput = json_decode((string) $rawInput, true);
+    if (is_array($decodedInput)) {
+        $rpJsonInput = $decodedInput;
+    }
+}
+$action = $_GET['action'] ?? $_POST['action'] ?? ($rpJsonInput['action'] ?? '');
 
 try {
     $crad = cradDb();
@@ -123,14 +132,9 @@ function handleGetResearchPlan(PDO $crad, int $groupId, array $researchGroup): v
         return;
     }
     
-    // Get milestones
-    $milestoneStmt = $crad->prepare("
-        SELECT * FROM research_milestones 
-        WHERE research_plan_id = ?
-        ORDER BY milestone_order ASC
-    ");
-    $milestoneStmt->execute([$plan['id']]);
-    $milestones = $milestoneStmt->fetchAll(PDO::FETCH_ASSOC);
+    // Get milestones from Research Development progress only.
+    $milestones = rpGetMilestonesForPlan($crad, (int) $plan['id'], $groupId);
+    $plan = rpApplySyncedPlanProgress($plan, $milestones);
     
     // Get latest progress update
     $latestUpdateStmt = $crad->prepare("
@@ -161,7 +165,7 @@ function handleGetResearchPlan(PDO $crad, int $groupId, array $researchGroup): v
  */
 function handleGetMilestones(PDO $crad, int $groupId): void
 {
-    // Get plan first
+    // Get plan first. Read-only polling must not create a plan.
     $planStmt = $crad->prepare("SELECT id FROM research_plans WHERE research_group_id = ? LIMIT 1");
     $planStmt->execute([$groupId]);
     $plan = $planStmt->fetch(PDO::FETCH_ASSOC);
@@ -171,13 +175,7 @@ function handleGetMilestones(PDO $crad, int $groupId): void
         return;
     }
     
-    $milestoneStmt = $crad->prepare("
-        SELECT * FROM research_milestones 
-        WHERE research_plan_id = ?
-        ORDER BY milestone_order ASC
-    ");
-    $milestoneStmt->execute([$plan['id']]);
-    $milestones = $milestoneStmt->fetchAll(PDO::FETCH_ASSOC);
+    $milestones = rpGetMilestonesForPlan($crad, (int) $plan['id'], $groupId);
     
     echo json_encode([
         'success' => true,
@@ -190,8 +188,8 @@ function handleGetMilestones(PDO $crad, int $groupId): void
  */
 function handleSubmitProgress(PDO $crad, int $groupId, array $researchGroup, int $userId, string $userName): void
 {
-    // Get POST data
-    $input = json_decode(file_get_contents('php://input'), true) ?: $_POST;
+    // Get POST data. Multipart is used when a progress document is uploaded.
+    $input = $GLOBALS['rpJsonInput'] ?: $_POST;
     
     // Validate required fields
     if (!isset($input['milestone_id']) || !isset($input['new_progress'])) {
@@ -245,6 +243,41 @@ function handleSubmitProgress(PDO $crad, int $groupId, array $researchGroup, int
         return;
     }
     
+    $allowedStudentStatuses = ['Not Started', 'Submitted for Review'];
+    $milestoneStatus = trim((string) ($input['milestone_status'] ?? 'Not Started'));
+    if (!in_array($milestoneStatus, $allowedStudentStatuses, true)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Invalid milestone status selected. Students may only choose Not Started or Submitted for Review.']);
+        return;
+    }
+
+    $chapterNumber = rpMilestoneChapterNumber($milestone);
+    $uploadedDocument = null;
+    $uploadedPath = null;
+    $requiresDocument = $chapterNumber !== null && $milestoneStatus === 'Submitted for Review';
+    $document = is_array($_FILES['document'] ?? null) ? $_FILES['document'] : [];
+    if ($requiresDocument || (isset($document['error']) && (int) $document['error'] !== UPLOAD_ERR_NO_FILE)) {
+        $upload = smsSecureUpload($document, [
+            'subdir' => 'research_progress/g' . $groupId . '/u' . max(0, $userId),
+            'max_bytes' => 10 * 1024 * 1024,
+            'allowed' => smsUploadAllowedDocuments(),
+            'required' => $requiresDocument,
+        ]);
+        if (empty($upload['ok'])) {
+            http_response_code(400);
+            $chapterLabel = $chapterNumber ? ('Chapter ' . $chapterNumber) : 'milestone';
+            $message = $requiresDocument
+                ? 'Please upload the ' . $chapterLabel . ' document for Adviser review.'
+                : ($upload['error'] ?: 'Upload failed.');
+            echo json_encode(['success' => false, 'message' => $message]);
+            return;
+        }
+        if (!empty($upload['path'])) {
+            $uploadedDocument = $upload;
+            $uploadedPath = (string) $upload['path'];
+        }
+    }
+
     // Prepare progress update data
     $progressData = [
         'research_plan_id' => $plan['id'],
@@ -255,10 +288,13 @@ function handleSubmitProgress(PDO $crad, int $groupId, array $researchGroup, int
         'update_title' => $input['update_title'] ?? $milestone['milestone_name'] . ' Progress Update',
         'previous_progress' => (float) $milestone['progress_percentage'],
         'new_progress' => (float) $input['new_progress'],
-        'milestone_status' => $input['milestone_status'] ?? 'In Progress',
+        'milestone_status' => $milestoneStatus,
         'accomplishments' => $input['accomplishments'] ?? null,
         'problems_blockers' => $input['problems_blockers'] ?? null,
         'next_planned_activity' => $input['next_planned_activity'] ?? null,
+        'attachment_path' => $uploadedDocument['path'] ?? null,
+        'attachment_original_name' => $uploadedDocument['original_name'] ?? null,
+        'uploaded_document' => $uploadedDocument,
         'submission_token' => $submissionToken
     ];
     
@@ -266,6 +302,9 @@ function handleSubmitProgress(PDO $crad, int $groupId, array $researchGroup, int
     $result = rpSubmitProgressUpdate($crad, $progressData);
     
     if (!$result['success']) {
+        if ($uploadedPath && is_file($uploadedPath)) {
+            @unlink($uploadedPath);
+        }
         http_response_code(400);
         echo json_encode($result);
         return;

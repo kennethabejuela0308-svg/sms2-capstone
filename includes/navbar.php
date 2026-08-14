@@ -319,10 +319,10 @@ $navNotificationUnreadCount = count(array_filter($navNotifications, static fn(ar
         border: 0;
         border-radius: 14px;
         box-shadow: 0 16px 40px rgba(15, 23, 42, .18);
-        min-width: 380px;
+        min-width: 420px;
         overflow: hidden;
         padding: 0;
-        width: min(400px, calc(100vw - 1.5rem));
+        width: min(440px, calc(100vw - 1.5rem));
     }
 
     .sms-notification-head {
@@ -360,23 +360,33 @@ $navNotificationUnreadCount = count(array_filter($navNotifications, static fn(ar
     .sms-notification-list {
         max-height: min(520px, calc(100vh - 220px));
         overflow-y: auto;
-        padding: 0 .65rem .65rem;
+        padding: .1rem .65rem .65rem;
+        scrollbar-width: thin;
     }
 
     .sms-notification-item {
         align-items: flex-start;
         border-radius: 10px;
         color: var(--sms-text, #334155);
-        display: grid;
-        gap: .8rem;
-        grid-template-columns: 40px minmax(0, 1fr) 10px;
-        padding: .78rem .75rem;
+        display: flex;
+        gap: .85rem;
+        margin-bottom: .18rem;
+        padding: .82rem .8rem;
         text-decoration: none;
+        width: 100%;
     }
 
     .sms-notification-item:hover {
         background: rgba(36, 84, 198, .08);
         color: var(--sms-text, #334155);
+    }
+
+    .sms-notification-item.unread {
+        background: rgba(36, 84, 198, .04);
+    }
+
+    .sms-notification-item.unread:hover {
+        background: rgba(36, 84, 198, .1);
     }
 
     .sms-notification-icon {
@@ -397,36 +407,55 @@ $navNotificationUnreadCount = count(array_filter($navNotifications, static fn(ar
         min-width: 0;
     }
 
+    .sms-notification-copy {
+        flex: 1 1 auto;
+        min-width: 0;
+        padding-top: .05rem;
+    }
+
     .sms-notification-title {
         color: var(--sms-heading, #0f172a);
+        display: -webkit-box;
         font-size: .94rem;
         font-weight: 800;
-        line-height: 1.18;
-        overflow-wrap: anywhere;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        line-height: 1.24;
+        overflow: hidden;
+        overflow-wrap: break-word;
+        word-break: normal;
     }
 
     .sms-notification-preview {
         color: var(--sms-text-muted, #64748b);
+        display: -webkit-box;
         font-size: .8rem;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
         line-height: 1.25;
         margin-top: .2rem;
         overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        overflow-wrap: break-word;
+        white-space: normal;
+        word-break: normal;
     }
 
     .sms-notification-time {
         color: var(--sms-primary, #2454c6);
         font-size: .75rem;
         font-weight: 700;
-        margin-top: .28rem;
+        line-height: 1.2;
+        margin-top: .32rem;
     }
 
     .sms-notification-dot {
-        align-self: center;
+        align-self: flex-start;
         background: #3b82f6;
         border-radius: 50%;
+        flex: 0 0 9px;
         height: 9px;
+        margin-left: .15rem;
+        margin-top: .55rem;
         width: 9px;
     }
 
@@ -441,6 +470,31 @@ $navNotificationUnreadCount = count(array_filter($navNotifications, static fn(ar
     .sms-notification-empty[hidden],
     .sms-notification-item[hidden] {
         display: none !important;
+    }
+
+    @media (max-width: 575.98px) {
+        .sms-notification-dropdown {
+            min-width: 0;
+            width: calc(100vw - 1rem);
+        }
+
+        .sms-notification-head {
+            padding: 1rem 1rem .5rem;
+        }
+
+        .sms-notification-tabs {
+            padding: 0 1rem .7rem;
+        }
+
+        .sms-notification-list {
+            max-height: min(460px, calc(100vh - 180px));
+            padding: .05rem .5rem .55rem;
+        }
+
+        .sms-notification-item {
+            gap: .7rem;
+            padding: .78rem .65rem;
+        }
     }
 </style>
 

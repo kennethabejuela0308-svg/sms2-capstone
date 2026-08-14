@@ -73,6 +73,7 @@ function rcAssignmentEnsureSchema(PDO $pdo): void
     ");
 
     smsAssignmentNotificationEnsureSentSchema($pdo);
+    cradEnsureTitleApprovalAdviserAssignmentConsistency($pdo);
 
     try {
         $col = $pdo->query("SHOW COLUMNS FROM research_adviser_assignments LIKE 'adviser_user_id'")->fetch();
@@ -171,6 +172,11 @@ function rcAssignmentSyncApprovedTitleGroups(PDO $pdo): void
             if (!$pdo->query("SHOW INDEX FROM research_groups WHERE Key_name = " . $pdo->quote($name))->fetch()) {
                 $pdo->exec($sql);
             }
+        }
+
+        $relationship = cradEnsureTitleApprovalResearchGroupCascade($pdo);
+        if (empty($relationship['ok'])) {
+            throw new RuntimeException((string) $relationship['message']);
         }
 
         $proposalNumberCol = $pdo->query("SHOW COLUMNS FROM title_approvals LIKE 'proposal_number'")->fetch();
@@ -285,10 +291,6 @@ function rcAssignmentResetStaleAssignments(PDO $pdo): void
         $pdo->exec("
             UPDATE research_adviser_assignments a
                SET a.assignment_status = 'Pending',
-                   a.assigned_by = NULL,
-                   a.assigned_at = NULL,
-                   a.notification_sent_at = NULL,
-                   a.notification_sent_by = NULL,
                    a.updated_at = NOW()
              WHERE a.assignment_status = 'Assigned'
                AND NOT EXISTS (

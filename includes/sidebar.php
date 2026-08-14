@@ -100,6 +100,14 @@ $studentResearchProposalHref = $studentReturnedTitleApprovalId > 0
     ? BASE_URL . '/notifications/view.php?type=returned_title_approval&title_approval=' . $studentReturnedTitleApprovalId
     : BASE_URL . '/modules/student-portal/pages/research-proposal-submission.php';
 
+$studentResearchDevelopmentItems = [
+    ['slug' => 'my-research',       'href' => BASE_URL . '/modules/student-portal/pages/my-research.php',       'icon' => 'fa-book',            'label' => 'My Research',       'locked' => false],
+    ['slug' => 'research-plan',     'href' => BASE_URL . '/modules/student-portal/pages/research-plan.php',     'icon' => 'fa-project-diagram', 'label' => 'Research Plan',     'locked' => false],
+    ['slug' => 'milestones',        'href' => BASE_URL . '/modules/student-portal/pages/milestones.php',        'icon' => 'fa-tasks',           'label' => 'Milestones',        'locked' => false],
+    ['slug' => 'progress-updates',  'href' => BASE_URL . '/modules/student-portal/pages/progress-updates.php',  'icon' => 'fa-chart-line',      'label' => 'Progress Updates',  'locked' => false],
+    ['slug' => 'adviser-feedback',  'href' => BASE_URL . '/modules/student-portal/pages/adviser-feedback.php',  'icon' => 'fa-comments',        'label' => 'Adviser Feedback',  'locked' => false],
+];
+
 // ── Check if student has an approved research group ──────────────────────────
 $studentHasResearchGroup = false;
 if ($isStudentPortal && isset($sidebarCrad) && $sidebarCrad instanceof PDO) {
@@ -141,6 +149,7 @@ $studentNavGroups = [
     'Research' => [
         ['slug' => 'research-proposal-submission', 'href' => $studentResearchProposalHref, 'icon' => 'fa-flask',            'label' => 'Research Proposal', 'locked' => false],
     ],
+    'Research Development' => $studentResearchDevelopmentItems,
     'Document Submission' => [
         ['slug' => 'submit-chapters', 'href' => BASE_URL . '/modules/student-portal/pages/submit-chapters.php', 'icon' => 'fa-file-upload', 'label' => 'Submit Chapter 1-3', 'locked' => false],
         ['slug' => 'my-submissions', 'href' => BASE_URL . '/modules/student-portal/pages/my-submissions.php', 'icon' => 'fa-folder-open', 'label' => 'My Submissions', 'locked' => false],

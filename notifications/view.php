@@ -391,10 +391,11 @@ require_once ROOT_PATH . '/includes/layout-start.php';
         padding: 2rem 0;
     }
     .notification-view-card {
-        background: var(--sms-card-bg, #fff);
+        background: var(--sms-surface-elevated, var(--sms-card-bg, #fff));
         border: 1px solid var(--sms-border, #dbe4f0);
         border-radius: 12px;
         box-shadow: 0 18px 46px rgba(15, 23, 42, .14);
+        color: var(--sms-text, #334155);
         max-width: 760px;
         overflow: hidden;
         width: min(760px, 100%);
@@ -433,7 +434,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
         margin: 0;
         overflow-wrap: anywhere;
     }
-    .notification-view-title span {
+    .notification-view-title time {
         color: var(--sms-text-muted, #64748b);
         display: block;
         font-size: .82rem;
@@ -454,6 +455,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
     .notification-view-badge.success { background: #16834c; }
     .notification-view-badge.danger { background: #dc2626; }
     .notification-view-body {
+        background: var(--sms-surface-elevated, var(--sms-card-bg, #fff));
         padding: 1.2rem;
     }
     .notification-view-grid {
@@ -483,10 +485,10 @@ require_once ROOT_PATH . '/includes/layout-start.php';
         overflow-wrap: anywhere;
     }
     .notification-view-message {
-        background: #f8fafc;
-        border: 1px solid #dbe4f0;
+        background: var(--sms-surface-muted, #f8fafc);
+        border: 1px solid var(--sms-border, #dbe4f0);
         border-radius: 8px;
-        color: #172033;
+        color: var(--sms-text-strong, #172033);
         font-weight: 650;
         margin-top: .9rem;
         padding: .9rem;
@@ -522,6 +524,32 @@ require_once ROOT_PATH . '/includes/layout-start.php';
     .notification-view-empty {
         padding: 2rem;
         text-align: center;
+    }
+    [data-theme="dark"] .notification-view-card {
+        background: rgba(18, 28, 52, .94);
+        border-color: rgba(148, 163, 184, .22);
+        box-shadow: 0 18px 46px rgba(0, 0, 0, .34);
+    }
+    [data-theme="dark"] .notification-view-head {
+        background: linear-gradient(135deg, rgba(30, 58, 138, .34), rgba(15, 23, 42, .72));
+        border-bottom-color: rgba(148, 163, 184, .2);
+    }
+    [data-theme="dark"] .notification-view-title h1,
+    [data-theme="dark"] .notification-view-item strong,
+    [data-theme="dark"] .notification-view-message {
+        color: var(--sms-text-strong, #f1f5f9);
+    }
+    [data-theme="dark"] .notification-view-title time,
+    [data-theme="dark"] .notification-view-item span {
+        color: var(--sms-text-muted, #94a3b8);
+    }
+    [data-theme="dark"] .notification-view-body {
+        background: rgba(18, 28, 52, .86);
+    }
+    [data-theme="dark"] .notification-view-item,
+    [data-theme="dark"] .notification-view-message {
+        background: rgba(15, 23, 42, .58);
+        border-color: rgba(148, 163, 184, .22);
     }
     @media (max-width: 640px) {
         .notification-view-head {

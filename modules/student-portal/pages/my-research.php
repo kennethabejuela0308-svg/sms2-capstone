@@ -69,14 +69,9 @@ $groupId = (int) $researchGroup['id'];
 // Get or create research plan (idempotent)
 $plan = rpGetOrCreateResearchPlan($crad, $groupId);
 
-// Get milestones
-$milestoneStmt = $crad->prepare("
-    SELECT * FROM research_milestones 
-    WHERE research_plan_id = ?
-    ORDER BY milestone_order ASC
-");
-$milestoneStmt->execute([$plan['id']]);
-$milestones = $milestoneStmt->fetchAll(PDO::FETCH_ASSOC);
+// Get milestones with Chapter 1-3 synced from document submissions
+$milestones = rpGetMilestonesForPlan($crad, (int) $plan['id'], $groupId);
+$plan = rpApplySyncedPlanProgress($plan, $milestones);
 
 // Get latest progress update
 $latestUpdateStmt = $crad->prepare("
@@ -227,7 +222,7 @@ $overallProgress = (float) $plan['overall_progress'];
                                 </div>
                                 <div class="d-flex justify-content-between align-items-center">
                                     <span style="font-size:0.75rem;color:var(--sms-text-muted);" data-milestone-status><?= htmlspecialchars($status) ?></span>
-                                    <span style="font-size:0.8rem;font-weight:700;color:var(--sms-heading);"><?= number_format($progress, 0) ?>%</span>
+                                    <span style="font-size:0.8rem;font-weight:700;color:var(--sms-heading);" data-milestone-progress-text><?= number_format($progress, 0) ?>%</span>
                                 </div>
                             </div>
                         </div>

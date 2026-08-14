@@ -338,31 +338,6 @@ function rcmRoster(PDO $pdo): array
 }
 
 /**
- * Demote coordinator assignments to Inactive when their group no longer has a
- * fully approved Title Approval Form, or the group / approval is gone. This
- * keeps the management view accurate without manual cleanup.
- */
-function rcmSyncStatus(PDO $pdo): void
-{
-    $pdo->exec(
-        "UPDATE research_coordinator_assignments a
-         LEFT JOIN research_groups g ON g.id = a.research_group_id
-         LEFT JOIN title_approvals t ON t.id = a.title_approval_id
-         SET a.status = 'Inactive'
-         WHERE a.status = 'Active'
-           AND (g.id IS NULL OR a.title_approval_id IS NULL OR t.id IS NULL
-                OR NOT (
-                    t.status = 'Approved'
-                    AND t.coordinator_status = 'Approved'
-                    AND t.crad_status = 'Approved'
-                    AND t.adviser_signature_data IS NOT NULL AND t.adviser_signature_data <> ''
-                    AND t.coordinator_signature_data IS NOT NULL AND t.coordinator_signature_data <> ''
-                    AND t.crad_signature_data IS NOT NULL AND t.crad_signature_data <> ''
-                ))"
-    );
-}
-
-/**
  * Rich read-only details for the View Details modal.
  * Returns the research group record, its members (from the linked proposal),
  * and the full coordinator assignment history for that group.
@@ -480,7 +455,6 @@ function rcmCoordinatorDetails(PDO $pdo, string $key): array
 }
 
 rcmEnsureSchema($pdo);
-rcmSyncStatus($pdo);
 
 function rcmPayload(PDO $pdo, ?string $flashMessage = null, bool $flashOk = true): array
 {

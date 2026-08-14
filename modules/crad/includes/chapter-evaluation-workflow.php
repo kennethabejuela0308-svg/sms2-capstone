@@ -9,6 +9,7 @@ require_once ROOT_PATH . '/includes/security.php';
 require_once ROOT_PATH . '/includes/audit.php';
 require_once ROOT_PATH . '/includes/uploads.php';
 require_once ROOT_PATH . '/modules/crad/config/config.php';
+require_once ROOT_PATH . '/modules/crad/includes/research-progress-helpers.php';
 
 function chapterRegistryFullyApprovedClause(string $alias = 't'): string
 {
@@ -328,6 +329,91 @@ function chapterSubmissionSelectSql(): string
             LEFT JOIN chapter_evaluations ce ON ce.submission_id = cs.id";
 }
 
+function chapterRegistryGroupGateSql(string $groupAlias = 'rg'): string
+{
+    return "{$groupAlias}.title_approval_id IS NOT NULL
+        AND EXISTS (
+            SELECT 1
+            FROM title_approvals gate_t
+            WHERE gate_t.id = {$groupAlias}.title_approval_id
+              AND " . chapterRegistryFullyApprovedClause('gate_t') . "
+              AND TRIM(COALESCE({$groupAlias}.research_title, '')) <> ''
+              AND TRIM(COALESCE({$groupAlias}.academic_year, '')) <> ''
+              AND (
+                    TRIM(COALESCE({$groupAlias}.college_dept, '')) <> ''
+                 OR TRIM(COALESCE(gate_t.department, '')) <> ''
+              )
+        )
+        AND EXISTS (
+            SELECT 1
+            FROM research_coordinator_assignments gate_ca
+            WHERE gate_ca.status = 'Active'
+              AND (
+                    gate_ca.research_group_id = {$groupAlias}.id
+                 OR (gate_ca.research_group_id IS NULL AND gate_ca.group_number = {$groupAlias}.group_number)
+              )
+        )
+        AND EXISTS (
+            SELECT 1
+            FROM research_adviser_assignments gate_aa
+            WHERE (
+                    gate_aa.research_group_id = {$groupAlias}.id
+                 OR (gate_aa.research_group_id IS NULL AND gate_aa.group_number = {$groupAlias}.group_number)
+              )
+        )";
+}
+
+function chapterCurrentLatestSubmissionSql(string $submissionAlias = 'cs'): string
+{
+    return "{$submissionAlias}.id = (
+        SELECT latest_cs.id
+        FROM chapter_submissions latest_cs
+        WHERE latest_cs.research_group_id = {$submissionAlias}.research_group_id
+          AND latest_cs.chapter_number = {$submissionAlias}.chapter_number
+        ORDER BY latest_cs.version_number DESC, latest_cs.id DESC
+        LIMIT 1
+    )";
+}
+
+function chapterSubmissionIsCurrentValid(PDO $crad, int $submissionId): bool
+{
+    if ($submissionId <= 0) {
+        return false;
+    }
+    $stmt = $crad->prepare(
+        "SELECT 1
+         FROM chapter_submissions cs
+         INNER JOIN research_groups rg ON rg.id = cs.research_group_id
+         WHERE cs.id = :id
+           AND " . chapterCurrentLatestSubmissionSql('cs') . "
+           AND " . chapterRegistryGroupGateSql('rg') . "
+         LIMIT 1"
+    );
+    $stmt->execute([':id' => $submissionId]);
+    return (bool) $stmt->fetchColumn();
+}
+
+function chapterSubmissionIsActiveEvaluation(PDO $crad, int $submissionId): bool
+{
+    if ($submissionId <= 0) {
+        return false;
+    }
+    $stmt = $crad->prepare(
+        "SELECT 1
+         FROM chapter_submissions cs
+         INNER JOIN research_groups rg ON rg.id = cs.research_group_id
+         LEFT JOIN chapter_evaluations ce ON ce.submission_id = cs.id
+         WHERE cs.id = :id
+           AND cs.status IN ('Submitted','Under Review')
+           AND ce.id IS NULL
+           AND " . chapterCurrentLatestSubmissionSql('cs') . "
+           AND " . chapterRegistryGroupGateSql('rg') . "
+         LIMIT 1"
+    );
+    $stmt->execute([':id' => $submissionId]);
+    return (bool) $stmt->fetchColumn();
+}
+
 function chapterLatestSubmissionsForGroup(PDO $crad, int $groupId): array
 {
     $stmt = $crad->prepare(
@@ -362,7 +448,12 @@ function chapterEvaluatorQueue(PDO $crad, bool $history = false): array
     if (!chapterIsEvaluator()) {
         return [];
     }
-    $where = $history ? "ce.id IS NOT NULL" : "cs.status IN ('Submitted','Under Review') AND ce.id IS NULL";
+    $where = $history
+        ? "ce.id IS NOT NULL"
+        : "cs.status IN ('Submitted','Under Review')
+           AND ce.id IS NULL
+           AND " . chapterCurrentLatestSubmissionSql('cs') . "
+           AND " . chapterRegistryGroupGateSql('rg');
     $stmt = $crad->query(
         chapterSubmissionSelectSql() . "
          WHERE {$where}
@@ -392,7 +483,13 @@ function chapterStudentCanAccess(array $submission): bool
 
 function chapterEvaluatorCanAccess(array $submission): bool
 {
-    return chapterIsEvaluator();
+    if (!chapterIsEvaluator()) {
+        return false;
+    }
+    if (!empty($submission['evaluation_id'])) {
+        return true;
+    }
+    return chapterSubmissionIsActiveEvaluation(chapterDb(), (int) ($submission['id'] ?? 0));
 }
 
 function chapterStatusClass(string $status): string
@@ -531,6 +628,16 @@ function chapterMaySubmitNewVersion(PDO $crad, int $groupId, int $chapter): arra
     return ['ok' => false, 'error' => 'A newer version can only be submitted after the latest submission needs revision.'];
 }
 
+function chapterAdviserSubmissionApproval(PDO $crad, int $groupId, int $chapter): ?array
+{
+    return rpAdviserApprovedChapter($crad, $groupId, $chapter);
+}
+
+function chapterSubmissionEligibility(PDO $crad, int $groupId): array
+{
+    return rpChapterSubmissionEligibility($crad, $groupId);
+}
+
 function chapterSubmitDocument(PDO $crad, array $group, int $chapter, array $file, string $notes, string $token): array
 {
     $registeredGroup = chapterRegisteredStudentGroup($crad);
@@ -541,6 +648,12 @@ function chapterSubmitDocument(PDO $crad, array $group, int $chapter, array $fil
     $allowed = chapterAllowedChapters();
     if (!isset($allowed[$chapter])) {
         return ['ok' => false, 'error' => 'Invalid chapter selected.'];
+    }
+    if (!chapterAdviserSubmissionApproval($crad, (int) $group['id'], $chapter)) {
+        return [
+            'ok' => false,
+            'error' => 'Adviser approval is required before this chapter can be submitted for Grammarian evaluation.',
+        ];
     }
     if ($token === '' || !preg_match('/^[a-f0-9]{32,64}$/', $token)) {
         return ['ok' => false, 'error' => 'Invalid submission token. Please refresh and try again.'];
@@ -623,6 +736,9 @@ function chapterStartReview(PDO $crad, array $submission): array
     if (!chapterEvaluatorCanAccess($submission)) {
         return ['ok' => false, 'error' => 'Access denied.'];
     }
+    if (!chapterSubmissionIsActiveEvaluation($crad, (int) ($submission['id'] ?? 0))) {
+        return ['ok' => false, 'error' => 'This submission is no longer in the active evaluation queue.'];
+    }
     if ((string) $submission['status'] !== 'Submitted') {
         return ['ok' => true, 'message' => 'Review already started.'];
     }
@@ -671,6 +787,12 @@ function chapterSubmitEvaluation(PDO $crad, array $submission, array $data): arr
 {
     if (!chapterEvaluatorCanAccess($submission)) {
         return ['ok' => false, 'error' => 'Access denied.'];
+    }
+    if (!chapterSubmissionIsActiveEvaluation($crad, (int) ($submission['id'] ?? 0))) {
+        return ['ok' => false, 'error' => 'This submission is no longer in the active evaluation queue.'];
+    }
+    if ((string) ($submission['status'] ?? '') !== 'Under Review') {
+        return ['ok' => false, 'error' => 'Please start the review before submitting an evaluation.'];
     }
     if (!empty($submission['evaluation_id'])) {
         return ['ok' => false, 'error' => 'This submission already has an evaluation.'];

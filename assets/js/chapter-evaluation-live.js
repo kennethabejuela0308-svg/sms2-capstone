@@ -44,7 +44,7 @@
 
     function evaluatorRows(rows) {
         if (!rows.length) {
-            return '<tr><td colspan="8" class="text-center text-muted py-4">No chapter submissions are currently waiting for evaluation.</td></tr>';
+            return '<tr><td colspan="8" class="text-center text-muted py-4"><strong>No Submissions for Evaluation</strong><br>There are currently no valid Chapter 1-3 submissions awaiting evaluation.</td></tr>';
         }
         return rows.map(function (r) {
             return '<tr>' +
@@ -72,7 +72,7 @@
                 var fresh = doc.querySelector('[data-chapter-live="student"]');
                 if (!fresh) return false;
                 root.innerHTML = fresh.innerHTML;
-                ['data-registry-available', 'data-latest-update', 'data-document-base'].forEach(function (attr) {
+                ['data-registry-available', 'data-latest-update', 'data-eligibility-update', 'data-document-base'].forEach(function (attr) {
                     if (fresh.hasAttribute(attr)) {
                         root.setAttribute(attr, fresh.getAttribute(attr) || '');
                     }
@@ -103,10 +103,17 @@
                     if (studentBody) studentBody.innerHTML = studentRows(data.submissions || []);
                     var latest = data.latest_update || '';
                     var known = root.getAttribute('data-latest-update') || '';
+                    var eligibilityLatest = data.eligibility_update || '';
+                    var knownEligibility = root.getAttribute('data-eligibility-update') || '';
+                    if (eligibilityLatest !== knownEligibility) {
+                        refreshPageFragment();
+                        return;
+                    }
                     if (!studentBody && known && latest && known !== latest) {
                         window.location.reload();
                     }
                     if (latest) root.setAttribute('data-latest-update', latest);
+                    root.setAttribute('data-eligibility-update', eligibilityLatest);
                 }
                 if (mode === 'evaluator') {
                     var evaluatorBody = document.querySelector('[data-evaluator-queue-rows]');

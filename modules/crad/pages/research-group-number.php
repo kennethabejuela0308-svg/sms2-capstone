@@ -88,6 +88,11 @@ function rgnEnsureSchema(PDO $pdo): void
             $pdo->exec($sql);
         }
     }
+
+    $relationship = cradEnsureTitleApprovalResearchGroupCascade($pdo);
+    if (empty($relationship['ok'])) {
+        throw new RuntimeException((string) $relationship['message']);
+    }
 }
 
 function rgnEnsureTitleApprovalSchema(PDO $pdo): void

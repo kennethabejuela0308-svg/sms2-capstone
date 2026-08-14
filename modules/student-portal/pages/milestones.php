@@ -69,14 +69,7 @@ $plan = rpGetOrCreateResearchPlan($crad, $groupId);
 
 // Get milestones with latest update info
 try {
-    $milestoneStmt = $crad->prepare("
-        SELECT rm.*
-        FROM research_milestones rm
-        WHERE rm.research_plan_id = ?
-        ORDER BY rm.milestone_order ASC
-    ");
-    $milestoneStmt->execute([$plan['id']]);
-    $milestones = $milestoneStmt->fetchAll(PDO::FETCH_ASSOC);
+    $milestones = rpGetMilestonesForPlan($crad, (int) $plan['id'], $groupId);
     
     // Get latest update for each milestone separately
     foreach ($milestones as &$milestone) {
@@ -109,6 +102,7 @@ try {
     $milestones = [];
 }
 
+$plan = rpApplySyncedPlanProgress($plan, $milestones);
 $overallProgress = (float) $plan['overall_progress'];
 ?>
 

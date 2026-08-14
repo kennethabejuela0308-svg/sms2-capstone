@@ -113,6 +113,7 @@ function smsCurrentUserNotifications(int $limit = 8): array
         $where = smsCurrentUserNotificationWhere();
         $role = (string) ($_SESSION['user_role_key'] ?? '');
         $studentChapterFilter = '';
+        $evaluatorChapterFilter = '';
         $registeredGroup = null;
         if ($role === 'student') {
             $registeredGroup = chapterRegisteredStudentGroup($crad);
@@ -139,12 +140,38 @@ function smsCurrentUserNotifications(int $limit = 8): array
                  OR (n.type NOT IN ('submitted', 'new_submission', 'under_review', 'needs_revision', 'accepted'))
                )";
         }
+        if ($role === 'grammarian') {
+            $evaluatorChapterFilter = "
+               AND (
+                    n.type <> 'new_submission'
+                 OR (
+                        cs.id IS NOT NULL
+                    AND cs.status IN ('Submitted','Under Review')
+                    AND ce.id IS NULL
+                    AND " . chapterCurrentLatestSubmissionSql('cs') . "
+                    AND " . chapterRegistryGroupGateSql('rg') . "
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM chapter_evaluation_notifications newer_n
+                        WHERE newer_n.submission_id = n.submission_id
+                          AND newer_n.type = n.type
+                          AND COALESCE(newer_n.recipient_user_id, 0) = COALESCE(n.recipient_user_id, 0)
+                          AND COALESCE(newer_n.recipient_role, '') = COALESCE(n.recipient_role, '')
+                          AND COALESCE(newer_n.recipient_email, '') = COALESCE(n.recipient_email, '')
+                          AND newer_n.id > n.id
+                    )
+                 )
+               )";
+        }
         $stmt = $crad->prepare(
             "SELECT n.id, n.event_key, n.type, n.title, n.body, n.url, n.is_read, n.created_at
              FROM chapter_evaluation_notifications n
              LEFT JOIN chapter_submissions cs ON cs.id = n.submission_id
+             LEFT JOIN research_groups rg ON rg.id = cs.research_group_id
+             LEFT JOIN chapter_evaluations ce ON ce.submission_id = cs.id
              WHERE {$where['sql']}
              {$studentChapterFilter}
+             {$evaluatorChapterFilter}
              ORDER BY n.created_at DESC, n.id DESC
              LIMIT :limit"
         );
@@ -748,7 +775,7 @@ function smsNotificationRequiredExpertise(string $title): string
 
 function smsNotificationPayloadForCurrentUser(): array
 {
-    $rows = smsCurrentUserNotifications(8);
+    $rows = smsCurrentUserNotifications(50);
     $items = array_map(static function (array $row): array {
         $created = strtotime((string) ($row['created_at'] ?? '')) ?: time();
         $status = (string) ($row['status'] ?? 'read');

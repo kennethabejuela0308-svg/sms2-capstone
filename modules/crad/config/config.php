@@ -69,3 +69,593 @@ function cradDb(): ?PDO
         return null;
     }
 }
+
+function cradValidTitleApprovalWhereSql(string $alias = 't'): string
+{
+    return "{$alias}.status = 'Approved'
+        AND {$alias}.coordinator_status = 'Approved'
+        AND {$alias}.crad_status = 'Approved'
+        AND {$alias}.adviser_signature_data IS NOT NULL
+        AND {$alias}.adviser_signature_data <> ''
+        AND {$alias}.coordinator_signature_data IS NOT NULL
+        AND {$alias}.coordinator_signature_data <> ''
+        AND {$alias}.crad_signature_data IS NOT NULL
+        AND {$alias}.crad_signature_data <> ''";
+}
+
+function cradFindForeignKey(PDO $pdo, string $table, string $column, string $referencedTable, string $referencedColumn): ?array
+{
+    $stmt = $pdo->prepare("
+        SELECT
+            kcu.CONSTRAINT_NAME,
+            rc.DELETE_RULE,
+            rc.UPDATE_RULE
+        FROM information_schema.KEY_COLUMN_USAGE kcu
+        INNER JOIN information_schema.REFERENTIAL_CONSTRAINTS rc
+            ON rc.CONSTRAINT_SCHEMA = kcu.CONSTRAINT_SCHEMA
+           AND rc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+           AND rc.TABLE_NAME = kcu.TABLE_NAME
+        WHERE kcu.TABLE_SCHEMA = DATABASE()
+          AND kcu.TABLE_NAME = :table_name
+          AND kcu.COLUMN_NAME = :column_name
+          AND kcu.REFERENCED_TABLE_NAME = :referenced_table
+          AND kcu.REFERENCED_COLUMN_NAME = :referenced_column
+        LIMIT 1
+    ");
+    $stmt->execute([
+        ':table_name' => $table,
+        ':column_name' => $column,
+        ':referenced_table' => $referencedTable,
+        ':referenced_column' => $referencedColumn,
+    ]);
+    $row = $stmt->fetch();
+    return $row ?: null;
+}
+
+function cradDropForeignKey(PDO $pdo, string $table, string $constraintName): void
+{
+    $pdo->exec('ALTER TABLE `' . str_replace('`', '``', $table) . '` DROP FOREIGN KEY `' . str_replace('`', '``', $constraintName) . '`');
+}
+
+function cradEnsureResearchGroupHistoryProtection(PDO $pdo): array
+{
+    $result = [
+        'ok' => true,
+        'changed' => false,
+        'message' => 'Research group child history protection is ready.',
+    ];
+
+    foreach (['research_groups', 'research_plans'] as $table) {
+        if (!$pdo->query("SHOW TABLES LIKE " . $pdo->quote($table))->fetchColumn()) {
+            return [
+                'ok' => false,
+                'changed' => false,
+                'message' => 'Missing required table: ' . $table,
+            ];
+        }
+    }
+
+    $column = $pdo->query("SHOW COLUMNS FROM research_plans LIKE 'research_group_id'")->fetch();
+    if (!$column) {
+        return [
+            'ok' => false,
+            'changed' => false,
+            'message' => 'research_plans.research_group_id is missing.',
+        ];
+    }
+
+    $fk = cradFindForeignKey($pdo, 'research_plans', 'research_group_id', 'research_groups', 'id');
+    $needsNullable = strtoupper((string) ($column['Null'] ?? '')) !== 'YES';
+    $needsSetNull = !$fk || strtoupper((string) ($fk['DELETE_RULE'] ?? '')) !== 'SET NULL';
+
+    if (!$needsNullable && !$needsSetNull) {
+        return $result;
+    }
+
+    if ($fk) {
+        cradDropForeignKey($pdo, 'research_plans', (string) $fk['CONSTRAINT_NAME']);
+        $result['changed'] = true;
+    }
+
+    if ($needsNullable) {
+        $pdo->exec('ALTER TABLE research_plans MODIFY research_group_id INT UNSIGNED NULL COMMENT ' . $pdo->quote('FK to research_groups; nullable to preserve history if group is removed'));
+        $result['changed'] = true;
+    }
+
+    $pdo->exec("
+        ALTER TABLE research_plans
+        ADD CONSTRAINT fk_rp_research_group
+        FOREIGN KEY (research_group_id)
+        REFERENCES research_groups(id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
+    ");
+    $result['changed'] = true;
+    $result['message'] = 'Updated research_plans FK to preserve history when a research group is removed.';
+    return $result;
+}
+
+function cradCountOrphanResearchGroups(PDO $pdo): int
+{
+    if (!$pdo->query("SHOW TABLES LIKE 'title_approvals'")->fetchColumn()
+        || !$pdo->query("SHOW TABLES LIKE 'research_groups'")->fetchColumn()) {
+        return 0;
+    }
+
+    $stmt = $pdo->query("
+        SELECT COUNT(*)
+        FROM research_groups rg
+        LEFT JOIN title_approvals t ON t.id = rg.title_approval_id
+        WHERE rg.title_approval_id IS NOT NULL
+          AND t.id IS NULL
+    ");
+    return (int) $stmt->fetchColumn();
+}
+
+function cradReconcileOrphanResearchGroups(PDO $pdo): array
+{
+    $protection = cradEnsureResearchGroupHistoryProtection($pdo);
+    if (empty($protection['ok'])) {
+        return [
+            'ok' => false,
+            'changed' => false,
+            'deleted' => 0,
+            'message' => $protection['message'],
+        ];
+    }
+
+    $pdo->beginTransaction();
+    try {
+        $stmt = $pdo->query("
+            SELECT rg.id
+            FROM research_groups rg
+            LEFT JOIN title_approvals t ON t.id = rg.title_approval_id
+            WHERE rg.title_approval_id IS NOT NULL
+              AND t.id IS NULL
+            ORDER BY rg.id
+            FOR UPDATE
+        ");
+        $ids = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN) ?: []);
+        if (!$ids) {
+            $pdo->commit();
+            return [
+                'ok' => true,
+                'changed' => !empty($protection['changed']),
+                'deleted' => 0,
+                'message' => 'No orphaned research groups found.',
+            ];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $delete = $pdo->prepare("DELETE FROM research_groups WHERE id IN ({$placeholders})");
+        $delete->execute($ids);
+        $deleted = $delete->rowCount();
+        $pdo->commit();
+
+        return [
+            'ok' => true,
+            'changed' => true,
+            'deleted' => $deleted,
+            'message' => 'Removed ' . $deleted . ' orphaned research group(s) by title_approval_id.',
+        ];
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
+    }
+}
+
+function cradEnsureTitleApprovalResearchGroupCascade(PDO $pdo, bool $reconcileExisting = false): array
+{
+    $result = [
+        'ok' => true,
+        'changed' => false,
+        'reconciled' => 0,
+        'message' => 'Title approval research group FK is ready.',
+    ];
+
+    $tables = $pdo->query("
+        SELECT TABLE_NAME
+        FROM information_schema.TABLES
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME IN ('title_approvals', 'research_groups')
+    ")->fetchAll(PDO::FETCH_COLUMN);
+
+    foreach (['title_approvals', 'research_groups'] as $requiredTable) {
+        if (!in_array($requiredTable, $tables, true)) {
+            return [
+                'ok' => false,
+                'changed' => false,
+                'message' => 'Missing required table: ' . $requiredTable,
+            ];
+        }
+    }
+
+    if (!$pdo->query("SHOW COLUMNS FROM research_groups LIKE 'title_approval_id'")->fetch()) {
+        $result['message'] = 'research_groups.title_approval_id is not present; no title approval FK to add.';
+        return $result;
+    }
+
+    $protection = cradEnsureResearchGroupHistoryProtection($pdo);
+    if (empty($protection['ok'])) {
+        return [
+            'ok' => false,
+            'changed' => $result['changed'],
+            'reconciled' => 0,
+            'message' => $protection['message'],
+        ];
+    }
+    if (!empty($protection['changed'])) {
+        $result['changed'] = true;
+    }
+
+    if ($reconcileExisting) {
+        $cleanup = cradReconcileOrphanResearchGroups($pdo);
+        if (empty($cleanup['ok'])) {
+            return [
+                'ok' => false,
+                'changed' => $result['changed'],
+                'reconciled' => 0,
+                'message' => $cleanup['message'],
+            ];
+        }
+        $result['reconciled'] = (int) ($cleanup['deleted'] ?? 0);
+        if (!empty($cleanup['changed'])) {
+            $result['changed'] = true;
+        }
+    }
+
+    $orphans = cradCountOrphanResearchGroups($pdo);
+    if ($orphans > 0) {
+        return [
+            'ok' => false,
+            'changed' => $result['changed'],
+            'reconciled' => $result['reconciled'],
+            'message' => 'Cannot add title approval FK while ' . $orphans . ' orphaned research group(s) exist. Run reconciliation first.',
+        ];
+    }
+
+    $existing = cradFindForeignKey($pdo, 'research_groups', 'title_approval_id', 'title_approvals', 'id');
+
+    if ($existing) {
+        $deleteRule = strtoupper((string) ($existing['DELETE_RULE'] ?? ''));
+        $updateRule = strtoupper((string) ($existing['UPDATE_RULE'] ?? ''));
+        if ($deleteRule === 'CASCADE' && $updateRule === 'CASCADE') {
+            $result['message'] = 'Title approval research group FK already exists.';
+            return $result;
+        }
+
+        cradDropForeignKey($pdo, 'research_groups', (string) $existing['CONSTRAINT_NAME']);
+        $result['changed'] = true;
+    }
+
+    $pdo->exec("
+        ALTER TABLE research_groups
+        ADD CONSTRAINT fk_rg_title_approval
+        FOREIGN KEY (title_approval_id)
+        REFERENCES title_approvals(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+    ");
+    $result['changed'] = true;
+    $result['message'] = 'Installed title_approvals.id -> research_groups.title_approval_id ON DELETE CASCADE FK.';
+    return $result;
+}
+
+function cradCountOrphanResearchCoordinatorAssignments(PDO $pdo): int
+{
+    if (!$pdo->query("SHOW TABLES LIKE 'title_approvals'")->fetchColumn()
+        || !$pdo->query("SHOW TABLES LIKE 'research_coordinator_assignments'")->fetchColumn()) {
+        return 0;
+    }
+
+    if (!$pdo->query("SHOW COLUMNS FROM research_coordinator_assignments LIKE 'title_approval_id'")->fetch()) {
+        return 0;
+    }
+
+    $stmt = $pdo->query("
+        SELECT COUNT(*)
+        FROM research_coordinator_assignments a
+        LEFT JOIN title_approvals t ON t.id = a.title_approval_id
+        WHERE a.title_approval_id IS NOT NULL
+          AND t.id IS NULL
+    ");
+    return (int) $stmt->fetchColumn();
+}
+
+function cradReconcileOrphanResearchCoordinatorAssignments(PDO $pdo): array
+{
+    $result = [
+        'ok' => true,
+        'changed' => false,
+        'deleted' => 0,
+        'message' => 'No orphaned research coordinator assignments found.',
+    ];
+
+    foreach (['title_approvals', 'research_coordinator_assignments'] as $table) {
+        if (!$pdo->query("SHOW TABLES LIKE " . $pdo->quote($table))->fetchColumn()) {
+            return [
+                'ok' => false,
+                'changed' => false,
+                'deleted' => 0,
+                'message' => 'Missing required table: ' . $table,
+            ];
+        }
+    }
+
+    if (!$pdo->query("SHOW COLUMNS FROM research_coordinator_assignments LIKE 'title_approval_id'")->fetch()) {
+        return [
+            'ok' => false,
+            'changed' => false,
+            'deleted' => 0,
+            'message' => 'research_coordinator_assignments.title_approval_id is missing.',
+        ];
+    }
+
+    $pdo->beginTransaction();
+    try {
+        $stmt = $pdo->query("
+            SELECT a.id
+            FROM research_coordinator_assignments a
+            LEFT JOIN title_approvals t ON t.id = a.title_approval_id
+            WHERE a.title_approval_id IS NOT NULL
+              AND t.id IS NULL
+            ORDER BY a.id
+            FOR UPDATE
+        ");
+        $ids = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN) ?: []);
+        if (!$ids) {
+            $pdo->commit();
+            return $result;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $delete = $pdo->prepare("DELETE FROM research_coordinator_assignments WHERE id IN ({$placeholders})");
+        $delete->execute($ids);
+        $deleted = $delete->rowCount();
+        $pdo->commit();
+
+        return [
+            'ok' => true,
+            'changed' => true,
+            'deleted' => $deleted,
+            'message' => 'Removed ' . $deleted . ' orphaned research coordinator assignment(s) by title_approval_id.',
+        ];
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
+    }
+}
+
+function cradEnsureTitleApprovalResearchCoordinatorCascade(PDO $pdo, bool $reconcileExisting = false): array
+{
+    $result = [
+        'ok' => true,
+        'changed' => false,
+        'reconciled' => 0,
+        'message' => 'Title approval research coordinator assignment FK is ready.',
+    ];
+
+    foreach (['title_approvals', 'research_coordinator_assignments'] as $table) {
+        if (!$pdo->query("SHOW TABLES LIKE " . $pdo->quote($table))->fetchColumn()) {
+            return [
+                'ok' => false,
+                'changed' => false,
+                'reconciled' => 0,
+                'message' => 'Missing required table: ' . $table,
+            ];
+        }
+    }
+
+    $childColumn = $pdo->query("SHOW COLUMNS FROM research_coordinator_assignments LIKE 'title_approval_id'")->fetch();
+    $parentColumn = $pdo->query("SHOW COLUMNS FROM title_approvals LIKE 'id'")->fetch();
+    if (!$childColumn || !$parentColumn) {
+        return [
+            'ok' => false,
+            'changed' => false,
+            'reconciled' => 0,
+            'message' => 'Required title approval relationship columns are missing.',
+        ];
+    }
+
+    $childType = strtolower((string) ($childColumn['Type'] ?? ''));
+    $parentType = strtolower((string) ($parentColumn['Type'] ?? ''));
+    if ($childType !== $parentType) {
+        return [
+            'ok' => false,
+            'changed' => false,
+            'reconciled' => 0,
+            'message' => 'Cannot add coordinator assignment FK because title_approval_id type (' . $childType . ') does not match title_approvals.id (' . $parentType . ').',
+        ];
+    }
+
+    if (!$pdo->query("SHOW INDEX FROM research_coordinator_assignments WHERE Key_name = 'idx_rca_title_approval'")->fetch()) {
+        $pdo->exec('ALTER TABLE research_coordinator_assignments ADD KEY idx_rca_title_approval (title_approval_id)');
+        $result['changed'] = true;
+    }
+
+    if ($reconcileExisting) {
+        $cleanup = cradReconcileOrphanResearchCoordinatorAssignments($pdo);
+        if (empty($cleanup['ok'])) {
+            return [
+                'ok' => false,
+                'changed' => $result['changed'],
+                'reconciled' => 0,
+                'message' => $cleanup['message'],
+            ];
+        }
+        $result['reconciled'] = (int) ($cleanup['deleted'] ?? 0);
+        if (!empty($cleanup['changed'])) {
+            $result['changed'] = true;
+        }
+    }
+
+    $orphans = cradCountOrphanResearchCoordinatorAssignments($pdo);
+    if ($orphans > 0) {
+        return [
+            'ok' => false,
+            'changed' => $result['changed'],
+            'reconciled' => $result['reconciled'],
+            'message' => 'Cannot add coordinator assignment FK while ' . $orphans . ' orphaned assignment(s) exist. Run reconciliation first.',
+        ];
+    }
+
+    $existing = cradFindForeignKey($pdo, 'research_coordinator_assignments', 'title_approval_id', 'title_approvals', 'id');
+    if ($existing) {
+        $deleteRule = strtoupper((string) ($existing['DELETE_RULE'] ?? ''));
+        $updateRule = strtoupper((string) ($existing['UPDATE_RULE'] ?? ''));
+        if ($deleteRule === 'CASCADE' && $updateRule === 'CASCADE') {
+            $suffix = $result['reconciled'] > 0
+                ? ' Reconciled ' . $result['reconciled'] . ' existing coordinator assignment(s).'
+                : '';
+            $result['message'] = 'Title approval research coordinator assignment FK already exists.' . $suffix;
+            return $result;
+        }
+
+        cradDropForeignKey($pdo, 'research_coordinator_assignments', (string) $existing['CONSTRAINT_NAME']);
+        $result['changed'] = true;
+    }
+
+    $pdo->exec("
+        ALTER TABLE research_coordinator_assignments
+        ADD CONSTRAINT fk_rca_title_approval
+        FOREIGN KEY (title_approval_id)
+        REFERENCES title_approvals(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+    ");
+    $result['changed'] = true;
+
+    $suffix = $result['reconciled'] > 0
+        ? ' Reconciled ' . $result['reconciled'] . ' existing coordinator assignment(s).'
+        : '';
+    $result['message'] = 'Installed title_approvals.id -> research_coordinator_assignments.title_approval_id ON DELETE CASCADE FK.' . $suffix;
+    return $result;
+}
+
+function cradEnsureTitleApprovalAdviserAssignmentConsistency(PDO $pdo, bool $reconcileExisting = false): array
+{
+    $result = [
+        'ok' => true,
+        'changed' => false,
+        'reconciled' => 0,
+        'message' => 'Title approval adviser assignment consistency is ready.',
+    ];
+
+    foreach (['title_approvals', 'research_adviser_assignments', 'research_groups'] as $table) {
+        $exists = $pdo->query("SHOW TABLES LIKE " . $pdo->quote($table))->fetchColumn();
+        if (!$exists) {
+            return [
+                'ok' => false,
+                'changed' => false,
+                'reconciled' => 0,
+                'message' => 'Missing required table: ' . $table,
+            ];
+        }
+    }
+
+    $relationship = cradEnsureTitleApprovalResearchGroupCascade($pdo, $reconcileExisting);
+    if (!empty($relationship['changed'])) {
+        $result['changed'] = true;
+    }
+
+    $coordinatorRelationship = cradEnsureTitleApprovalResearchCoordinatorCascade($pdo, $reconcileExisting);
+    if (empty($coordinatorRelationship['ok'])) {
+        return [
+            'ok' => false,
+            'changed' => $result['changed'],
+            'reconciled' => 0,
+            'message' => $coordinatorRelationship['message'],
+        ];
+    }
+    if (!empty($coordinatorRelationship['changed'])) {
+        $result['changed'] = true;
+    }
+
+    $pdo->exec('DROP TRIGGER IF EXISTS trg_title_approvals_after_delete');
+    $pdo->exec("
+        CREATE TRIGGER trg_title_approvals_after_delete
+        AFTER DELETE ON title_approvals
+        FOR EACH ROW
+        BEGIN
+            UPDATE research_adviser_assignments a
+               SET a.assignment_status = 'Pending'
+             WHERE a.assignment_status = 'Assigned'
+               AND (
+                    (OLD.proposal_number IS NOT NULL
+                     AND OLD.proposal_number <> ''
+                     AND a.proposal_number = OLD.proposal_number)
+                 OR (a.research_group_id IS NOT NULL
+                     AND a.research_group_id IN (
+                        SELECT g.id
+                        FROM research_groups g
+                        WHERE g.title_approval_id = OLD.id
+                     ))
+                 OR (a.group_number IS NOT NULL
+                     AND a.group_number <> ''
+                     AND a.group_number IN (
+                        SELECT g2.group_number
+                        FROM research_groups g2
+                        WHERE g2.title_approval_id = OLD.id
+                     ))
+               );
+        END
+    ");
+    $result['changed'] = true;
+
+    if ($reconcileExisting) {
+        $validTitle = cradValidTitleApprovalWhereSql('t');
+        $stmt = $pdo->prepare("
+            UPDATE research_adviser_assignments a
+            LEFT JOIN research_groups g
+              ON (a.research_group_id IS NOT NULL AND a.research_group_id = g.id)
+              OR (a.group_number IS NOT NULL AND a.group_number <> '' AND a.group_number = g.group_number)
+               SET a.assignment_status = 'Pending'
+             WHERE a.assignment_status = 'Assigned'
+               AND (
+                    (
+                        g.title_approval_id IS NOT NULL
+                        AND NOT EXISTS (
+                            SELECT 1
+                            FROM title_approvals t
+                            WHERE t.id = g.title_approval_id
+                              AND {$validTitle}
+                        )
+                    )
+                 OR (
+                        a.proposal_number IS NOT NULL
+                        AND a.proposal_number <> ''
+                        AND a.proposal_number LIKE 'TAP-%'
+                        AND NOT EXISTS (
+                            SELECT 1
+                            FROM title_approvals t
+                            WHERE t.proposal_number = a.proposal_number
+                              AND {$validTitle}
+                        )
+                    )
+                 OR (
+                        g.proposal_number IS NOT NULL
+                        AND g.proposal_number <> ''
+                        AND g.proposal_number LIKE 'TAP-%'
+                        AND NOT EXISTS (
+                            SELECT 1
+                            FROM title_approvals t
+                            WHERE t.proposal_number = g.proposal_number
+                              AND {$validTitle}
+                        )
+                    )
+               )
+        ");
+        $stmt->execute();
+        $result['reconciled'] = $stmt->rowCount();
+    }
+
+    $suffix = $result['reconciled'] > 0
+        ? ' Reconciled ' . $result['reconciled'] . ' existing assignment(s).'
+        : '';
+    $result['message'] = 'Installed non-destructive title approval delete sync trigger.' . $suffix;
+    return $result;
+}

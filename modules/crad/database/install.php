@@ -138,6 +138,17 @@ foreach ($expected as $table) {
 }
 
 // ── Done ──────────────────────────────────────────────────────────────────────
+try {
+    $consistency = cradEnsureTitleApprovalAdviserAssignmentConsistency($pdo, true);
+    out($consistency['message'], !empty($consistency['ok']));
+    if (empty($consistency['ok'])) {
+        $errors++;
+    }
+} catch (Throwable $e) {
+    out('Title approval adviser assignment consistency check failed: ' . $e->getMessage(), false);
+    $errors++;
+}
+
 if (!$isCli) {
     $msg = $errors === 0
         ? 'Installation complete. You can now use the CRAD module.'

@@ -35,42 +35,28 @@ try {
     exit;
 }
 
-$groupNumber = $_GET['group'] ?? '';
-if (empty($groupNumber)) {
-?>
-<div class="glass-dashboard"><div class="glass-board">
-    <div class="glass-panel"><div class="glass-panel-body rm-empty">
-        <div class="rm-empty-icon"><i class="fas fa-comments" style="color:#f59e0b;"></i></div>
-        <h6>No Research Group Specified</h6>
-        <p>Please select a research group first to view its feedback history.</p>
-        <a href="<?= BASE_URL ?>/modules/faculty/pages/my-research-groups.php" class="btn btn-primary mt-3">
-            <i class="fas fa-users me-2"></i>View My Research Groups
-        </a>
-    </div></div>
-</div></div>
-<?php require_once ROOT_PATH . '/includes/layout-end.php'; exit; }
-
 $adviserUserId = (int) ($_SESSION['user_id'] ?? 0);
 $adviserEmail  = rpCurrentUserEmail();
+$groupContext = rpResolveAdviserResearchGroupContext($crad, $adviserUserId, $adviserEmail, $_GET['group'] ?? null);
 
-try {
-    $researchGroup = rpGetAssignedResearchGroupForAdviser($crad, $adviserUserId, $adviserEmail, $groupNumber);
-} catch (PDOException $e) { $researchGroup = null; }
+if ($groupContext['status'] === 'no_groups') {
+    rpRenderAdviserNoGroupsState();
+    require_once ROOT_PATH . '/includes/layout-end.php';
+    exit;
+}
+if ($groupContext['status'] === 'needs_selection') {
+    rpRenderAdviserGroupSelector($groupContext['groups'], 'Select Research Group', 'Choose which assigned group you want to view feedback for.');
+    require_once ROOT_PATH . '/includes/layout-end.php';
+    exit;
+}
+if ($groupContext['status'] !== 'ok' || empty($groupContext['group'])) {
+    rpRenderAdviserGroupAccessDenied();
+    require_once ROOT_PATH . '/includes/layout-end.php';
+    exit;
+}
 
-if (!$researchGroup) {
-?>
-<div class="glass-dashboard"><div class="glass-board">
-    <div class="glass-panel"><div class="glass-panel-body rm-empty">
-        <div class="rm-empty-icon"><i class="fas fa-ban" style="color:#ef4444;"></i></div>
-        <h6>Access Denied</h6>
-        <p>This research group is not assigned to you or does not exist.</p>
-        <a href="<?= BASE_URL ?>/modules/faculty/pages/my-research-groups.php" class="btn btn-primary mt-3">
-            <i class="fas fa-users me-2"></i>View My Research Groups
-        </a>
-    </div></div>
-</div></div>
-<?php require_once ROOT_PATH . '/includes/layout-end.php'; exit; }
-
+$researchGroup = $groupContext['group'];
+$groupNumber = (string) $researchGroup['group_number'];
 $groupId = (int) $researchGroup['id'];
 $plan    = rpGetResearchPlan($crad, $groupId);
 
@@ -133,18 +119,6 @@ $typeMeta = [
     <div class="glass-board">
 
         <!-- ── Page Header ───────────────────────────────── -->
-        <div class="rm-page-header">
-            <div class="rm-page-header-left">
-                <h4><i class="fas fa-comments me-2" style="color:var(--sms-primary);"></i>Feedback History</h4>
-                <p>All feedback you have provided to this research group</p>
-            </div>
-            <div class="rm-page-header-right">
-                <div class="rm-live-badge"><span class="rm-live-dot"></span>Live</div>
-                <a href="<?= BASE_URL ?>/modules/faculty/pages/research-progress-monitoring.php?group=<?= urlencode($groupNumber) ?>"
-                   class="rm-back-btn"><i class="fas fa-arrow-left"></i>Back</a>
-            </div>
-        </div>
-
         <!-- ── Group Hero ────────────────────────────────── -->
         <div class="rm-group-hero" style="padding:1.1rem 1.4rem;">
             <div class="rm-group-hero-body">
@@ -259,7 +233,7 @@ $typeMeta = [
                                         </div>
 
                                         <!-- Feedback body -->
-                                        <div class="rm-timeline-body" style="background:<?= $tc['bg'] ?>;border-left:3px solid <?= $tc['color'] ?>;color:var(--sms-text);">
+                                        <div class="rm-timeline-body rm-timeline-body--feedback" style="--feedback-bg:<?= $tc['bg'] ?>;--feedback-color:<?= $tc['color'] ?>;">
                                             <?= nl2br(htmlspecialchars($fb['feedback_text'])) ?>
                                         </div>
 

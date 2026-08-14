@@ -7,6 +7,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/config.php';
+require_once ROOT_PATH . '/includes/uploads.php';
 
 function rpNormalizeEmail(string $email): string
 {
@@ -102,10 +103,143 @@ function rpGetResearchPlan(PDO $crad, int $groupId): ?array
     return $plan ?: null;
 }
 
-function rpGetMilestonesForPlan(PDO $crad, ?int $planId): array
+function rpChapterMilestoneNames(): array
+{
+    return [
+        1 => 'Chapter 1',
+        2 => 'Chapter 2',
+        3 => 'Chapter 3',
+    ];
+}
+
+function rpMilestoneChapterNumber(array $milestone): ?int
+{
+    $order = (int) ($milestone['milestone_order'] ?? 0);
+    $name = strtolower(trim((string) ($milestone['milestone_name'] ?? '')));
+
+    if ($order >= 1 && $order <= 3 && preg_match('/^chapter\s+' . $order . '\b/i', (string) ($milestone['milestone_name'] ?? ''))) {
+        return $order;
+    }
+
+    if (preg_match('/^chapter\s+([1-3])\b/i', $name, $matches)) {
+        return (int) $matches[1];
+    }
+
+    return null;
+}
+
+function rpChapterSubmissionProgressState(PDO $crad, int $groupId, int $chapter): array
+{
+    $empty = [
+        'progress_percentage' => 0.0,
+        'status' => 'Not Started',
+        'chapter_status' => null,
+        'latest_submission_id' => null,
+        'latest_version_number' => null,
+        'latest_submitted_at' => null,
+        'latest_updated_at' => null,
+    ];
+
+    if ($groupId <= 0 || $chapter < 1 || $chapter > 3) {
+        return $empty;
+    }
+
+    try {
+        $stmt = $crad->prepare(
+            "SELECT id, version_number, status, submitted_at, updated_at
+             FROM chapter_submissions
+             WHERE research_group_id = :group_id
+               AND chapter_number = :chapter
+             ORDER BY version_number DESC, id DESC"
+        );
+        $stmt->execute([':group_id' => $groupId, ':chapter' => $chapter]);
+        $submissions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log('Chapter milestone sync lookup failed: ' . $e->getMessage());
+        return $empty;
+    }
+
+    if (!$submissions) {
+        return $empty;
+    }
+
+    $latest = $submissions[0];
+    $highestProgress = 0.0;
+    foreach ($submissions as $submission) {
+        $status = (string) ($submission['status'] ?? '');
+        $highestProgress = max($highestProgress, match ($status) {
+            'Accepted' => 100.0,
+            'Under Review', 'Needs Revision' => 66.0,
+            'Submitted' => 33.0,
+            default => 0.0,
+        });
+    }
+
+    $latestStatus = (string) ($latest['status'] ?? '');
+    $progress = match ($latestStatus) {
+        'Accepted' => 100.0,
+        'Under Review', 'Needs Revision' => 66.0,
+        'Submitted' => max(33.0, min(66.0, $highestProgress)),
+        default => 0.0,
+    };
+
+    $status = match ($latestStatus) {
+        'Accepted' => 'Completed',
+        'Needs Revision' => 'Revision Requested',
+        'Submitted', 'Under Review' => 'In Progress',
+        default => 'Not Started',
+    };
+
+    return [
+        'progress_percentage' => $progress,
+        'status' => $status,
+        'chapter_status' => $latestStatus ?: null,
+        'latest_submission_id' => (int) ($latest['id'] ?? 0) ?: null,
+        'latest_version_number' => (int) ($latest['version_number'] ?? 0) ?: null,
+        'latest_submitted_at' => $latest['submitted_at'] ?? null,
+        'latest_updated_at' => $latest['updated_at'] ?? null,
+    ];
+}
+
+function rpApplyChapterMilestoneOverrides(PDO $crad, int $groupId, array $milestones): array
+{
+    foreach ($milestones as &$milestone) {
+        $chapter = rpMilestoneChapterNumber($milestone);
+        $milestone['is_chapter_synced'] = false;
+        if ($chapter) {
+            $milestone['chapter_number'] = $chapter;
+        }
+    }
+    unset($milestone);
+
+    return $milestones;
+}
+
+function rpMilestonesOverallProgress(array $milestones): float
+{
+    if (!$milestones) {
+        return 0.0;
+    }
+
+    $total = 0.0;
+    foreach ($milestones as $milestone) {
+        $total += (float) ($milestone['progress_percentage'] ?? 0);
+    }
+
+    return round($total / count($milestones), 2);
+}
+
+function rpApplySyncedPlanProgress(array $plan, array $milestones): array
+{
+    $plan['overall_progress'] = rpMilestonesOverallProgress($milestones);
+    return $plan;
+}
+
+function rpGetMilestonesForPlan(PDO $crad, ?int $planId, ?int $groupId = null): array
 {
     if (!$planId) {
-        return rpDefaultMilestoneRows();
+        $milestones = rpDefaultMilestoneRows();
+        return $groupId ? rpApplyChapterMilestoneOverrides($crad, $groupId, $milestones) : $milestones;
     }
 
     $stmt = $crad->prepare("
@@ -117,7 +251,153 @@ function rpGetMilestonesForPlan(PDO $crad, ?int $planId): array
     $stmt->execute([$planId]);
     $milestones = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    return $milestones ?: rpDefaultMilestoneRows();
+    $milestones = $milestones ?: rpDefaultMilestoneRows();
+    return $groupId ? rpApplyChapterMilestoneOverrides($crad, $groupId, $milestones) : $milestones;
+}
+
+function rpGetMilestonesWithUpdateStats(PDO $crad, ?int $planId, ?int $groupId = null): array
+{
+    if (!$planId) {
+        $milestones = rpDefaultMilestoneRows();
+        return $groupId ? rpApplyChapterMilestoneOverrides($crad, $groupId, $milestones) : $milestones;
+    }
+
+    $stmt = $crad->prepare(
+        "SELECT rm.*,
+                (SELECT COUNT(*) FROM research_progress_updates rpu WHERE rpu.milestone_id = rm.id) AS update_count,
+                (SELECT COUNT(*) FROM research_progress_updates rpu WHERE rpu.milestone_id = rm.id
+                   AND rpu.milestone_status = 'Submitted for Review') AS pending_count,
+                (SELECT rpu.submitted_at FROM research_progress_updates rpu WHERE rpu.milestone_id = rm.id
+                 ORDER BY rpu.submitted_at DESC LIMIT 1) AS last_update_at
+         FROM research_milestones rm
+         WHERE rm.research_plan_id = ?
+         ORDER BY rm.milestone_order ASC"
+    );
+    $stmt->execute([$planId]);
+    $milestones = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: rpDefaultMilestoneRows();
+
+    return $groupId ? rpApplyChapterMilestoneOverrides($crad, $groupId, $milestones) : $milestones;
+}
+
+function rpSyncChapterMilestonesFromSubmissions(PDO $crad, int $groupId): void
+{
+    // Chapter 1-3 research progress is adviser-review controlled now.
+    // Official Grammarian submissions must not drive Research Development state.
+    return;
+}
+
+function rpChapterControlledMilestoneState(PDO $crad, int $milestoneId): ?array
+{
+    return null;
+}
+
+function rpEnsureProgressAttachmentSchema(PDO $crad): void
+{
+    $crad->exec(
+        "CREATE TABLE IF NOT EXISTS research_progress_attachments (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            progress_update_id INT UNSIGNED NOT NULL,
+            file_name VARCHAR(300) NOT NULL,
+            file_path VARCHAR(500) NOT NULL,
+            file_type VARCHAR(100) NOT NULL DEFAULT '',
+            file_size INT UNSIGNED NOT NULL DEFAULT 0,
+            uploaded_by INT UNSIGNED NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_rpa_update (progress_update_id),
+            KEY idx_rpa_uploaded (uploaded_by)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+}
+
+function rpLatestAttachmentForUpdate(PDO $crad, int $progressUpdateId): ?array
+{
+    if ($progressUpdateId <= 0) {
+        return null;
+    }
+    rpEnsureProgressAttachmentSchema($crad);
+    $stmt = $crad->prepare(
+        "SELECT *
+         FROM research_progress_attachments
+         WHERE progress_update_id = ?
+         ORDER BY id DESC
+         LIMIT 1"
+    );
+    $stmt->execute([$progressUpdateId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $row ?: null;
+}
+
+function rpProgressAttachmentUrl(int $attachmentId, bool $download = false): string
+{
+    return BASE_URL . '/modules/crad/api/progress-document.php?id=' . $attachmentId . ($download ? '&download=1' : '');
+}
+
+function rpAdviserApprovedChapter(PDO $crad, int $groupId, int $chapter): ?array
+{
+    if ($groupId <= 0 || $chapter < 1 || $chapter > 3) {
+        return null;
+    }
+
+    $stmt = $crad->prepare(
+        "SELECT rpu.id AS progress_update_id, rpu.milestone_id, rpu.research_group_id,
+                rpu.new_progress, rpu.submitted_at, rpu.updated_at,
+                rpf.id AS feedback_id, rpf.adviser_user_id AS approved_by,
+                rpf.adviser_name AS approved_by_name, rpf.created_at AS approved_at
+         FROM research_progress_updates rpu
+         INNER JOIN research_milestones rm ON rm.id = rpu.milestone_id
+         INNER JOIN research_progress_feedback rpf ON rpf.id = (
+            SELECT rpf2.id
+            FROM research_progress_feedback rpf2
+            WHERE rpf2.progress_update_id = rpu.id
+              AND rpf2.feedback_type = 'Progress Approved'
+              AND rpf2.new_milestone_status = 'Approved'
+            ORDER BY rpf2.created_at DESC, rpf2.id DESC
+            LIMIT 1
+         )
+         WHERE rpu.research_group_id = :gid
+           AND rpu.milestone_status IN ('Submitted for Review', 'Approved')
+           AND rm.milestone_order = :chapter
+           AND LOWER(TRIM(rm.milestone_name)) = :chapter_name
+           AND rpu.id = (
+                SELECT rpu2.id
+                FROM research_progress_updates rpu2
+                INNER JOIN research_milestones rm2 ON rm2.id = rpu2.milestone_id
+                WHERE rpu2.research_group_id = :gid2
+                  AND rm2.milestone_order = :chapter2
+                  AND LOWER(TRIM(rm2.milestone_name)) = :chapter_name2
+                ORDER BY rpu2.submitted_at DESC, rpu2.id DESC
+                LIMIT 1
+           )
+         LIMIT 1"
+    );
+    $chapterName = 'chapter ' . $chapter;
+    $stmt->execute([
+        ':gid' => $groupId,
+        ':chapter' => $chapter,
+        ':chapter_name' => $chapterName,
+        ':gid2' => $groupId,
+        ':chapter2' => $chapter,
+        ':chapter_name2' => $chapterName,
+    ]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $row ?: null;
+}
+
+function rpChapterSubmissionEligibility(PDO $crad, int $groupId): array
+{
+    $eligibility = [];
+    foreach (rpChapterMilestoneNames() as $chapter => $label) {
+        $approval = rpAdviserApprovedChapter($crad, $groupId, (int) $chapter);
+        $eligibility[(int) $chapter] = [
+            'chapter' => (int) $chapter,
+            'label' => $label,
+            'eligible' => (bool) $approval,
+            'message' => $approval ? 'Ready for Submission' : 'Adviser Approval Required',
+            'approval' => $approval,
+        ];
+    }
+    return $eligibility;
 }
 
 function rpGetAssignedResearchGroupsForAdviser(PDO $crad, int $adviserUserId, string $adviserEmail): array
@@ -188,8 +468,15 @@ function rpGetAssignedResearchGroupsForAdviser(PDO $crad, int $adviserUserId, st
     foreach ($groups as &$group) {
         $group['milestones'] = rpGetMilestonesForPlan(
             $crad,
-            !empty($group['plan_id']) ? (int) $group['plan_id'] : null
+            !empty($group['plan_id']) ? (int) $group['plan_id'] : null,
+            (int) $group['id']
         );
+        $group['overall_progress'] = rpMilestonesOverallProgress($group['milestones']);
+        $group['total_milestones'] = count($group['milestones']);
+        $group['done_milestones'] = count(array_filter(
+            $group['milestones'],
+            static fn(array $milestone): bool => in_array((string) ($milestone['status'] ?? ''), ['Approved', 'Completed'], true)
+        ));
     }
     unset($group);
 
@@ -210,6 +497,121 @@ function rpGetAssignedResearchGroupForAdviser(PDO $crad, int $adviserUserId, str
     }
 
     return null;
+}
+
+function rpClearActiveAdviserResearchGroup(): void
+{
+    unset(
+        $_SESSION['active_research_group_id'],
+        $_SESSION['active_research_group_number']
+    );
+}
+
+function rpSetActiveAdviserResearchGroup(array $group): void
+{
+    $_SESSION['active_research_group_id'] = (int) ($group['id'] ?? 0);
+    $_SESSION['active_research_group_number'] = (string) ($group['group_number'] ?? '');
+}
+
+function rpResolveAdviserResearchGroupContext(PDO $crad, int $adviserUserId, string $adviserEmail, ?string $requestedGroupNumber = null): array
+{
+    $groups = rpGetAssignedResearchGroupsForAdviser($crad, $adviserUserId, $adviserEmail);
+    $requestedGroupNumber = trim((string) $requestedGroupNumber);
+
+    if (!$groups) {
+        rpClearActiveAdviserResearchGroup();
+        return ['status' => 'no_groups', 'group' => null, 'groups' => []];
+    }
+
+    if ($requestedGroupNumber !== '') {
+        foreach ($groups as $group) {
+            if ((string) ($group['group_number'] ?? '') === $requestedGroupNumber) {
+                rpSetActiveAdviserResearchGroup($group);
+                return ['status' => 'ok', 'group' => $group, 'groups' => $groups];
+            }
+        }
+
+        rpClearActiveAdviserResearchGroup();
+        return ['status' => 'invalid_requested', 'group' => null, 'groups' => $groups];
+    }
+
+    $activeId = (int) ($_SESSION['active_research_group_id'] ?? 0);
+    if ($activeId > 0) {
+        foreach ($groups as $group) {
+            if ((int) ($group['id'] ?? 0) === $activeId) {
+                rpSetActiveAdviserResearchGroup($group);
+                return ['status' => 'ok', 'group' => $group, 'groups' => $groups];
+            }
+        }
+        rpClearActiveAdviserResearchGroup();
+    }
+
+    if (count($groups) === 1) {
+        rpSetActiveAdviserResearchGroup($groups[0]);
+        return ['status' => 'ok', 'group' => $groups[0], 'groups' => $groups];
+    }
+
+    return ['status' => 'needs_selection', 'group' => null, 'groups' => $groups];
+}
+
+function rpRenderAdviserGroupSelector(array $groups, string $title = 'Select Research Group', string $description = 'Choose a research group to continue.'): void
+{
+    $currentPath = strtok((string) ($_SERVER['REQUEST_URI'] ?? ''), '?');
+    $action = htmlspecialchars($currentPath ?: '', ENT_QUOTES);
+    ?>
+    <div class="glass-dashboard"><div class="glass-board">
+        <div class="glass-panel"><div class="glass-panel-body rm-empty">
+            <div class="rm-empty-icon"><i class="fas fa-layer-group" style="color:#2563eb;"></i></div>
+            <h6><?= htmlspecialchars($title) ?></h6>
+            <p><?= htmlspecialchars($description) ?></p>
+            <form method="GET" action="<?= $action ?>" class="mt-3" style="max-width:520px;margin:0 auto;">
+                <div class="input-group">
+                    <select name="group" class="form-select" required>
+                        <option value="">Select assigned group</option>
+                        <?php foreach ($groups as $group): ?>
+                            <option value="<?= htmlspecialchars((string) $group['group_number'], ENT_QUOTES) ?>">
+                                <?= htmlspecialchars((string) $group['group_name']) ?>
+                                (<?= htmlspecialchars((string) $group['group_number']) ?>)
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-arrow-right me-1"></i>Open
+                    </button>
+                </div>
+            </form>
+        </div></div>
+    </div></div>
+    <?php
+}
+
+function rpRenderAdviserNoGroupsState(): void
+{
+    ?>
+    <div class="glass-dashboard"><div class="glass-board">
+        <div class="glass-panel"><div class="glass-panel-body rm-empty">
+            <div class="rm-empty-icon"><i class="fas fa-users"></i></div>
+            <h6>No Research Groups Assigned</h6>
+            <p>You currently have no research groups assigned for monitoring.</p>
+        </div></div>
+    </div></div>
+    <?php
+}
+
+function rpRenderAdviserGroupAccessDenied(): void
+{
+    ?>
+    <div class="glass-dashboard"><div class="glass-board">
+        <div class="glass-panel"><div class="glass-panel-body rm-empty">
+            <div class="rm-empty-icon"><i class="fas fa-ban" style="color:#ef4444;"></i></div>
+            <h6>Access Denied</h6>
+            <p>This research group is not assigned to you or is no longer available.</p>
+            <a href="<?= BASE_URL ?>/modules/faculty/pages/my-research-groups.php" class="btn btn-primary mt-3">
+                <i class="fas fa-users me-2"></i>View My Research Groups
+            </a>
+        </div></div>
+    </div></div>
+    <?php
 }
 
 function rpGetProgressUpdateForAdviser(PDO $crad, int $progressUpdateId, int $adviserUserId, string $adviserEmail): ?array
@@ -592,8 +994,26 @@ function rpSubmitProgressUpdate(PDO $crad, array $data): array
         ]);
         
         $updateId = (int) $crad->lastInsertId();
+
+        if (!empty($data['uploaded_document']) && is_array($data['uploaded_document'])) {
+            rpEnsureProgressAttachmentSchema($crad);
+            $attachment = $data['uploaded_document'];
+            $attachStmt = $crad->prepare("
+                INSERT INTO research_progress_attachments (
+                    progress_update_id, file_name, file_path, file_type, file_size, uploaded_by
+                ) VALUES (?, ?, ?, ?, ?, ?)
+            ");
+            $attachStmt->execute([
+                $updateId,
+                (string) ($attachment['original_name'] ?? ''),
+                (string) ($attachment['path'] ?? ''),
+                (string) ($attachment['mime'] ?? ''),
+                (int) ($attachment['size'] ?? 0),
+                (int) $data['submitted_by_user_id'],
+            ]);
+        }
         
-        // Update milestone progress if milestone_id provided
+        // Update milestone progress if milestone_id provided.
         if (!empty($data['milestone_id'])) {
             $updateMilestone = $crad->prepare("
                 UPDATE research_milestones 
@@ -653,15 +1073,20 @@ function rpSubmitProgressUpdate(PDO $crad, array $data): array
  */
 function rpRecalculateOverallProgress(PDO $crad, int $planId): void
 {
+    $groupStmt = $crad->prepare('SELECT research_group_id FROM research_plans WHERE id = ? LIMIT 1');
+    $groupStmt->execute([$planId]);
+    $groupId = (int) ($groupStmt->fetchColumn() ?: 0);
+
     $stmt = $crad->prepare("
-        SELECT AVG(progress_percentage) as avg_progress
+        SELECT *
         FROM research_milestones
         WHERE research_plan_id = ?
+        ORDER BY milestone_order ASC
     ");
     $stmt->execute([$planId]);
-    $result = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    $avgProgress = round((float) ($result['avg_progress'] ?? 0), 2);
+    $milestones = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $avgProgress = rpMilestonesOverallProgress($milestones);
     
     $updateStmt = $crad->prepare("
         UPDATE research_plans 

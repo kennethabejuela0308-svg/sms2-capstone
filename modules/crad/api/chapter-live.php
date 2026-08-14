@@ -22,6 +22,7 @@ try {
         $group = chapterRegisteredStudentGroup($crad);
         $rows = $group ? chapterLatestSubmissionsForGroup($crad, (int) $group['id']) : [];
         $history = $group ? chapterSubmissionHistoryForGroup($crad, (int) $group['id']) : [];
+        $eligibility = $group ? chapterSubmissionEligibility($crad, (int) $group['id']) : [];
         $payload['registry_available'] = (bool) $group;
         $payload['group'] = $group ? [
             'id' => (int) $group['id'],
@@ -31,8 +32,10 @@ try {
             'academic_year' => (string) $group['academic_year'],
         ] : null;
         $payload['submissions'] = array_map('chapterLiveSubmissionRow', $rows);
+        $payload['eligibility'] = array_values($eligibility);
         $payload['history_count'] = count($history);
         $payload['latest_update'] = $rows ? max(array_map(static fn($r) => (string) ($r['updated_at'] ?? ''), $rows)) : '';
+        $payload['eligibility_update'] = $eligibility ? max(array_map(static fn($r) => (string) ($r['approval']['approved_at'] ?? ''), $eligibility)) : '';
         echo json_encode($payload);
         exit;
     }

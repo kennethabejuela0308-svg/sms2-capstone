@@ -200,15 +200,15 @@ foreach ($feedbackList as $feedback) {
                                     <?php endif; ?>
 
                                     <!-- Feedback Text -->
-                                    <div class="p-3 mb-2" style="border-radius:8px;background:white;border:1px solid var(--sms-border-soft);">
-                                        <div style="font-size:0.95rem;color:var(--sms-text);line-height:1.7;white-space:pre-wrap;">
+                                    <div class="student-feedback-message p-3 mb-2">
+                                        <div style="font-size:0.95rem;line-height:1.7;white-space:pre-wrap;">
 <?= htmlspecialchars($feedback['feedback_text']) ?>
                                         </div>
                                     </div>
 
                                     <!-- Status Change -->
                                     <?php if ($feedback['new_milestone_status']): ?>
-                                        <div class="alert alert-info mb-0" style="font-size:0.85rem;padding:0.5rem 1rem;">
+                                        <div class="student-feedback-status alert alert-info mb-0" style="font-size:0.85rem;padding:0.5rem 1rem;">
                                             <i class="fas fa-info-circle me-2"></i>
                                             <strong>Status Updated:</strong> <?= htmlspecialchars($feedback['new_milestone_status']) ?>
                                         </div>

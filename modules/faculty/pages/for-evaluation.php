@@ -38,7 +38,7 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
                 <thead><tr><th>Research Group</th><th>Research Title</th><th>Chapter</th><th>Version</th><th>Submitted By</th><th>Submitted</th><th>Status</th><th>Action</th></tr></thead>
                 <tbody data-evaluator-queue-rows>
                     <?php if (!$rows): ?>
-                        <tr><td colspan="8" class="text-center text-muted py-4">No chapter submissions are currently waiting for evaluation.</td></tr>
+                        <tr><td colspan="8" class="text-center text-muted py-4"><strong>No Submissions for Evaluation</strong><br>There are currently no valid Chapter 1-3 submissions awaiting evaluation.</td></tr>
                     <?php else: ?>
                         <?php foreach ($rows as $row): ?>
                             <tr>

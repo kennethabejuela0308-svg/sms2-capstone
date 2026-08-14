@@ -52,13 +52,14 @@ $latestByChapter = [];
 foreach ($latest as $row) {
     $latestByChapter[(int) $row['chapter_number']] = $row;
 }
+$chapterEligibility = $group ? chapterSubmissionEligibility($crad, (int) $group['id']) : [];
 $token = bin2hex(random_bytes(32));
 
 require_once ROOT_PATH . '/includes/layout-start.php';
 renderBreadcrumbs($breadcrumbs);
 ?>
 
-<div class="glass-dashboard" data-chapter-live="student" data-live-endpoint="<?= BASE_URL ?>/modules/crad/api/chapter-live.php?mode=student" data-document-base="<?= BASE_URL ?>/modules/crad/api/chapter-document.php?id=" data-latest-update="<?= e($latest ? max(array_map(static fn($r) => (string) ($r['updated_at'] ?? ''), $latest)) : '') ?>" data-registry-available="<?= $group ? '1' : '0' ?>">
+<div class="glass-dashboard" data-chapter-live="student" data-live-endpoint="<?= BASE_URL ?>/modules/crad/api/chapter-live.php?mode=student" data-document-base="<?= BASE_URL ?>/modules/crad/api/chapter-document.php?id=" data-latest-update="<?= e($latest ? max(array_map(static fn($r) => (string) ($r['updated_at'] ?? ''), $latest)) : '') ?>" data-eligibility-update="<?= e($chapterEligibility ? max(array_map(static fn($r) => (string) ($r['approval']['approved_at'] ?? ''), $chapterEligibility)) : '') ?>" data-registry-available="<?= $group ? '1' : '0' ?>">
     <?php if ($message): ?><div class="alert alert-success"><?= e($message) ?></div><?php endif; ?>
     <?php if ($error): ?><div class="alert alert-danger"><?= e($error) ?></div><?php endif; ?>
 
@@ -85,13 +86,16 @@ renderBreadcrumbs($breadcrumbs);
                                 <?php foreach (chapterAllowedChapters() as $num => $label):
                                     $current = $latestByChapter[$num] ?? null;
                                     $canRevise = $current && (string) $current['status'] === 'Needs Revision';
-                                    $disabled = $current && !$canRevise;
+                                    $eligible = !empty($chapterEligibility[$num]['eligible']);
+                                    $disabled = !$eligible || ($current && !$canRevise);
+                                    $eligibilityLabel = $eligible ? 'Ready for Submission' : 'Adviser Approval Required';
                                 ?>
                                     <option value="<?= $num ?>" <?= $disabled ? 'disabled' : '' ?>>
-                                        <?= e($label) ?><?= $current ? ' - Latest: V' . (int) $current['version_number'] . ' ' . (string) $current['status'] : '' ?>
+                                        <?= e($label) ?> - <?= e($eligibilityLabel) ?><?= $current ? ' - Latest: V' . (int) $current['version_number'] . ' ' . (string) $current['status'] : '' ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
+                            <div class="form-text">Only chapters approved by your adviser are available for Grammarian submission.</div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Document</label>

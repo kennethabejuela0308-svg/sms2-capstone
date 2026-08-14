@@ -24,8 +24,8 @@ $submission = $id > 0 ? chapterGetSubmission($crad, $id) : null;
 $message = '';
 $error = '';
 if ($submission && !chapterEvaluatorCanAccess($submission)) {
-    http_response_code(403);
-    exit('Access denied.');
+    $error = 'This chapter submission is no longer in the active evaluation queue.';
+    $submission = null;
 }
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrfVerify()) {

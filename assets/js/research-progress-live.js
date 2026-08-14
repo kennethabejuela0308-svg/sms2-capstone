@@ -9,6 +9,11 @@
 (function() {
     'use strict';
 
+    function debugLog() {
+        if (!window.SMS2_DEBUG_LIVE || !window.console) return;
+        console.log.apply(console, arguments);
+    }
+
     const ResearchProgressLive = {
         config: {
             pollInterval: 10000, // 10 seconds
@@ -37,7 +42,7 @@
          * Initialize live updates for student pages
          */
         initStudent: function() {
-            console.log('[ResearchProgressLive] Initializing student live updates');
+            debugLog('[ResearchProgressLive] Initializing student live updates');
             
             // Start polling based on current page
             const currentPage = this.getCurrentPage();
@@ -55,7 +60,7 @@
          * Initialize live updates for adviser pages
          */
         initAdviser: function() {
-            console.log('[ResearchProgressLive] Initializing adviser live updates');
+            debugLog('[ResearchProgressLive] Initializing adviser live updates');
             
             const currentPage = this.getCurrentPage();
             
@@ -63,7 +68,7 @@
                 this.startPolling(this.pollAdviserGroups.bind(this));
             } else if (currentPage === 'submitted-updates') {
                 this.startPolling(this.pollAdviserUpdates.bind(this));
-            } else if (currentPage === 'research-progress-monitoring') {
+            } else if (currentPage === 'research-progress-monitoring' || currentPage === 'milestones-overview' || currentPage === 'adviser-feedback-history') {
                 this.startPolling(this.pollAdviserGroupProgress.bind(this));
             }
         },
@@ -83,7 +88,7 @@
          */
         startPolling: function(pollFunction) {
             if (this.state.isPolling) {
-                console.log('[ResearchProgressLive] Polling already active');
+                debugLog('[ResearchProgressLive] Polling already active');
                 return;
             }
 
@@ -100,7 +105,7 @@
                 }
             }, this.config.pollInterval);
 
-            console.log('[ResearchProgressLive] Polling started');
+            debugLog('[ResearchProgressLive] Polling started');
         },
 
         /**
@@ -112,7 +117,7 @@
                 this.timers.pollTimer = null;
             }
             this.state.isPolling = false;
-            console.log('[ResearchProgressLive] Polling stopped');
+            debugLog('[ResearchProgressLive] Polling stopped');
         },
 
         /**
@@ -281,7 +286,8 @@
          */
         pollAdviserGroupProgress: async function() {
             const urlParams = new URLSearchParams(window.location.search);
-            const groupNumber = urlParams.get('group');
+            const pageRoot = document.querySelector('[data-group-number]');
+            const groupNumber = urlParams.get('group') || (pageRoot ? pageRoot.getAttribute('data-group-number') : '');
 
             if (!groupNumber) return;
 
@@ -344,6 +350,7 @@
                 // Only update if changed
                 if (this.hasChanged(data.milestones, this.state.cache.milestones)) {
                     this.state.cache.milestones = data.milestones;
+                    this.updateMilestonesUI(data.milestones);
                     // Trigger UI update event
                     document.dispatchEvent(new CustomEvent('research:milestones-updated', { 
                         detail: { milestones: data.milestones } 
@@ -363,18 +370,33 @@
                 const card = document.querySelector(`[data-milestone-id="${milestone.id}"]`);
                 if (card) {
                     // Update progress bar
-                    const progressBar = card.querySelector('.progress-bar');
+                    const progressBar = card.querySelector('[data-milestone-progress-bar], .progress-bar, .rm-progress-fill, .rm-milestone-fill');
+                    const progressText = card.querySelector('[data-milestone-progress-text], .rm-milestone-header-pct');
                     if (progressBar) {
                         const progress = parseFloat(milestone.progress_percentage);
                         progressBar.style.width = `${progress}%`;
                         progressBar.setAttribute('aria-valuenow', progress);
                     }
+                    if (progressText) {
+                        const progress = parseFloat(milestone.progress_percentage);
+                        progressText.textContent = `${progress.toFixed(progressText.classList.contains('rm-milestone-header-pct') ? 0 : 1)}%`;
+                    }
 
                     // Update status badge
                     const statusBadge = card.querySelector('[data-milestone-status]');
                     if (statusBadge) {
-                        statusBadge.textContent = milestone.status;
-                        statusBadge.className = `badge ${this.getStatusBadgeClass(milestone.status)}`;
+                        if (statusBadge.classList.contains('rm-status-pill')) {
+                            const icon = statusBadge.querySelector('i');
+                            statusBadge.textContent = '';
+                            if (icon) {
+                                statusBadge.appendChild(icon);
+                                statusBadge.appendChild(document.createTextNode(' '));
+                            }
+                            statusBadge.appendChild(document.createTextNode(milestone.status));
+                        } else {
+                            statusBadge.textContent = milestone.status;
+                            statusBadge.className = `badge ${this.getStatusBadgeClass(milestone.status)}`;
+                        }
                     }
                 }
             });
@@ -502,6 +524,23 @@
          * Update adviser group progress UI
          */
         updateAdviserGroupProgressUI: function(data) {
+            if (data.plan) {
+                const progress = parseFloat(data.plan.overall_progress || 0);
+                const progressBar = document.querySelector('[data-overall-progress-bar]');
+                const progressTexts = document.querySelectorAll('[data-overall-progress-text]');
+                if (progressBar) {
+                    progressBar.style.width = `${progress}%`;
+                    progressBar.setAttribute('aria-valuenow', progress);
+                }
+                progressTexts.forEach(progressText => {
+                    progressText.textContent = `${progress.toFixed(1)}%`;
+                });
+            }
+
+            if (Array.isArray(data.milestones)) {
+                this.updateMilestonesUI(data.milestones);
+            }
+
             document.dispatchEvent(new CustomEvent('research:group-progress-updated', { 
                 detail: data 
             }));
@@ -606,7 +645,7 @@
                     `;
                 }
             } else {
-                console.log(`[ResearchProgressLive] Retry ${this.state.retryCount}/${this.config.maxRetries} in ${this.config.retryDelay}ms`);
+                debugLog(`[ResearchProgressLive] Retry ${this.state.retryCount}/${this.config.maxRetries} in ${this.config.retryDelay}ms`);
             }
         },
 
@@ -646,9 +685,9 @@
     // Pause polling when page is hidden (battery saving)
     document.addEventListener('visibilitychange', function() {
         if (document.visibilityState === 'hidden') {
-            console.log('[ResearchProgressLive] Page hidden, polling paused');
+            debugLog('[ResearchProgressLive] Page hidden, polling paused');
         } else {
-            console.log('[ResearchProgressLive] Page visible, polling resumed');
+            debugLog('[ResearchProgressLive] Page visible, polling resumed');
         }
     });
 

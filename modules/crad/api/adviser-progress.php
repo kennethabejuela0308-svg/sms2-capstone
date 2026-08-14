@@ -161,7 +161,10 @@ function handleGetGroupProgress(PDO $crad, int $adviserUserId, string $adviserEm
     $plan = rpGetResearchPlan($crad, $groupId);
     
     // Get milestones with progress
-    $milestones = rpGetMilestonesForPlan($crad, !empty($plan['id']) ? (int) $plan['id'] : null);
+    $milestones = rpGetMilestonesForPlan($crad, !empty($plan['id']) ? (int) $plan['id'] : null, $groupId);
+    if ($plan) {
+        $plan = rpApplySyncedPlanProgress($plan, $milestones);
+    }
     
     // Get recent progress updates
     $updatesStmt = $crad->prepare("
@@ -211,6 +214,8 @@ function handleGetGroupProgress(PDO $crad, int $adviserUserId, string $adviserEm
  */
 function handleGetProgressUpdates(PDO $crad, int $adviserUserId, string $adviserEmail): void
 {
+    rpEnsureProgressAttachmentSchema($crad);
+
     $assignmentMatch = rpAdviserAssignmentMatchSql('raa2', 'rg');
     $identitySql = rpAdviserIdentitySql('raa2');
     $statusSql = rpActiveAdviserAssignmentStatusSql('raa2');
@@ -222,6 +227,8 @@ function handleGetProgressUpdates(PDO $crad, int $adviserUserId, string $adviser
             rg.group_number,
             rg.group_name,
             rg.research_title,
+            rpa.id AS attachment_id,
+            rpa.file_name AS attachment_name,
             (SELECT COUNT(*) FROM research_progress_feedback WHERE progress_update_id = rpu.id) as feedback_count
         FROM research_progress_updates rpu
         INNER JOIN research_groups rg ON rg.id = rpu.research_group_id
@@ -238,6 +245,13 @@ function handleGetProgressUpdates(PDO $crad, int $adviserUserId, string $adviser
             LIMIT 1
         )
         LEFT JOIN research_milestones rm ON rm.id = rpu.milestone_id
+        LEFT JOIN research_progress_attachments rpa ON rpa.id = (
+            SELECT rpa2.id
+            FROM research_progress_attachments rpa2
+            WHERE rpa2.progress_update_id = rpu.id
+            ORDER BY rpa2.id DESC
+            LIMIT 1
+        )
         ORDER BY rpu.submitted_at DESC
         LIMIT 50
     ");
@@ -416,8 +430,10 @@ function handleRequestRevision(PDO $crad, int $adviserUserId, string $adviserEma
         ]);
         
         $feedbackId = (int) $crad->lastInsertId();
+
+        $crad->prepare("UPDATE research_progress_updates SET milestone_status = 'Revision Requested', updated_at = NOW() WHERE id = ?")
+            ->execute([$updateId]);
         
-        // Update milestone status
         if (!empty($update['milestone_id'])) {
             $updateMilestone = $crad->prepare("
                 UPDATE research_milestones 
@@ -427,6 +443,7 @@ function handleRequestRevision(PDO $crad, int $adviserUserId, string $adviserEma
                 WHERE id = ?
             ");
             $updateMilestone->execute([$input['feedback_text'], $update['milestone_id']]);
+            rpRecalculateOverallProgress($crad, (int) $update['research_plan_id']);
         }
         
         // Log and notify
@@ -500,6 +517,27 @@ function handleApproveProgress(PDO $crad, int $adviserUserId, string $adviserEma
         echo json_encode(['success' => false, 'message' => 'Access denied']);
         return;
     }
+
+    if ((string) ($update['milestone_status'] ?? '') !== 'Submitted for Review') {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Only submitted progress updates can be approved.']);
+        return;
+    }
+
+    $latestStmt = $crad->prepare(
+        "SELECT id
+         FROM research_progress_updates
+         WHERE research_group_id = ?
+           AND milestone_id <=> ?
+         ORDER BY submitted_at DESC, id DESC
+         LIMIT 1"
+    );
+    $latestStmt->execute([(int) $update['research_group_id'], $update['milestone_id'] ?? null]);
+    if ((int) ($latestStmt->fetchColumn() ?: 0) !== $updateId) {
+        http_response_code(409);
+        echo json_encode(['success' => false, 'message' => 'Only the latest submitted update for this milestone can be approved.']);
+        return;
+    }
     
     try {
         $crad->beginTransaction();
@@ -524,8 +562,10 @@ function handleApproveProgress(PDO $crad, int $adviserUserId, string $adviserEma
         ]);
         
         $feedbackId = (int) $crad->lastInsertId();
+
+        $crad->prepare("UPDATE research_progress_updates SET milestone_status = 'Approved', updated_at = NOW() WHERE id = ?")
+            ->execute([$updateId]);
         
-        // Update milestone status
         if (!empty($update['milestone_id'])) {
             $updateMilestone = $crad->prepare("
                 UPDATE research_milestones 
@@ -535,6 +575,7 @@ function handleApproveProgress(PDO $crad, int $adviserUserId, string $adviserEma
                 WHERE id = ?
             ");
             $updateMilestone->execute([$input['remarks'] ?? $input['feedback_text'] ?? 'Approved', $update['milestone_id']]);
+            rpRecalculateOverallProgress($crad, (int) $update['research_plan_id']);
         }
         
         rpLogActivity($crad, [

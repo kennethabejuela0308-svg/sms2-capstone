@@ -37,64 +37,37 @@ try {
     exit;
 }
 
-// No group param
-$groupNumber = $_GET['group'] ?? '';
-if (empty($groupNumber)) { ?>
-<div class="glass-dashboard"><div class="glass-board">
-    <div class="glass-panel"><div class="glass-panel-body rm-empty">
-        <div class="rm-empty-icon"><i class="fas fa-exclamation-triangle" style="color:#f59e0b;"></i></div>
-        <h6>No Research Group Specified</h6>
-        <p>Please select a research group to view its progress monitoring details.</p>
-        <a href="<?= BASE_URL ?>/modules/faculty/pages/my-research-groups.php" class="btn btn-primary mt-3">
-            <i class="fas fa-users me-2"></i>View My Research Groups
-        </a>
-    </div></div>
-</div></div>
-<?php require_once ROOT_PATH . '/includes/layout-end.php'; exit; }
-
 $adviserUserId = (int) ($_SESSION['user_id'] ?? 0);
 $adviserEmail  = rpCurrentUserEmail();
+$groupContext = rpResolveAdviserResearchGroupContext($crad, $adviserUserId, $adviserEmail, $_GET['group'] ?? null);
 
-// Verify adviser
-try {
-    $researchGroup = rpGetAssignedResearchGroupForAdviser($crad, $adviserUserId, $adviserEmail, $groupNumber);
-} catch (PDOException $e) {
-    error_log('Group query error: ' . $e->getMessage());
-    $researchGroup = null;
+if ($groupContext['status'] === 'no_groups') {
+    rpRenderAdviserNoGroupsState();
+    require_once ROOT_PATH . '/includes/layout-end.php';
+    exit;
+}
+if ($groupContext['status'] === 'needs_selection') {
+    rpRenderAdviserGroupSelector($groupContext['groups'], 'Select Research Group', 'Choose which assigned group you want to monitor.');
+    require_once ROOT_PATH . '/includes/layout-end.php';
+    exit;
+}
+if ($groupContext['status'] !== 'ok' || empty($groupContext['group'])) {
+    rpRenderAdviserGroupAccessDenied();
+    require_once ROOT_PATH . '/includes/layout-end.php';
+    exit;
 }
 
-if (!$researchGroup) { ?>
-<div class="glass-dashboard"><div class="glass-board">
-    <div class="glass-panel"><div class="glass-panel-body rm-empty">
-        <div class="rm-empty-icon"><i class="fas fa-ban" style="color:#ef4444;"></i></div>
-        <h6>Access Denied</h6>
-        <p>This research group is not assigned to you or does not exist.</p>
-        <a href="<?= BASE_URL ?>/modules/faculty/pages/my-research-groups.php" class="btn btn-primary mt-3">
-            <i class="fas fa-users me-2"></i>View My Research Groups
-        </a>
-    </div></div>
-</div></div>
-<?php require_once ROOT_PATH . '/includes/layout-end.php'; exit; }
-
+$researchGroup = $groupContext['group'];
+$groupNumber = (string) $researchGroup['group_number'];
 $groupId = (int) $researchGroup['id'];
 $plan    = rpGetResearchPlan($crad, $groupId);
 
 // Milestones
 try {
     if (!empty($plan['id'])) {
-        $milestonesStmt = $crad->prepare("
-            SELECT rm.*,
-                   (SELECT COUNT(*) FROM research_progress_updates rpu
-                    WHERE rpu.milestone_id = rm.id
-                      AND rpu.milestone_status = 'Submitted for Review') AS pending_count
-            FROM research_milestones rm
-            WHERE rm.research_plan_id = ?
-            ORDER BY rm.milestone_order ASC
-        ");
-        $milestonesStmt->execute([(int) $plan['id']]);
-        $milestones = $milestonesStmt->fetchAll(PDO::FETCH_ASSOC);
+        $milestones = rpGetMilestonesWithUpdateStats($crad, (int) $plan['id'], $groupId);
     } else {
-        $milestones = rpGetMilestonesForPlan($crad, null);
+        $milestones = rpGetMilestonesForPlan($crad, null, $groupId);
     }
 } catch (PDOException $e) { $milestones = []; }
 
@@ -112,7 +85,7 @@ try {
     $recentUpdates = $recentUpdatesStmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) { $recentUpdates = []; }
 
-$overallProgress  = (float) ($plan['overall_progress'] ?? 0);
+$overallProgress  = rpMilestonesOverallProgress($milestones);
 $totalMilestones  = count($milestones);
 $doneMilestones   = 0;
 $pendingTotal     = 0;
@@ -141,12 +114,6 @@ $progressColor = $overallProgress >= 80 ? '#10b981' : ($overallProgress >= 40 ? 
             <div class="rm-page-header-left">
                 <h4><i class="fas fa-chart-line me-2" style="color:var(--sms-primary);"></i>Research Progress</h4>
                 <p>Detailed monitoring for this research group</p>
-            </div>
-            <div class="rm-page-header-right">
-                <div class="rm-live-badge"><span class="rm-live-dot"></span>Live</div>
-                <a href="<?= BASE_URL ?>/modules/faculty/pages/my-research-groups.php" class="rm-back-btn">
-                    <i class="fas fa-arrow-left"></i>My Groups
-                </a>
             </div>
         </div>
 
@@ -255,13 +222,13 @@ $progressColor = $overallProgress >= 80 ? '#10b981' : ($overallProgress >= 40 ? 
                                                 <div class="rm-progress-track flex-grow-1" style="height:8px;max-width:90px;min-width:60px;">
                                                     <div class="rm-progress-fill" style="width:<?= $mp ?>%;background:<?= $sc['color'] ?>;"></div>
                                                 </div>
-                                                <span style="font-size:0.82rem;font-weight:800;color:<?= $sc['color'] ?>;min-width:38px;">
+                                                <span style="font-size:0.82rem;font-weight:800;color:<?= $sc['color'] ?>;min-width:38px;" data-milestone-progress-text>
                                                     <?= number_format($mp, 0) ?>%
                                                 </span>
                                             </div>
                                         </td>
                                         <td>
-                                            <span class="rm-status-pill" style="background:<?= $sc['bg'] ?>;color:<?= $sc['color'] ?>;">
+                                            <span class="rm-status-pill" style="background:<?= $sc['bg'] ?>;color:<?= $sc['color'] ?>;" data-milestone-status>
                                                 <i class="fas fa-<?= $sc['icon'] ?>"></i>
                                                 <?= htmlspecialchars($m['status']) ?>
                                             </span>

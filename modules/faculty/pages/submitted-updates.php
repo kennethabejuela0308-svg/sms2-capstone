@@ -35,43 +35,29 @@ try {
     exit;
 }
 
-$groupNumber = $_GET['group'] ?? '';
-if (empty($groupNumber)) {
-?>
-<div class="glass-dashboard"><div class="glass-board">
-    <div class="glass-panel"><div class="glass-panel-body rm-empty">
-        <div class="rm-empty-icon"><i class="fas fa-inbox" style="color:#f59e0b;"></i></div>
-        <h6>No Research Group Specified</h6>
-        <p>Please select a research group first to view its submitted updates.</p>
-        <a href="<?= BASE_URL ?>/modules/faculty/pages/my-research-groups.php" class="btn btn-primary mt-3">
-            <i class="fas fa-users me-2"></i>View My Research Groups
-        </a>
-    </div></div>
-</div></div>
-<?php require_once ROOT_PATH . '/includes/layout-end.php'; exit; }
-
 $adviserUserId = (int) ($_SESSION['user_id'] ?? 0);
 $adviserEmail  = rpCurrentUserEmail();
 $adviserName   = trim((string) ($_SESSION['full_name'] ?? $_SESSION['username'] ?? ''));
+$groupContext = rpResolveAdviserResearchGroupContext($crad, $adviserUserId, $adviserEmail, $_GET['group'] ?? null);
 
-try {
-    $researchGroup = rpGetAssignedResearchGroupForAdviser($crad, $adviserUserId, $adviserEmail, $groupNumber);
-} catch (PDOException $e) { $researchGroup = null; }
+if ($groupContext['status'] === 'no_groups') {
+    rpRenderAdviserNoGroupsState();
+    require_once ROOT_PATH . '/includes/layout-end.php';
+    exit;
+}
+if ($groupContext['status'] === 'needs_selection') {
+    rpRenderAdviserGroupSelector($groupContext['groups'], 'Select Research Group', 'Choose which assigned group you want to review updates for.');
+    require_once ROOT_PATH . '/includes/layout-end.php';
+    exit;
+}
+if ($groupContext['status'] !== 'ok' || empty($groupContext['group'])) {
+    rpRenderAdviserGroupAccessDenied();
+    require_once ROOT_PATH . '/includes/layout-end.php';
+    exit;
+}
 
-if (!$researchGroup) {
-?>
-<div class="glass-dashboard"><div class="glass-board">
-    <div class="glass-panel"><div class="glass-panel-body rm-empty">
-        <div class="rm-empty-icon"><i class="fas fa-ban" style="color:#ef4444;"></i></div>
-        <h6>Access Denied</h6>
-        <p>This research group is not assigned to you or does not exist.</p>
-        <a href="<?= BASE_URL ?>/modules/faculty/pages/my-research-groups.php" class="btn btn-primary mt-3">
-            <i class="fas fa-users me-2"></i>View My Research Groups
-        </a>
-    </div></div>
-</div></div>
-<?php require_once ROOT_PATH . '/includes/layout-end.php'; exit; }
-
+$researchGroup = $groupContext['group'];
+$groupNumber = (string) $researchGroup['group_number'];
 $groupId = (int) $researchGroup['id'];
 
 $milestoneFilter = isset($_GET['milestone_id']) ? (int) $_GET['milestone_id'] : null;
@@ -79,6 +65,7 @@ $updateIdFilter  = isset($_GET['update_id'])    ? (int) $_GET['update_id']    : 
 $statusFilter    = $_GET['status'] ?? 'all';
 
 $plan = rpGetResearchPlan($crad, $groupId);
+rpEnsureProgressAttachmentSchema($crad);
 
 $whereConditions = ["rpu.research_group_id = ?"];
 $params = [$groupId];
@@ -91,9 +78,17 @@ try {
     $updatesStmt = $crad->prepare("
         SELECT rpu.*,
                rm.milestone_name, rm.milestone_order, rm.status AS milestone_current_status,
+               rpa.id AS attachment_id, rpa.file_name AS attachment_name,
                (SELECT COUNT(*) FROM research_progress_feedback rpf WHERE rpf.progress_update_id = rpu.id) AS feedback_count
         FROM research_progress_updates rpu
         LEFT JOIN research_milestones rm ON rm.id = rpu.milestone_id
+        LEFT JOIN research_progress_attachments rpa ON rpa.id = (
+            SELECT rpa2.id
+            FROM research_progress_attachments rpa2
+            WHERE rpa2.progress_update_id = rpu.id
+            ORDER BY rpa2.id DESC
+            LIMIT 1
+        )
         WHERE {$whereClause}
         ORDER BY rpu.submitted_at DESC
     ");
@@ -119,7 +114,7 @@ $approvedCount = 0;
 $revisionCount = 0;
 foreach ($progressUpdates as $u) {
     if ($u['milestone_status'] === 'Submitted for Review') $pendingCount++;
-    if (in_array($u['milestone_status'], ['Approved'])) $approvedCount++;
+    if (in_array($u['milestone_status'], ['Approved', 'Completed'], true)) $approvedCount++;
     if ($u['milestone_status'] === 'Revision Requested') $revisionCount++;
 }
 
@@ -128,6 +123,7 @@ $statusMeta = [
     'Submitted for Review' => ['color' => '#3b82f6', 'bg' => '#dbeafe', 'accent' => '#3b82f6'],
     'Revision Requested'   => ['color' => '#ef4444', 'bg' => '#fee2e2', 'accent' => '#ef4444'],
     'Approved'             => ['color' => '#10b981', 'bg' => '#d1fae5', 'accent' => '#10b981'],
+    'Completed'            => ['color' => '#059669', 'bg' => '#d1fae5', 'accent' => '#059669'],
 ];
 ?>
 
@@ -135,18 +131,6 @@ $statusMeta = [
     <div class="glass-board">
 
         <!-- ── Page Header ───────────────────────────────── -->
-        <div class="rm-page-header">
-            <div class="rm-page-header-left">
-                <h4><i class="fas fa-inbox me-2" style="color:var(--sms-primary);"></i>Submitted Updates</h4>
-                <p>Review and provide feedback on student submissions</p>
-            </div>
-            <div class="rm-page-header-right">
-                <div class="rm-live-badge"><span class="rm-live-dot"></span>Live</div>
-                <a href="<?= BASE_URL ?>/modules/faculty/pages/research-progress-monitoring.php?group=<?= urlencode($groupNumber) ?>"
-                   class="rm-back-btn"><i class="fas fa-arrow-left"></i>Back</a>
-            </div>
-        </div>
-
         <!-- ── Group Info + Stat Chips ───────────────────── -->
         <div class="rm-group-hero" style="padding:1.1rem 1.4rem;">
             <div class="rm-group-hero-body">
@@ -208,6 +192,7 @@ $statusMeta = [
                         <option value="In Progress"            <?= $statusFilter === 'In Progress'            ? 'selected' : '' ?>>In Progress</option>
                         <option value="Revision Requested"     <?= $statusFilter === 'Revision Requested'     ? 'selected' : '' ?>>Revision Requested</option>
                         <option value="Approved"               <?= $statusFilter === 'Approved'               ? 'selected' : '' ?>>Approved</option>
+                        <option value="Completed"              <?= $statusFilter === 'Completed'              ? 'selected' : '' ?>>Completed</option>
                     </select>
                 </div>
                 <div class="col-md-4">
@@ -297,6 +282,31 @@ $statusMeta = [
                                     </div>
                                 </div>
                             <?php endif; ?>
+
+                            <div class="rm-section-block" style="background:#f8fafc;border-left:3px solid #64748b;">
+                                <div class="rm-section-block-label" style="color:#334155;">
+                                    <i class="fas fa-paperclip"></i>Attached Document
+                                </div>
+                                <div class="rm-section-block-body" style="color:#334155;">
+                                    <?php if (!empty($update['attachment_id'])): ?>
+                                        <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                                            <span><?= htmlspecialchars((string) $update['attachment_name']) ?></span>
+                                            <span class="d-flex gap-2">
+                                                <a class="btn btn-sm btn-outline-primary" target="_blank"
+                                                   href="<?= htmlspecialchars(rpProgressAttachmentUrl((int) $update['attachment_id'])) ?>">
+                                                    <i class="fas fa-eye me-1"></i>View
+                                                </a>
+                                                <a class="btn btn-sm btn-outline-secondary"
+                                                   href="<?= htmlspecialchars(rpProgressAttachmentUrl((int) $update['attachment_id'], true)) ?>">
+                                                    <i class="fas fa-download me-1"></i>Download
+                                                </a>
+                                            </span>
+                                        </div>
+                                    <?php else: ?>
+                                        <span class="text-muted">No document attached</span>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
 
                             <!-- Action buttons -->
                             <div class="rm-action-row" data-action-controls>
@@ -499,6 +509,33 @@ $statusMeta = [
 <!-- AJAX feedback submission -->
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    const initialUpdatesHash = <?= json_encode(array_map(static fn($u) => [
+        'id' => (int) $u['id'],
+        'status' => (string) $u['milestone_status'],
+        'updated_at' => (string) ($u['updated_at'] ?? ''),
+        'attachment_id' => (int) ($u['attachment_id'] ?? 0),
+    ], $progressUpdates)) ?>;
+    document.addEventListener('research:updates-refreshed', function (event) {
+        const live = (event.detail && Array.isArray(event.detail.updates)) ? event.detail.updates : [];
+        const milestoneFilter = <?= json_encode($milestoneFilter) ?>;
+        const updateIdFilter = <?= json_encode($updateIdFilter) ?>;
+        const statusFilter = <?= json_encode($statusFilter) ?>;
+        const liveHash = live
+            .filter(row => String(row.group_number || '') === <?= json_encode($groupNumber) ?>)
+            .filter(row => !milestoneFilter || parseInt(row.milestone_id || 0, 10) === parseInt(milestoneFilter, 10))
+            .filter(row => !updateIdFilter || parseInt(row.id || 0, 10) === parseInt(updateIdFilter, 10))
+            .filter(row => statusFilter === 'all' || String(row.milestone_status || '') === statusFilter)
+            .map(row => ({
+                id: parseInt(row.id || 0, 10),
+                status: String(row.milestone_status || ''),
+                updated_at: String(row.updated_at || ''),
+                attachment_id: parseInt(row.attachment_id || 0, 10)
+            }));
+        if (JSON.stringify(liveHash) !== JSON.stringify(initialUpdatesHash)) {
+            window.location.reload();
+        }
+    });
+
     document.querySelectorAll('.feedback-form').forEach(function (form) {
         form.addEventListener('submit', async function (e) {
             e.preventDefault();

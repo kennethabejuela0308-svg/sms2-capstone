@@ -67,14 +67,8 @@ $groupId = (int) $researchGroup['id'];
 // Get or create research plan
 $plan = rpGetOrCreateResearchPlan($crad, $groupId);
 
-// Get milestones
-$milestoneStmt = $crad->prepare("
-    SELECT * FROM research_milestones 
-    WHERE research_plan_id = ?
-    ORDER BY milestone_order ASC
-");
-$milestoneStmt->execute([$plan['id']]);
-$milestones = $milestoneStmt->fetchAll(PDO::FETCH_ASSOC);
+// Get milestones from Research Development progress only.
+$milestones = rpGetMilestonesForPlan($crad, (int) $plan['id'], $groupId);
 
 // Get pre-selected milestone if provided
 $selectedMilestoneId = isset($_GET['milestone_id']) ? (int)$_GET['milestone_id'] : null;
@@ -121,8 +115,9 @@ try {
                             </div>
                         </div>
 
-                        <form id="progressUpdateForm">
+                        <form id="progressUpdateForm" enctype="multipart/form-data">
                             <input type="hidden" id="submission_token" name="submission_token" value="">
+                            <div id="progress_form_alert" class="alert d-none" role="alert"></div>
 
                             <!-- Milestone Selection -->
                             <div class="mb-3">
@@ -134,6 +129,8 @@ try {
                                     <?php foreach ($milestones as $milestone): ?>
                                         <option value="<?= $milestone['id'] ?>" 
                                                 data-current-progress="<?= $milestone['progress_percentage'] ?>"
+                                                data-current-status="<?= htmlspecialchars((string) ($milestone['status'] ?? 'Not Started'), ENT_QUOTES) ?>"
+                                                data-chapter-number="<?= (int) ($milestone['chapter_number'] ?? 0) ?>"
                                                 <?= $selectedMilestone && (int)$milestone['id'] === (int)$selectedMilestone['id'] ? 'selected' : '' ?>>
                                             <?= htmlspecialchars($milestone['milestone_name']) ?> 
                                             (Current: <?= number_format((float)$milestone['progress_percentage'], 1) ?>%)
@@ -164,10 +161,19 @@ try {
                                     Milestone Status <span class="text-danger">*</span>
                                 </label>
                                 <select class="form-select" id="milestone_status" name="milestone_status" required>
-                                    <option value="In Progress" selected>In Progress</option>
+                                    <option value="Not Started">Not Started</option>
                                     <option value="Submitted for Review">Submitted for Review</option>
                                 </select>
                                 <small class="text-muted">Select "Submitted for Review" when ready for adviser review</small>
+                            </div>
+
+                            <!-- Document -->
+                            <div class="mb-3">
+                                <label class="form-label" style="font-weight:700;color:var(--sms-heading);">
+                                    Document <span class="text-danger d-none" id="document_required_marker">*</span>
+                                </label>
+                                <input type="file" class="form-control" id="document" name="document" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                                <div class="form-text">Allowed: PDF, DOC, DOCX, JPG, PNG. Max 10 MB.</div>
                             </div>
 
                             <!-- Update Title -->
@@ -216,6 +222,23 @@ try {
                                 <button type="submit" id="submitBtn" class="btn btn-primary btn-lg">
                                     <i class="fas fa-paper-plane me-2"></i>Submit Progress Update
                                 </button>
+                            </div>
+                            <div id="submitted_state" class="alert alert-success d-none mt-3" role="status">
+                                <div class="d-flex align-items-start gap-2">
+                                    <i class="fas fa-check-circle mt-1"></i>
+                                    <div>
+                                        <strong>Done Sent.</strong>
+                                        <div>Your progress update has been submitted and sent to your adviser for review.</div>
+                                        <div class="d-flex gap-2 flex-wrap mt-3">
+                                            <a class="btn btn-sm btn-success" href="<?= BASE_URL ?>/modules/student-portal/pages/my-research.php">
+                                                <i class="fas fa-chart-line me-1"></i>View My Research
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-outline-success" id="submitAnotherBtn">
+                                                <i class="fas fa-plus me-1"></i>Submit Another Update
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </form>
 
@@ -314,7 +337,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const progressDisplay = document.getElementById('progress_display');
     const milestoneSelect = document.getElementById('milestone_id');
     const currentProgressDisplay = document.getElementById('current_progress_display');
-    
+    const statusSelect = document.getElementById('milestone_status');
+    const documentInput = document.getElementById('document');
+    const documentRequiredMarker = document.getElementById('document_required_marker');
+
     progressInput.addEventListener('input', function() {
         progressDisplay.textContent = this.value;
     });
@@ -323,10 +349,29 @@ document.addEventListener('DOMContentLoaded', function() {
     milestoneSelect.addEventListener('change', function() {
         const selectedOption = this.options[this.selectedIndex];
         const currentProgress = selectedOption.getAttribute('data-current-progress') || 0;
+        const currentStatus = selectedOption.getAttribute('data-current-status') || 'Not Started';
         currentProgressDisplay.textContent = parseFloat(currentProgress).toFixed(1) + '%';
         progressInput.value = Math.ceil(parseFloat(currentProgress));
         progressDisplay.textContent = progressInput.value;
+        const allowedStatuses = ['Not Started', 'Submitted for Review'];
+        statusSelect.value = allowedStatuses.includes(currentStatus) ? currentStatus : 'Not Started';
+        updateDocumentRequirement();
     });
+
+    function selectedChapterNumber() {
+        const selectedOption = milestoneSelect.options[milestoneSelect.selectedIndex];
+        return parseInt(selectedOption ? (selectedOption.getAttribute('data-chapter-number') || '0') : '0', 10);
+    }
+
+    function updateDocumentRequirement() {
+        const required = selectedChapterNumber() >= 1 && selectedChapterNumber() <= 3 && statusSelect.value === 'Submitted for Review';
+        documentInput.required = required;
+        if (documentRequiredMarker) {
+            documentRequiredMarker.classList.toggle('d-none', !required);
+        }
+    }
+
+    statusSelect.addEventListener('change', updateDocumentRequirement);
     
     // Initialize displays
     if (milestoneSelect.value) {
@@ -338,13 +383,69 @@ document.addEventListener('DOMContentLoaded', function() {
     // Form submission with DUPLICATE PREVENTION
     const form = document.getElementById('progressUpdateForm');
     const submitBtn = document.getElementById('submitBtn');
+    const formAlert = document.getElementById('progress_form_alert');
+
+    function showFormAlert(type, message) {
+        formAlert.className = `alert alert-${type}`;
+        formAlert.innerHTML = message;
+        formAlert.classList.remove('d-none');
+        formAlert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function hideFormAlert() {
+        formAlert.className = 'alert d-none';
+        formAlert.textContent = '';
+    }
+
+    function restoreSubmitButton() {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Submit Progress Update';
+    }
+
+    function setSubmittedState() {
+        form.querySelectorAll('input, select, textarea').forEach(function (field) {
+            field.disabled = true;
+        });
+        submitBtn.disabled = true;
+        submitBtn.classList.remove('btn-primary');
+        submitBtn.classList.add('btn-success');
+        submitBtn.innerHTML = '<i class="fas fa-check-circle me-2"></i>Done Sent';
+
+        const submittedState = document.getElementById('submitted_state');
+        if (submittedState) {
+            submittedState.classList.remove('d-none');
+            submittedState.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }
+
+    async function readJsonResponse(response) {
+        const text = await response.text();
+        if (!text.trim()) {
+            return {};
+        }
+
+        try {
+            return JSON.parse(text);
+        } catch (error) {
+            console.error('Unexpected submit response:', text);
+            throw new Error(response.ok ? 'invalid_success_response' : 'invalid_error_response');
+        }
+    }
+
+    const submitAnotherBtn = document.getElementById('submitAnotherBtn');
+    if (submitAnotherBtn) {
+        submitAnotherBtn.addEventListener('click', function () {
+            window.location.reload();
+        });
+    }
     
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
+        hideFormAlert();
         
         // Check token
         if (!submissionToken) {
-            alert('Please wait, initializing submission token...');
+            showFormAlert('warning', '<i class="fas fa-clock me-2"></i>Please wait, initializing submission token...');
             return;
         }
         
@@ -353,50 +454,51 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting...';
         
         const formData = new FormData(form);
-        const data = {
-            action: 'submit_progress',
-            milestone_id: parseInt(formData.get('milestone_id')),
-            new_progress: parseFloat(formData.get('new_progress')),
-            milestone_status: formData.get('milestone_status'),
-            update_title: formData.get('update_title'),
-            accomplishments: formData.get('accomplishments'),
-            problems_blockers: formData.get('problems_blockers'),
-            next_planned_activity: formData.get('next_planned_activity'),
-            submission_token: submissionToken
-        };
+        formData.set('action', 'submit_progress');
+        formData.set('new_progress', progressInput.value);
+        formData.set('milestone_status', statusSelect.value);
         
         try {
             const response = await fetch('<?= BASE_URL ?>/modules/crad/api/research-progress.php', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(data)
+                credentials: 'same-origin',
+                body: formData
             });
             
-            const result = await response.json();
+            const result = await readJsonResponse(response);
             
             // Check for duplicate (HTTP 409)
             if (response.status === 409) {
-                alert('Duplicate submission detected. This update was already submitted.');
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Submit Progress Update';
+                showFormAlert('warning', '<i class="fas fa-copy me-2"></i>Duplicate submission detected. This update was already submitted.');
+                restoreSubmitButton();
+                return;
+            }
+
+            if (!response.ok) {
+                showFormAlert('danger', '<i class="fas fa-exclamation-triangle me-2"></i>' + (result.message || 'Failed to submit progress update. Please try again.'));
+                restoreSubmitButton();
                 return;
             }
             
             if (result.success) {
-                // Success - reset form and token
                 submissionToken = null;
-                alert('Progress update submitted successfully!');
-                window.location.href = '<?= BASE_URL ?>/modules/student-portal/pages/my-research.php';
+                showFormAlert('success', '<i class="fas fa-check-circle me-2"></i><strong>Done Sent.</strong> Your adviser can now see this progress update in Submitted Updates.');
+                setSubmittedState();
             } else {
-                alert(result.message || 'Failed to submit progress update. Please try again.');
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Submit Progress Update';
+                showFormAlert('danger', '<i class="fas fa-exclamation-triangle me-2"></i>' + (result.message || 'Failed to submit progress update. Please try again.'));
+                restoreSubmitButton();
             }
         } catch (error) {
             console.error('Submission error:', error);
-            alert('Network error. Please check your connection and try again.');
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Submit Progress Update';
+            const message = error.message === 'invalid_success_response'
+                ? '<i class="fas fa-check-circle me-2"></i><strong>Done Sent.</strong> The update was submitted, but the confirmation response could not be read. Please refresh to see the latest record.'
+                : '<i class="fas fa-wifi me-2"></i>Network error. Please check your connection and try again.';
+            showFormAlert(error.message === 'invalid_success_response' ? 'success' : 'danger', message);
+            if (error.message === 'invalid_success_response') {
+                setSubmittedState();
+                return;
+            }
+            restoreSubmitButton();
         }
     });
 });
