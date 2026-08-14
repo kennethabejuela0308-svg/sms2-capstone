@@ -7,6 +7,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../modules/crad/config/config.php';
+require_once __DIR__ . '/../modules/crad/includes/chapter-evaluation-workflow.php';
 
 function smsAssignmentNotificationEnsureSentSchema(PDO $crad): void
 {
@@ -98,7 +99,81 @@ function smsDeleteStoredCradAssignmentNotifications(PDO $crad): void
 
 function smsCurrentUserNotifications(int $limit = 8): array
 {
-    return [];
+    $crad = cradDb();
+    if (!$crad) {
+        return [];
+    }
+
+    try {
+        $table = $crad->query("SHOW TABLES LIKE 'chapter_evaluation_notifications'")->fetchColumn();
+        if (!$table) {
+            return [];
+        }
+
+        $where = smsCurrentUserNotificationWhere();
+        $role = (string) ($_SESSION['user_role_key'] ?? '');
+        $studentChapterFilter = '';
+        $registeredGroup = null;
+        if ($role === 'student') {
+            $registeredGroup = chapterRegisteredStudentGroup($crad);
+            if (!$registeredGroup) {
+                return [];
+            }
+            $studentChapterFilter = "
+               AND cs.id IS NOT NULL
+               AND cs.research_group_id = :registered_group_id
+               AND cs.id = (
+                    SELECT latest_cs.id
+                    FROM chapter_submissions latest_cs
+                    WHERE latest_cs.research_group_id = cs.research_group_id
+                      AND latest_cs.chapter_number = cs.chapter_number
+                    ORDER BY latest_cs.version_number DESC, latest_cs.id DESC
+                    LIMIT 1
+               )
+               AND (
+                    (n.type = 'submitted' AND cs.status = 'Submitted')
+                 OR (n.type = 'new_submission' AND cs.status = 'Submitted')
+                 OR (n.type = 'under_review' AND cs.status = 'Under Review')
+                 OR (n.type = 'needs_revision' AND cs.status = 'Needs Revision')
+                 OR (n.type = 'accepted' AND cs.status = 'Accepted')
+                 OR (n.type NOT IN ('submitted', 'new_submission', 'under_review', 'needs_revision', 'accepted'))
+               )";
+        }
+        $stmt = $crad->prepare(
+            "SELECT n.id, n.event_key, n.type, n.title, n.body, n.url, n.is_read, n.created_at
+             FROM chapter_evaluation_notifications n
+             LEFT JOIN chapter_submissions cs ON cs.id = n.submission_id
+             WHERE {$where['sql']}
+             {$studentChapterFilter}
+             ORDER BY n.created_at DESC, n.id DESC
+             LIMIT :limit"
+        );
+        foreach ($where['params'] as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+        if ($registeredGroup) {
+            $stmt->bindValue(':registered_group_id', (int) $registeredGroup['id'], PDO::PARAM_INT);
+        }
+        $stmt->bindValue(':limit', max(1, min(50, $limit)), PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll() ?: [];
+    } catch (Throwable $e) {
+        error_log('Chapter notification load failed: ' . $e->getMessage());
+        return [];
+    }
+
+    return array_map(static function (array $row): array {
+        return [
+            'id' => (int) $row['id'],
+            'batch_key' => (string) ($row['event_key'] ?? ''),
+            'icon' => 'fa-file-alt',
+            'status' => ((int) ($row['is_read'] ?? 0) === 1) ? 'read' : 'unread',
+            'title' => (string) ($row['title'] ?? 'Notification'),
+            'body' => (string) ($row['body'] ?? ''),
+            'url' => (string) ($row['url'] ?? '#'),
+            'created_at' => (string) ($row['created_at'] ?? date('Y-m-d H:i:s')),
+        ];
+    }, $rows);
 }
 
 function smsBackfillCradAssignmentNotifications(PDO $crad): void
@@ -113,7 +188,36 @@ function smsBackfillCradAssignmentNotificationForGroup(PDO $crad, array $group, 
 
 function smsMarkCurrentUserNotificationRead(int $notificationId): void
 {
-    return;
+    if ($notificationId <= 0) {
+        return;
+    }
+
+    $crad = cradDb();
+    if (!$crad) {
+        return;
+    }
+
+    try {
+        $table = $crad->query("SHOW TABLES LIKE 'chapter_evaluation_notifications'")->fetchColumn();
+        if (!$table) {
+            return;
+        }
+        $where = smsCurrentUserNotificationWhere();
+        $stmt = $crad->prepare(
+            "UPDATE chapter_evaluation_notifications
+             SET is_read = 1
+             WHERE id = :notification_id
+               AND {$where['sql']}
+             LIMIT 1"
+        );
+        $stmt->bindValue(':notification_id', $notificationId, PDO::PARAM_INT);
+        foreach ($where['params'] as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+        $stmt->execute();
+    } catch (Throwable $e) {
+        error_log('Chapter notification mark-read failed: ' . $e->getMessage());
+    }
 }
 
 function smsMarkCurrentUserSyntheticNotificationRead(string $batchKey): void
@@ -154,6 +258,31 @@ function smsMarkCurrentUserSyntheticNotificationRead(string $batchKey): void
         );
         $readKeys[] = $batchKey;
         $_SESSION['read_live_assignment_notifications'] = array_values(array_unique(array_filter($readKeys)));
+        return;
+    }
+
+    if (strpos($batchKey, 'evaluator:new:') === 0 || strpos($batchKey, 'student:') === 0) {
+        $crad = cradDb();
+        if (!$crad) {
+            return;
+        }
+        try {
+            $where = smsCurrentUserNotificationWhere();
+            $stmt = $crad->prepare(
+                "UPDATE chapter_evaluation_notifications
+                 SET is_read = 1
+                 WHERE event_key = :event_key
+                   AND {$where['sql']}
+                 LIMIT 1"
+            );
+            $stmt->bindValue(':event_key', $batchKey);
+            foreach ($where['params'] as $key => $value) {
+                $stmt->bindValue($key, $value);
+            }
+            $stmt->execute();
+        } catch (Throwable $e) {
+            error_log('Chapter synthetic notification mark-read failed: ' . $e->getMessage());
+        }
     }
 }
 

@@ -26,6 +26,7 @@ $roles = [
     'finance'    => ['label' => 'Finance',      'icon' => 'fa-credit-card',      'color' => 'finance'],
     'hr'         => ['label' => 'Dean',         'icon' => 'fa-user-tie',         'color' => 'hr'],
     'adviser'    => ['label' => 'Adviser',      'icon' => 'fa-user-graduate',    'color' => 'adviser'],
+    'grammarian' => ['label' => 'Grammarian',   'icon' => 'fa-spell-check',      'color' => 'grammarian'],
     'it_office'  => ['label' => 'IT Office',    'icon' => 'fa-laptop',           'color' => 'it_office'],
     'osa'        => ['label' => 'OSA',          'icon' => 'fa-users',            'color' => 'osa'],
     'qa'         => ['label' => 'QA',           'icon' => 'fa-award',            'color' => 'qa'],
@@ -50,6 +51,7 @@ foreach ($defaultMatrix as $modKey => &$modDefaults) {
     // superadmin has no editable modules (all controlled at system level)
     $modDefaults['superadmin'] = false;
     $modDefaults['admission'] = ($modKey === 'enrollment');
+    $modDefaults['grammarian'] = ($modKey === 'faculty');
     unset($modDefaults['admin']);
     unset($modDefaults['panel']);
 }

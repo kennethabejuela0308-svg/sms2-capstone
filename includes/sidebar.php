@@ -140,7 +140,12 @@ $studentNavGroups = [
     ],
     'Research' => [
         ['slug' => 'research-proposal-submission', 'href' => $studentResearchProposalHref, 'icon' => 'fa-flask',            'label' => 'Research Proposal', 'locked' => false],
-        ['slug' => 'submit-documents',             'href' => BASE_URL . '/modules/student-portal/pages/submit-documents.php',             'icon' => 'fa-cloud-upload-alt', 'label' => 'Submit Documents',  'locked' => !$researchForumPaid],
+    ],
+    'Document Submission' => [
+        ['slug' => 'submit-chapters', 'href' => BASE_URL . '/modules/student-portal/pages/submit-chapters.php', 'icon' => 'fa-file-upload', 'label' => 'Submit Chapter 1-3', 'locked' => false],
+        ['slug' => 'my-submissions', 'href' => BASE_URL . '/modules/student-portal/pages/my-submissions.php', 'icon' => 'fa-folder-open', 'label' => 'My Submissions', 'locked' => false],
+        ['slug' => 'submission-status', 'href' => BASE_URL . '/modules/student-portal/pages/submission-status.php', 'icon' => 'fa-chart-line', 'label' => 'Submission Status', 'locked' => false],
+        ['slug' => 'submission-history', 'href' => BASE_URL . '/modules/student-portal/pages/submission-history.php', 'icon' => 'fa-history', 'label' => 'Submission History', 'locked' => false],
     ],
     'System' => [
         ['slug' => 'security-settings', 'href' => BASE_URL . '/account/module-security.php?module=student_portal', 'icon' => 'fa-shield-alt', 'label' => 'Security Settings', 'locked' => false],
@@ -218,6 +223,17 @@ $facultyAccountNavGroups += [
         ['slug' => 'my-profile', 'href' => BASE_URL . '/modules/faculty/pages/my-profile.php', 'icon' => 'fa-user', 'label' => 'My Profile'],
         ['slug' => 'expertise', 'href' => BASE_URL . '/modules/faculty/pages/expertise.php', 'icon' => 'fa-brain', 'label' => 'Expertise'],
         ['slug' => 'availability', 'href' => BASE_URL . '/modules/faculty/pages/availability.php', 'icon' => 'fa-user-check', 'label' => 'Availability'],
+    ],
+    'System' => [
+        ['slug' => 'security-settings', 'href' => BASE_URL . '/account/module-security.php?module=faculty', 'icon' => 'fa-shield-alt', 'label' => 'Security Settings'],
+    ],
+];
+
+$grammarianNavGroups = [
+    'Evaluation' => [
+        ['slug' => 'for-evaluation', 'href' => BASE_URL . '/modules/faculty/pages/for-evaluation.php', 'icon' => 'fa-clipboard-check', 'label' => 'For Evaluation'],
+        ['slug' => 'evaluation-scoring', 'href' => BASE_URL . '/modules/faculty/pages/evaluation-scoring.php', 'icon' => 'fa-star-half-alt', 'label' => 'Evaluation & Scoring'],
+        ['slug' => 'evaluation-history', 'href' => BASE_URL . '/modules/faculty/pages/evaluation-history.php', 'icon' => 'fa-history', 'label' => 'Evaluation History'],
     ],
     'System' => [
         ['slug' => 'security-settings', 'href' => BASE_URL . '/account/module-security.php?module=faculty', 'icon' => 'fa-shield-alt', 'label' => 'Security Settings'],
@@ -305,8 +321,15 @@ $researchDirectorNavGroups = [
                     <?php endforeach; ?>
                 <?php endforeach; ?>
 
-            <?php elseif (in_array($roleKey, ['adviser', 'research_director'], true) && $activeModule === 'faculty'): ?>
-                <?php $accountNavGroups = $roleKey === 'research_director' ? $researchDirectorNavGroups : $facultyAccountNavGroups; ?>
+            <?php elseif (in_array($roleKey, ['adviser', 'research_director', 'grammarian'], true) && $activeModule === 'faculty'): ?>
+                <?php
+                $accountNavGroups = $facultyAccountNavGroups;
+                if ($roleKey === 'research_director') {
+                    $accountNavGroups = $researchDirectorNavGroups;
+                } elseif ($roleKey === 'grammarian') {
+                    $accountNavGroups = $grammarianNavGroups;
+                }
+                ?>
                 <?php foreach ($accountNavGroups as $groupLabel => $groupItems): ?>
                     <li class="nav-item sidebar-group-label">
                         <span class="nav-link sidebar-group-heading"><?= htmlspecialchars($groupLabel) ?></span>

@@ -51,20 +51,10 @@ if (empty($groupNumber)) {
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; exit; }
 
 $adviserUserId = (int) ($_SESSION['user_id'] ?? 0);
+$adviserEmail  = rpCurrentUserEmail();
 
 try {
-    $groupStmt = $crad->prepare("
-        SELECT rg.*, raa.adviser_user_id, raa.assignment_status
-        FROM research_groups rg
-        INNER JOIN research_adviser_assignments raa ON raa.group_number = rg.group_number
-        WHERE rg.group_number = ?
-          AND raa.adviser_user_id = ?
-          AND raa.assignment_status = 'Confirmed'
-          AND rg.status = 'Approved'
-        LIMIT 1
-    ");
-    $groupStmt->execute([$groupNumber, $adviserUserId]);
-    $researchGroup = $groupStmt->fetch(PDO::FETCH_ASSOC);
+    $researchGroup = rpGetAssignedResearchGroupForAdviser($crad, $adviserUserId, $adviserEmail, $groupNumber);
 } catch (PDOException $e) { $researchGroup = null; }
 
 if (!$researchGroup) {
@@ -82,13 +72,17 @@ if (!$researchGroup) {
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; exit; }
 
 $groupId = (int) $researchGroup['id'];
-$plan    = rpGetOrCreateResearchPlan($crad, $groupId);
+$plan    = rpGetResearchPlan($crad, $groupId);
 
 $typeFilter      = $_GET['type']         ?? 'all';
 $milestoneFilter = isset($_GET['milestone_id']) ? (int) $_GET['milestone_id'] : null;
 
-$whereConditions = ["rpf.adviser_user_id = ?", "rpu.research_group_id = ?"];
-$params = [$adviserUserId, $groupId];
+$whereConditions = ["rpu.research_group_id = ?"];
+$params = [$groupId];
+if ($adviserUserId > 0) {
+    $whereConditions[] = "rpf.adviser_user_id = ?";
+    $params[] = $adviserUserId;
+}
 if ($typeFilter && $typeFilter !== 'all') { $whereConditions[] = "rpf.feedback_type = ?"; $params[] = $typeFilter; }
 if ($milestoneFilter) { $whereConditions[] = "rpf.milestone_id = ?"; $params[] = $milestoneFilter; }
 $whereClause = implode(' AND ', $whereConditions);
@@ -108,12 +102,16 @@ try {
 } catch (PDOException $e) { $feedbackHistory = []; }
 
 try {
-    $milestonesStmt = $crad->prepare("
-        SELECT id, milestone_name, milestone_order FROM research_milestones
-        WHERE research_plan_id = ? ORDER BY milestone_order ASC
-    ");
-    $milestonesStmt->execute([$plan['id']]);
-    $milestones = $milestonesStmt->fetchAll(PDO::FETCH_ASSOC);
+    if (!empty($plan['id'])) {
+        $milestonesStmt = $crad->prepare("
+            SELECT id, milestone_name, milestone_order FROM research_milestones
+            WHERE research_plan_id = ? ORDER BY milestone_order ASC
+        ");
+        $milestonesStmt->execute([(int) $plan['id']]);
+        $milestones = $milestonesStmt->fetchAll(PDO::FETCH_ASSOC);
+    } else {
+        $milestones = [];
+    }
 } catch (PDOException $e) { $milestones = []; }
 
 $stats = ['total' => count($feedbackHistory), 'Comment' => 0, 'Revision Request' => 0, 'approvals' => 0];

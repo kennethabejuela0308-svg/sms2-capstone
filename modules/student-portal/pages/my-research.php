@@ -163,14 +163,15 @@ $overallProgress = (float) $plan['overall_progress'];
                         <p class="glass-panel-sub">Calculated from all milestones</p>
                     </div>
                     <span class="glass-chip" style="font-size:1rem;font-weight:800;">
-                        <?= number_format($overallProgress, 1) ?>%
+                        <span data-overall-progress-text><?= number_format($overallProgress, 1) ?>%</span>
                     </span>
                 </div>
                 
                 <div class="progress" style="height:24px;border-radius:12px;">
                     <div class="progress-bar" role="progressbar" 
                          style="width:<?= $overallProgress ?>%;background:linear-gradient(90deg, #2563eb, #60a5fa);" 
-                         aria-valuenow="<?= $overallProgress ?>" aria-valuemin="0" aria-valuemax="100">
+                         aria-valuenow="<?= $overallProgress ?>" aria-valuemin="0" aria-valuemax="100"
+                         data-overall-progress-bar>
                         <span style="font-weight:700;font-size:0.85rem;"><?= number_format($overallProgress, 1) ?>%</span>
                     </div>
                 </div>
@@ -195,7 +196,7 @@ $overallProgress = (float) $plan['overall_progress'];
                     </a>
                 </div>
                 
-                <div class="row g-3">
+                <div class="row g-3" data-milestones-container>
                     <?php foreach ($milestones as $milestone): ?>
                         <?php
                         $progress = (float) $milestone['progress_percentage'];
@@ -210,7 +211,7 @@ $overallProgress = (float) $plan['overall_progress'];
                         ];
                         $statusInfo = $statusIcons[$status] ?? ['icon' => 'fa-circle', 'color' => '#64748b'];
                         ?>
-                        <div class="col-md-6">
+                        <div class="col-md-6" data-milestone-id="<?= htmlspecialchars((string) $milestone['id']) ?>">
                             <div class="p-3" style="border-radius:12px;border:1px solid var(--sms-border-soft);background:var(--sms-surface-muted);">
                                 <div class="d-flex justify-content-between align-items-start mb-2">
                                     <div style="font-weight:700;color:var(--sms-heading);font-size:0.95rem;">
@@ -225,7 +226,7 @@ $overallProgress = (float) $plan['overall_progress'];
                                          role="progressbar" aria-valuenow="<?= $progress ?>" aria-valuemin="0" aria-valuemax="100"></div>
                                 </div>
                                 <div class="d-flex justify-content-between align-items-center">
-                                    <span style="font-size:0.75rem;color:var(--sms-text-muted);"><?= htmlspecialchars($status) ?></span>
+                                    <span style="font-size:0.75rem;color:var(--sms-text-muted);" data-milestone-status><?= htmlspecialchars($status) ?></span>
                                     <span style="font-size:0.8rem;font-weight:700;color:var(--sms-heading);"><?= number_format($progress, 0) ?>%</span>
                                 </div>
                             </div>

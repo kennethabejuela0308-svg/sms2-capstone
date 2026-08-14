@@ -43,42 +43,10 @@ try {
 }
 
 $adviserUserId = (int) ($_SESSION['user_id'] ?? 0);
-$adviserName   = trim((string) ($_SESSION['full_name'] ?? $_SESSION['username'] ?? ''));
+$adviserEmail  = rpCurrentUserEmail();
 
 try {
-    $groupsStmt = $crad->prepare("
-        SELECT DISTINCT
-               rg.id,
-               rg.group_number,
-               rg.group_name,
-               rg.research_title,
-               rg.academic_year,
-               rg.status          AS group_status,
-               raa.assignment_status,
-               rp.id              AS plan_id,
-               rp.overall_progress,
-               rp.current_stage,
-               rp.status          AS plan_status,
-               (SELECT COUNT(*) FROM research_progress_updates rpu
-                WHERE rpu.research_group_id = rg.id
-                  AND rpu.milestone_status = 'Submitted for Review') AS pending_reviews,
-               (SELECT COUNT(*) FROM research_milestones rm2
-                INNER JOIN research_plans rp2 ON rp2.id = rm2.research_plan_id
-                WHERE rp2.research_group_id = rg.id) AS total_milestones,
-               (SELECT COUNT(*) FROM research_milestones rm3
-                INNER JOIN research_plans rp3 ON rp3.id = rm3.research_plan_id
-                WHERE rp3.research_group_id = rg.id
-                  AND rm3.status IN ('Approved','Completed')) AS done_milestones
-        FROM research_groups rg
-        INNER JOIN research_adviser_assignments raa ON raa.group_number = rg.group_number
-        LEFT  JOIN research_plans rp ON rp.research_group_id = rg.id
-        WHERE raa.adviser_user_id = ?
-          AND raa.assignment_status = 'Confirmed'
-          AND rg.status = 'Approved'
-        ORDER BY rg.date_assigned DESC
-    ");
-    $groupsStmt->execute([$adviserUserId]);
-    $assignedGroups = $groupsStmt->fetchAll(PDO::FETCH_ASSOC);
+    $assignedGroups = rpGetAssignedResearchGroupsForAdviser($crad, $adviserUserId, $adviserEmail);
 } catch (PDOException $e) {
     error_log('Groups query error: ' . $e->getMessage());
     $assignedGroups = [];
@@ -154,7 +122,7 @@ $totalPending = array_sum(array_column($assignedGroups, 'pending_reviews'));
                     $pendingReviews = (int)   $group['pending_reviews'];
                     $progressColor  = $progress >= 80 ? '#10b981' : ($progress >= 40 ? '#f59e0b' : '#3b82f6');
                 ?>
-                    <div class="col-xl-4 col-lg-6" data-group-id="<?= $group['id'] ?>">
+                    <div class="col-xl-4 col-lg-6" data-group-id="<?= $group['id'] ?>" data-group-number="<?= htmlspecialchars($group['group_number']) ?>">
                         <div class="glass-panel rm-group-card">
                             <div class="glass-panel-body d-flex flex-column h-100">
 
@@ -202,10 +170,34 @@ $totalPending = array_sum(array_column($assignedGroups, 'pending_reviews'));
                                                  data-group-progress-bar></div>
                                         </div>
                                     <?php else: ?>
-                                        <div style="font-size:0.82rem;color:var(--sms-text-muted);padding:0.5rem 0;">
-                                            <i class="fas fa-info-circle me-1"></i>Research plan not initialized yet.
+                                        <div class="rm-progress-header">
+                                            <span class="rm-progress-label">Overall Progress</span>
+                                            <span class="rm-progress-pct" style="color:<?= $progressColor ?>;" data-group-progress-text>
+                                                0.0%
+                                            </span>
+                                        </div>
+                                        <div class="rm-progress-track">
+                                            <div class="rm-progress-fill"
+                                                 style="width:0%;background:<?= $progressColor ?>;"
+                                                 data-group-progress-bar></div>
                                         </div>
                                     <?php endif; ?>
+                                </div>
+
+                                <?php $milestones = $group['milestones'] ?? []; ?>
+                                <div class="mt-3" data-group-milestones>
+                                    <?php foreach ($milestones as $milestone): ?>
+                                        <div class="d-flex align-items-center justify-content-between gap-2 mb-2"
+                                             style="font-size:0.78rem;color:var(--sms-text);"
+                                             data-milestone-id="<?= htmlspecialchars((string) ($milestone['id'] ?? '')) ?>">
+                                            <span style="font-weight:700;color:var(--sms-heading);">
+                                                <?= htmlspecialchars((string) $milestone['milestone_name']) ?>
+                                            </span>
+                                            <span class="text-nowrap" style="color:var(--sms-text-muted);" data-milestone-status>
+                                                <?= htmlspecialchars((string) $milestone['status']) ?>
+                                            </span>
+                                        </div>
+                                    <?php endforeach; ?>
                                 </div>
 
                                 <!-- Actions -->

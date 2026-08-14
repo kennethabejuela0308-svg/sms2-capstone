@@ -34,7 +34,15 @@ if ($currentRole !== 'adviser') {
 }
 
 $method = $_SERVER['REQUEST_METHOD'];
-$action = $_GET['action'] ?? $_POST['action'] ?? '';
+$rpJsonInput = [];
+if ($method === 'POST') {
+    $rawInput = file_get_contents('php://input');
+    $decodedInput = json_decode((string) $rawInput, true);
+    if (is_array($decodedInput)) {
+        $rpJsonInput = $decodedInput;
+    }
+}
+$action = $_GET['action'] ?? $_POST['action'] ?? ($rpJsonInput['action'] ?? '');
 
 try {
     $crad = cradDb();
@@ -45,9 +53,10 @@ try {
 }
 
 $adviserUserId = (int) ($_SESSION['user_id'] ?? 0);
+$adviserEmail = rpCurrentUserEmail();
 $adviserName = trim((string) ($_SESSION['user_name'] ?? ''));
 
-if ($adviserUserId <= 0) {
+if ($adviserUserId <= 0 && $adviserEmail === '') {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Adviser identification required']);
     exit;
@@ -56,42 +65,45 @@ if ($adviserUserId <= 0) {
 // Route to appropriate handler
 switch ($action) {
     case 'get_assigned_groups':
-        handleGetAssignedGroups($crad, $adviserUserId);
+        handleGetAssignedGroups($crad, $adviserUserId, $adviserEmail);
         break;
         
     case 'get_group_progress':
-        handleGetGroupProgress($crad, $adviserUserId);
+        handleGetGroupProgress($crad, $adviserUserId, $adviserEmail);
         break;
         
     case 'get_progress_updates':
-        handleGetProgressUpdates($crad, $adviserUserId);
+        handleGetProgressUpdates($crad, $adviserUserId, $adviserEmail);
         break;
         
     case 'submit_feedback':
+    case 'comment':
         if ($method !== 'POST') {
             http_response_code(405);
             echo json_encode(['success' => false, 'message' => 'Method not allowed']);
             exit;
         }
-        handleSubmitFeedback($crad, $adviserUserId, $adviserName);
+        handleSubmitFeedback($crad, $adviserUserId, $adviserEmail, $adviserName);
         break;
         
     case 'request_revision':
+    case 'revision':
         if ($method !== 'POST') {
             http_response_code(405);
             echo json_encode(['success' => false, 'message' => 'Method not allowed']);
             exit;
         }
-        handleRequestRevision($crad, $adviserUserId, $adviserName);
+        handleRequestRevision($crad, $adviserUserId, $adviserEmail, $adviserName);
         break;
         
     case 'approve_progress':
+    case 'approve':
         if ($method !== 'POST') {
             http_response_code(405);
             echo json_encode(['success' => false, 'message' => 'Method not allowed']);
             exit;
         }
-        handleApproveProgress($crad, $adviserUserId, $adviserName);
+        handleApproveProgress($crad, $adviserUserId, $adviserEmail, $adviserName);
         break;
         
     case 'generate_token':
@@ -111,28 +123,9 @@ switch ($action) {
 /**
  * Get all research groups assigned to this adviser
  */
-function handleGetAssignedGroups(PDO $crad, int $adviserUserId): void
+function handleGetAssignedGroups(PDO $crad, int $adviserUserId, string $adviserEmail): void
 {
-    $stmt = $crad->prepare("
-        SELECT 
-            rg.*,
-            raa.assignment_status,
-            rp.id as plan_id,
-            rp.overall_progress,
-            rp.current_stage,
-            rp.status as plan_status,
-            (SELECT COUNT(*) FROM research_progress_updates WHERE research_group_id = rg.id) as update_count,
-            (SELECT MAX(submitted_at) FROM research_progress_updates WHERE research_group_id = rg.id) as last_update_at
-        FROM research_groups rg
-        INNER JOIN research_adviser_assignments raa ON raa.group_number = rg.group_number
-        LEFT JOIN research_plans rp ON rp.research_group_id = rg.id
-        WHERE raa.adviser_user_id = ?
-          AND raa.assignment_status = 'Confirmed'
-          AND rg.status = 'Approved'
-        ORDER BY rg.date_assigned DESC
-    ");
-    $stmt->execute([$adviserUserId]);
-    $groups = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $groups = rpGetAssignedResearchGroupsForAdviser($crad, $adviserUserId, $adviserEmail);
     
     echo json_encode([
         'success' => true,
@@ -144,7 +137,7 @@ function handleGetAssignedGroups(PDO $crad, int $adviserUserId): void
 /**
  * Get detailed progress for a specific research group
  */
-function handleGetGroupProgress(PDO $crad, int $adviserUserId): void
+function handleGetGroupProgress(PDO $crad, int $adviserUserId, string $adviserEmail): void
 {
     $groupNumber = $_GET['group_number'] ?? '';
     
@@ -154,18 +147,7 @@ function handleGetGroupProgress(PDO $crad, int $adviserUserId): void
         return;
     }
     
-    // Verify adviser has access to this group
-    $authStmt = $crad->prepare("
-        SELECT rg.id, rg.group_number, rg.group_name, rg.research_title
-        FROM research_groups rg
-        INNER JOIN research_adviser_assignments raa ON raa.group_number = rg.group_number
-        WHERE raa.adviser_user_id = ?
-          AND raa.assignment_status = 'Confirmed'
-          AND rg.group_number = ?
-        LIMIT 1
-    ");
-    $authStmt->execute([$adviserUserId, $groupNumber]);
-    $group = $authStmt->fetch(PDO::FETCH_ASSOC);
+    $group = rpGetAssignedResearchGroupForAdviser($crad, $adviserUserId, $adviserEmail, $groupNumber);
     
     if (!$group) {
         http_response_code(403);
@@ -175,17 +157,11 @@ function handleGetGroupProgress(PDO $crad, int $adviserUserId): void
     
     $groupId = (int) $group['id'];
     
-    // Get or create research plan
-    $plan = rpGetOrCreateResearchPlan($crad, $groupId);
+    // Read only: polling must not create research plans or milestones.
+    $plan = rpGetResearchPlan($crad, $groupId);
     
     // Get milestones with progress
-    $milestoneStmt = $crad->prepare("
-        SELECT * FROM research_milestones 
-        WHERE research_plan_id = ?
-        ORDER BY milestone_order ASC
-    ");
-    $milestoneStmt->execute([$plan['id']]);
-    $milestones = $milestoneStmt->fetchAll(PDO::FETCH_ASSOC);
+    $milestones = rpGetMilestonesForPlan($crad, !empty($plan['id']) ? (int) $plan['id'] : null);
     
     // Get recent progress updates
     $updatesStmt = $crad->prepare("
@@ -202,20 +178,23 @@ function handleGetGroupProgress(PDO $crad, int $adviserUserId): void
     $updates = $updatesStmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Get feedback history
-    $feedbackStmt = $crad->prepare("
-        SELECT 
-            rpf.*,
-            rm.milestone_name,
-            rpu.update_title
-        FROM research_progress_feedback rpf
-        INNER JOIN research_progress_updates rpu ON rpu.id = rpf.progress_update_id
-        LEFT JOIN research_milestones rm ON rm.id = rpf.milestone_id
-        WHERE rpf.research_plan_id = ?
-        ORDER BY rpf.created_at DESC
-        LIMIT 20
-    ");
-    $feedbackStmt->execute([$plan['id']]);
-    $feedback = $feedbackStmt->fetchAll(PDO::FETCH_ASSOC);
+    $feedback = [];
+    if (!empty($plan['id'])) {
+        $feedbackStmt = $crad->prepare("
+            SELECT 
+                rpf.*,
+                rm.milestone_name,
+                rpu.update_title
+            FROM research_progress_feedback rpf
+            INNER JOIN research_progress_updates rpu ON rpu.id = rpf.progress_update_id
+            LEFT JOIN research_milestones rm ON rm.id = rpf.milestone_id
+            WHERE rpf.research_plan_id = ?
+            ORDER BY rpf.created_at DESC
+            LIMIT 20
+        ");
+        $feedbackStmt->execute([(int) $plan['id']]);
+        $feedback = $feedbackStmt->fetchAll(PDO::FETCH_ASSOC);
+    }
     
     echo json_encode([
         'success' => true,
@@ -230,8 +209,12 @@ function handleGetGroupProgress(PDO $crad, int $adviserUserId): void
 /**
  * Get pending/recent progress updates for review
  */
-function handleGetProgressUpdates(PDO $crad, int $adviserUserId): void
+function handleGetProgressUpdates(PDO $crad, int $adviserUserId, string $adviserEmail): void
 {
+    $assignmentMatch = rpAdviserAssignmentMatchSql('raa2', 'rg');
+    $identitySql = rpAdviserIdentitySql('raa2');
+    $statusSql = rpActiveAdviserAssignmentStatusSql('raa2');
+
     $stmt = $crad->prepare("
         SELECT 
             rpu.*,
@@ -242,14 +225,23 @@ function handleGetProgressUpdates(PDO $crad, int $adviserUserId): void
             (SELECT COUNT(*) FROM research_progress_feedback WHERE progress_update_id = rpu.id) as feedback_count
         FROM research_progress_updates rpu
         INNER JOIN research_groups rg ON rg.id = rpu.research_group_id
-        INNER JOIN research_adviser_assignments raa ON raa.group_number = rg.group_number
+        INNER JOIN research_adviser_assignments raa ON raa.id = (
+            SELECT raa2.id
+            FROM research_adviser_assignments raa2
+            WHERE {$assignmentMatch}
+              AND {$identitySql}
+              AND {$statusSql}
+            ORDER BY (raa2.assignment_status = 'Confirmed') DESC,
+                     (raa2.assignment_status = 'Assigned') DESC,
+                     raa2.updated_at DESC,
+                     raa2.id DESC
+            LIMIT 1
+        )
         LEFT JOIN research_milestones rm ON rm.id = rpu.milestone_id
-        WHERE raa.adviser_user_id = ?
-          AND raa.assignment_status = 'Confirmed'
         ORDER BY rpu.submitted_at DESC
         LIMIT 50
     ");
-    $stmt->execute([$adviserUserId]);
+    $stmt->execute(rpAdviserIdentityParams($adviserUserId, $adviserEmail));
     $updates = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     echo json_encode([
@@ -261,12 +253,14 @@ function handleGetProgressUpdates(PDO $crad, int $adviserUserId): void
 /**
  * Submit feedback/comment on a progress update
  */
-function handleSubmitFeedback(PDO $crad, int $adviserUserId, string $adviserName): void
+function handleSubmitFeedback(PDO $crad, int $adviserUserId, string $adviserEmail, string $adviserName): void
 {
-    $input = json_decode(file_get_contents('php://input'), true) ?: $_POST;
+    $input = $GLOBALS['rpJsonInput'] ?: $_POST;
     
     // Validate required fields
-    if (!isset($input['progress_update_id']) || empty($input['feedback_text'])) {
+    $updateId = (int) ($input['progress_update_id'] ?? $input['update_id'] ?? 0);
+
+    if ($updateId <= 0 || empty($input['feedback_text'])) {
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => 'Missing required fields']);
         return;
@@ -291,24 +285,8 @@ function handleSubmitFeedback(PDO $crad, int $adviserUserId, string $adviserName
         return;
     }
     
-    $updateId = (int) $input['progress_update_id'];
-    
-    // Get progress update and verify adviser access
-    $updateStmt = $crad->prepare("
-        SELECT 
-            rpu.*,
-            rg.group_number,
-            rg.leader_id
-        FROM research_progress_updates rpu
-        INNER JOIN research_groups rg ON rg.id = rpu.research_group_id
-        INNER JOIN research_adviser_assignments raa ON raa.group_number = rg.group_number
-        WHERE rpu.id = ?
-          AND raa.adviser_user_id = ?
-          AND raa.assignment_status = 'Confirmed'
-        LIMIT 1
-    ");
-    $updateStmt->execute([$updateId, $adviserUserId]);
-    $update = $updateStmt->fetch(PDO::FETCH_ASSOC);
+    // Get progress update and verify adviser access through the official assignment.
+    $update = rpGetProgressUpdateForAdviser($crad, $updateId, $adviserUserId, $adviserEmail);
     
     if (!$update) {
         http_response_code(403);
@@ -386,11 +364,13 @@ function handleSubmitFeedback(PDO $crad, int $adviserUserId, string $adviserName
 /**
  * Request revision for a progress update
  */
-function handleRequestRevision(PDO $crad, int $adviserUserId, string $adviserName): void
+function handleRequestRevision(PDO $crad, int $adviserUserId, string $adviserEmail, string $adviserName): void
 {
-    $input = json_decode(file_get_contents('php://input'), true) ?: $_POST;
+    $input = $GLOBALS['rpJsonInput'] ?: $_POST;
     
-    if (!isset($input['progress_update_id']) || empty($input['feedback_text'])) {
+    $updateId = (int) ($input['progress_update_id'] ?? $input['update_id'] ?? 0);
+
+    if ($updateId <= 0 || empty($input['feedback_text'])) {
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => 'Missing required fields']);
         return;
@@ -404,19 +384,8 @@ function handleRequestRevision(PDO $crad, int $adviserUserId, string $adviserNam
         return;
     }
     
-    $updateId = (int) $input['progress_update_id'];
-    
-    // Verify access
-    $updateStmt = $crad->prepare("
-        SELECT rpu.*, rg.group_number
-        FROM research_progress_updates rpu
-        INNER JOIN research_groups rg ON rg.id = rpu.research_group_id
-        INNER JOIN research_adviser_assignments raa ON raa.group_number = rg.group_number
-        WHERE rpu.id = ? AND raa.adviser_user_id = ? AND raa.assignment_status = 'Confirmed'
-        LIMIT 1
-    ");
-    $updateStmt->execute([$updateId, $adviserUserId]);
-    $update = $updateStmt->fetch(PDO::FETCH_ASSOC);
+    // Verify access through the official adviser assignment.
+    $update = rpGetProgressUpdateForAdviser($crad, $updateId, $adviserUserId, $adviserEmail);
     
     if (!$update) {
         http_response_code(403);
@@ -503,11 +472,13 @@ function handleRequestRevision(PDO $crad, int $adviserUserId, string $adviserNam
 /**
  * Approve progress update
  */
-function handleApproveProgress(PDO $crad, int $adviserUserId, string $adviserName): void
+function handleApproveProgress(PDO $crad, int $adviserUserId, string $adviserEmail, string $adviserName): void
 {
-    $input = json_decode(file_get_contents('php://input'), true) ?: $_POST;
+    $input = $GLOBALS['rpJsonInput'] ?: $_POST;
     
-    if (!isset($input['progress_update_id'])) {
+    $updateId = (int) ($input['progress_update_id'] ?? $input['update_id'] ?? 0);
+
+    if ($updateId <= 0) {
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => 'Missing progress update ID']);
         return;
@@ -521,19 +492,8 @@ function handleApproveProgress(PDO $crad, int $adviserUserId, string $adviserNam
         return;
     }
     
-    $updateId = (int) $input['progress_update_id'];
-    
-    // Verify access
-    $updateStmt = $crad->prepare("
-        SELECT rpu.*
-        FROM research_progress_updates rpu
-        INNER JOIN research_groups rg ON rg.id = rpu.research_group_id
-        INNER JOIN research_adviser_assignments raa ON raa.group_number = rg.group_number
-        WHERE rpu.id = ? AND raa.adviser_user_id = ? AND raa.assignment_status = 'Confirmed'
-        LIMIT 1
-    ");
-    $updateStmt->execute([$updateId, $adviserUserId]);
-    $update = $updateStmt->fetch(PDO::FETCH_ASSOC);
+    // Verify access through the official adviser assignment.
+    $update = rpGetProgressUpdateForAdviser($crad, $updateId, $adviserUserId, $adviserEmail);
     
     if (!$update) {
         http_response_code(403);
@@ -559,7 +519,7 @@ function handleApproveProgress(PDO $crad, int $adviserUserId, string $adviserNam
             $update['milestone_id'] ?? null,
             $adviserUserId,
             $adviserName,
-            $input['remarks'] ?? 'Progress approved',
+            $input['remarks'] ?? $input['feedback_text'] ?? 'Progress approved',
             $submissionToken
         ]);
         
@@ -574,7 +534,7 @@ function handleApproveProgress(PDO $crad, int $adviserUserId, string $adviserNam
                     updated_at = NOW()
                 WHERE id = ?
             ");
-            $updateMilestone->execute([$input['remarks'] ?? 'Approved', $update['milestone_id']]);
+            $updateMilestone->execute([$input['remarks'] ?? $input['feedback_text'] ?? 'Approved', $update['milestone_id']]);
         }
         
         rpLogActivity($crad, [

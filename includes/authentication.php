@@ -115,6 +115,7 @@ function smsDefaultModulesForRole(string $roleKey): array
         'hr'           => ['faculty'],
         'adviser'      => ['faculty'],
         'research_director' => ['faculty'],
+        'grammarian'   => ['faculty'],
         'it_office'    => ['lms'],
         'osa'          => ['cocurricular'],
         'qa'           => ['accreditation'],
@@ -263,7 +264,8 @@ function getVisibleModules(array $modules): array
                 'Student Information' => ['my-profile', 'student-id'],
                 'Financial' => ['account-balance', 'payment-history'],
                 'Academics' => ['class-schedule', 'academic-records', 'subjects-professors', 'grades-portal'],
-                'Research' => ['research-proposal-submission', 'submit-documents'],
+                'Research' => ['research-proposal-submission'],
+                'Document Submission' => ['submit-chapters', 'my-submissions', 'submission-status', 'submission-history'],
             ],
             'pages' => [
                 ['slug' => 'dashboard', 'title' => 'Dashboard'],
@@ -276,7 +278,10 @@ function getVisibleModules(array $modules): array
                 ['slug' => 'subjects-professors', 'title' => 'Subject & Professors'],
                 ['slug' => 'grades-portal', 'title' => 'Grades Portal'],
                 ['slug' => 'research-proposal-submission', 'title' => 'Research Proposal'],
-                ['slug' => 'submit-documents', 'title' => 'Submit Documents'],
+                ['slug' => 'submit-chapters', 'title' => 'Submit Chapter 1-3'],
+                ['slug' => 'my-submissions', 'title' => 'My Submissions'],
+                ['slug' => 'submission-status', 'title' => 'Submission Status'],
+                ['slug' => 'submission-history', 'title' => 'Submission History'],
             ],
         ];
     }

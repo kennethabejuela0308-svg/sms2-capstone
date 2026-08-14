@@ -326,16 +326,16 @@
         updateStudentDashboardUI: function(data) {
             // Update overall progress
             const progressBar = document.querySelector('[data-overall-progress-bar]');
-            const progressText = document.querySelector('[data-overall-progress-text]');
+            const progressTexts = document.querySelectorAll('[data-overall-progress-text]');
             
             if (progressBar && data.plan) {
                 const progress = parseFloat(data.plan.overall_progress);
                 progressBar.style.width = `${progress}%`;
                 progressBar.setAttribute('aria-valuenow', progress);
                 
-                if (progressText) {
+                progressTexts.forEach(progressText => {
                     progressText.textContent = `${progress.toFixed(1)}%`;
-                }
+                });
             }
 
             // Update milestones if container exists
@@ -401,11 +401,90 @@
          * Update adviser groups UI
          */
         updateAdviserGroupsUI: function(groups) {
+            const container = document.querySelector('[data-groups-container]');
+            const currentCards = document.querySelectorAll('[data-group-number]');
+
+            if (container && groups.length !== currentCards.length) {
+                window.location.reload();
+                return;
+            }
+
+            groups.forEach(group => {
+                const groupNumber = String(group.group_number || '');
+                const card = Array.from(document.querySelectorAll('[data-group-number]'))
+                    .find(el => el.getAttribute('data-group-number') === groupNumber);
+                if (!card) {
+                    window.location.reload();
+                    return;
+                }
+
+                const progress = parseFloat(group.overall_progress || 0);
+                const progressColor = progress >= 80 ? '#10b981' : (progress >= 40 ? '#f59e0b' : '#3b82f6');
+                const progressText = card.querySelector('[data-group-progress-text]');
+                const progressBar = card.querySelector('[data-group-progress-bar]');
+
+                if (progressText) {
+                    progressText.textContent = `${progress.toFixed(1)}%`;
+                    progressText.style.color = progressColor;
+                }
+                if (progressBar) {
+                    progressBar.style.width = `${progress}%`;
+                    progressBar.style.background = progressColor;
+                }
+
+                const milestonesContainer = card.querySelector('[data-group-milestones]');
+                if (milestonesContainer && Array.isArray(group.milestones)) {
+                    milestonesContainer.innerHTML = group.milestones.map(milestone => `
+                        <div class="d-flex align-items-center justify-content-between gap-2 mb-2"
+                             style="font-size:0.78rem;color:var(--sms-text);"
+                             data-milestone-id="${this.escapeHtml(milestone.id || '')}">
+                            <span style="font-weight:700;color:var(--sms-heading);">
+                                ${this.escapeHtml(milestone.milestone_name || '')}
+                            </span>
+                            <span class="text-nowrap" style="color:var(--sms-text-muted);" data-milestone-status>
+                                ${this.escapeHtml(milestone.status || 'Not Started')}
+                            </span>
+                        </div>
+                    `).join('');
+                }
+            });
+
+            const groupCount = document.querySelector('[data-live-group-count]');
+            if (groupCount) {
+                groupCount.textContent = String(groups.length);
+            }
+
+            const pending = groups.reduce((sum, group) => sum + parseInt(group.pending_reviews || 0, 10), 0);
+            const pendingCount = document.querySelector('[data-live-pending-count]');
+            if (pendingCount) {
+                pendingCount.textContent = String(pending);
+            }
+
+            const avgProgress = groups.length
+                ? groups.reduce((sum, group) => sum + parseFloat(group.overall_progress || 0), 0) / groups.length
+                : 0;
+            const avgProgressEl = document.querySelector('[data-live-avg-progress]');
+            if (avgProgressEl) {
+                avgProgressEl.textContent = `${avgProgress.toFixed(1)}%`;
+            }
+
             document.dispatchEvent(new CustomEvent('research:groups-updated', { 
                 detail: { groups: groups } 
             }));
 
             this.updateLastRefreshTime();
+        },
+
+        /**
+         * Escape HTML before rendering live data into existing cards
+         */
+        escapeHtml: function(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
         },
 
         /**

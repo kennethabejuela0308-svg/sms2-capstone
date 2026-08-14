@@ -10,6 +10,7 @@ $activePage = 'research-progress-monitoring';
 
 $pageBannerIcon        = 'fa-chart-line';
 $pageBannerDescription = 'Detailed progress monitoring for your assigned research group.';
+$hideModulePageBanner  = true;
 
 require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../../../includes/breadcrumbs.php';
@@ -52,21 +53,11 @@ if (empty($groupNumber)) { ?>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; exit; }
 
 $adviserUserId = (int) ($_SESSION['user_id'] ?? 0);
+$adviserEmail  = rpCurrentUserEmail();
 
 // Verify adviser
 try {
-    $groupStmt = $crad->prepare("
-        SELECT rg.*, raa.adviser_user_id, raa.adviser_name, raa.assignment_status
-        FROM research_groups rg
-        INNER JOIN research_adviser_assignments raa ON raa.group_number = rg.group_number
-        WHERE rg.group_number = ?
-          AND raa.adviser_user_id = ?
-          AND raa.assignment_status = 'Confirmed'
-          AND rg.status = 'Approved'
-        LIMIT 1
-    ");
-    $groupStmt->execute([$groupNumber, $adviserUserId]);
-    $researchGroup = $groupStmt->fetch(PDO::FETCH_ASSOC);
+    $researchGroup = rpGetAssignedResearchGroupForAdviser($crad, $adviserUserId, $adviserEmail, $groupNumber);
 } catch (PDOException $e) {
     error_log('Group query error: ' . $e->getMessage());
     $researchGroup = null;
@@ -86,21 +77,25 @@ if (!$researchGroup) { ?>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; exit; }
 
 $groupId = (int) $researchGroup['id'];
-$plan    = rpGetOrCreateResearchPlan($crad, $groupId);
+$plan    = rpGetResearchPlan($crad, $groupId);
 
 // Milestones
 try {
-    $milestonesStmt = $crad->prepare("
-        SELECT rm.*,
-               (SELECT COUNT(*) FROM research_progress_updates rpu
-                WHERE rpu.milestone_id = rm.id
-                  AND rpu.milestone_status = 'Submitted for Review') AS pending_count
-        FROM research_milestones rm
-        WHERE rm.research_plan_id = ?
-        ORDER BY rm.milestone_order ASC
-    ");
-    $milestonesStmt->execute([$plan['id']]);
-    $milestones = $milestonesStmt->fetchAll(PDO::FETCH_ASSOC);
+    if (!empty($plan['id'])) {
+        $milestonesStmt = $crad->prepare("
+            SELECT rm.*,
+                   (SELECT COUNT(*) FROM research_progress_updates rpu
+                    WHERE rpu.milestone_id = rm.id
+                      AND rpu.milestone_status = 'Submitted for Review') AS pending_count
+            FROM research_milestones rm
+            WHERE rm.research_plan_id = ?
+            ORDER BY rm.milestone_order ASC
+        ");
+        $milestonesStmt->execute([(int) $plan['id']]);
+        $milestones = $milestonesStmt->fetchAll(PDO::FETCH_ASSOC);
+    } else {
+        $milestones = rpGetMilestonesForPlan($crad, null);
+    }
 } catch (PDOException $e) { $milestones = []; }
 
 // Recent updates (last 5)
@@ -117,7 +112,7 @@ try {
     $recentUpdates = $recentUpdatesStmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) { $recentUpdates = []; }
 
-$overallProgress  = (float) $plan['overall_progress'];
+$overallProgress  = (float) ($plan['overall_progress'] ?? 0);
 $totalMilestones  = count($milestones);
 $doneMilestones   = 0;
 $pendingTotal     = 0;

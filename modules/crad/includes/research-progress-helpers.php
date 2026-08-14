@@ -8,6 +8,251 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../config/config.php';
 
+function rpNormalizeEmail(string $email): string
+{
+    return strtolower(trim($email));
+}
+
+function rpCurrentUserEmail(): string
+{
+    $email = rpNormalizeEmail((string) ($_SESSION['user_email'] ?? ''));
+    if ($email !== '') {
+        return $email;
+    }
+
+    $userId = (int) ($_SESSION['user_id'] ?? 0);
+    if ($userId <= 0 || !function_exists('db')) {
+        return '';
+    }
+
+    try {
+        $sms = db();
+        if (!$sms) {
+            return '';
+        }
+        $stmt = $sms->prepare('SELECT email FROM users WHERE id = ? LIMIT 1');
+        $stmt->execute([$userId]);
+        return rpNormalizeEmail((string) ($stmt->fetchColumn() ?: ''));
+    } catch (Throwable $e) {
+        error_log('Unable to resolve current user email: ' . $e->getMessage());
+        return '';
+    }
+}
+
+function rpAdviserAssignmentMatchSql(string $assignmentAlias = 'raa', string $groupAlias = 'rg'): string
+{
+    return "((
+                {$assignmentAlias}.research_group_id IS NOT NULL
+            AND {$assignmentAlias}.research_group_id = {$groupAlias}.id
+        ) OR (
+                {$assignmentAlias}.research_group_id IS NULL
+            AND {$assignmentAlias}.group_number IS NOT NULL
+            AND {$assignmentAlias}.group_number = {$groupAlias}.group_number
+        ))";
+}
+
+function rpAdviserIdentitySql(string $assignmentAlias = 'raa'): string
+{
+    return "((
+                {$assignmentAlias}.adviser_user_id IS NOT NULL
+            AND {$assignmentAlias}.adviser_user_id = :adviser_user_id
+        ) OR (
+                :adviser_email <> ''
+            AND TRIM(COALESCE({$assignmentAlias}.adviser_email, '')) <> ''
+            AND LOWER(TRIM({$assignmentAlias}.adviser_email)) = :adviser_email_match
+        ))";
+}
+
+function rpActiveAdviserAssignmentStatusSql(string $assignmentAlias = 'raa'): string
+{
+    return "{$assignmentAlias}.assignment_status IN ('Assigned', 'Confirmed')";
+}
+
+function rpAdviserIdentityParams(int $adviserUserId, string $adviserEmail): array
+{
+    $email = rpNormalizeEmail($adviserEmail);
+    return [
+        ':adviser_user_id' => $adviserUserId,
+        ':adviser_email' => $email,
+        ':adviser_email_match' => $email,
+    ];
+}
+
+function rpDefaultMilestoneRows(): array
+{
+    return [
+        ['id' => null, 'milestone_name' => 'Chapter 1', 'milestone_order' => 1, 'description' => 'Introduction and Background', 'status' => 'Not Started', 'progress_percentage' => 0, 'pending_count' => 0, 'update_count' => 0, 'last_update_at' => null, 'start_date' => null, 'target_date' => null, 'completed_at' => null, 'researcher_notes' => '', 'adviser_remarks' => ''],
+        ['id' => null, 'milestone_name' => 'Chapter 2', 'milestone_order' => 2, 'description' => 'Review of Related Literature', 'status' => 'Not Started', 'progress_percentage' => 0, 'pending_count' => 0, 'update_count' => 0, 'last_update_at' => null, 'start_date' => null, 'target_date' => null, 'completed_at' => null, 'researcher_notes' => '', 'adviser_remarks' => ''],
+        ['id' => null, 'milestone_name' => 'Chapter 3', 'milestone_order' => 3, 'description' => 'Methodology', 'status' => 'Not Started', 'progress_percentage' => 0, 'pending_count' => 0, 'update_count' => 0, 'last_update_at' => null, 'start_date' => null, 'target_date' => null, 'completed_at' => null, 'researcher_notes' => '', 'adviser_remarks' => ''],
+        ['id' => null, 'milestone_name' => 'System Development', 'milestone_order' => 4, 'description' => 'System Implementation', 'status' => 'Not Started', 'progress_percentage' => 0, 'pending_count' => 0, 'update_count' => 0, 'last_update_at' => null, 'start_date' => null, 'target_date' => null, 'completed_at' => null, 'researcher_notes' => '', 'adviser_remarks' => ''],
+        ['id' => null, 'milestone_name' => 'Testing', 'milestone_order' => 5, 'description' => 'Testing and Quality Assurance', 'status' => 'Not Started', 'progress_percentage' => 0, 'pending_count' => 0, 'update_count' => 0, 'last_update_at' => null, 'start_date' => null, 'target_date' => null, 'completed_at' => null, 'researcher_notes' => '', 'adviser_remarks' => ''],
+        ['id' => null, 'milestone_name' => 'Documentation', 'milestone_order' => 6, 'description' => 'Final Documentation and Report', 'status' => 'Not Started', 'progress_percentage' => 0, 'pending_count' => 0, 'update_count' => 0, 'last_update_at' => null, 'start_date' => null, 'target_date' => null, 'completed_at' => null, 'researcher_notes' => '', 'adviser_remarks' => ''],
+    ];
+}
+
+function rpGetResearchPlan(PDO $crad, int $groupId): ?array
+{
+    if ($groupId <= 0) {
+        return null;
+    }
+
+    $stmt = $crad->prepare('SELECT * FROM research_plans WHERE research_group_id = ? LIMIT 1');
+    $stmt->execute([$groupId]);
+    $plan = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $plan ?: null;
+}
+
+function rpGetMilestonesForPlan(PDO $crad, ?int $planId): array
+{
+    if (!$planId) {
+        return rpDefaultMilestoneRows();
+    }
+
+    $stmt = $crad->prepare("
+        SELECT *
+        FROM research_milestones
+        WHERE research_plan_id = ?
+        ORDER BY milestone_order ASC
+    ");
+    $stmt->execute([$planId]);
+    $milestones = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    return $milestones ?: rpDefaultMilestoneRows();
+}
+
+function rpGetAssignedResearchGroupsForAdviser(PDO $crad, int $adviserUserId, string $adviserEmail): array
+{
+    if ($adviserUserId <= 0 && rpNormalizeEmail($adviserEmail) === '') {
+        return [];
+    }
+
+    $assignmentMatch = rpAdviserAssignmentMatchSql('raa2', 'rg');
+    $identitySql = rpAdviserIdentitySql('raa2');
+    $statusSql = rpActiveAdviserAssignmentStatusSql('raa2');
+
+    $stmt = $crad->prepare("
+        SELECT
+            rg.id,
+            rg.group_number,
+            rg.group_name,
+            rg.research_title,
+            rg.academic_year,
+            rg.status AS group_status,
+            raa.assignment_status,
+            raa.adviser_user_id,
+            raa.adviser_name,
+            raa.adviser_email,
+            rp.id AS plan_id,
+            COALESCE(rp.overall_progress, 0) AS overall_progress,
+            COALESCE(rp.current_stage, 'Planning') AS current_stage,
+            rp.status AS plan_status,
+            rp.updated_at AS plan_updated_at,
+            (SELECT COUNT(*)
+               FROM research_progress_updates rpu
+              WHERE rpu.research_group_id = rg.id
+                AND rpu.milestone_status = 'Submitted for Review') AS pending_reviews,
+            (SELECT COUNT(*)
+               FROM research_progress_updates rpu2
+              WHERE rpu2.research_group_id = rg.id) AS update_count,
+            (SELECT MAX(rpu3.submitted_at)
+               FROM research_progress_updates rpu3
+              WHERE rpu3.research_group_id = rg.id) AS last_update_at,
+            (SELECT COUNT(*)
+               FROM research_milestones rm2
+              WHERE rm2.research_plan_id = rp.id) AS total_milestones,
+            (SELECT COUNT(*)
+               FROM research_milestones rm3
+              WHERE rm3.research_plan_id = rp.id
+                AND rm3.status IN ('Approved','Completed')) AS done_milestones
+        FROM research_groups rg
+        INNER JOIN research_adviser_assignments raa ON raa.id = (
+            SELECT raa2.id
+            FROM research_adviser_assignments raa2
+            WHERE {$assignmentMatch}
+              AND {$identitySql}
+              AND {$statusSql}
+            ORDER BY (raa2.assignment_status = 'Confirmed') DESC,
+                     (raa2.assignment_status = 'Assigned') DESC,
+                     raa2.updated_at DESC,
+                     raa2.id DESC
+            LIMIT 1
+        )
+        LEFT JOIN research_plans rp ON rp.research_group_id = rg.id
+        WHERE rg.status = 'Approved'
+        ORDER BY rg.date_assigned DESC, rg.id DESC
+    ");
+
+    $stmt->execute(rpAdviserIdentityParams($adviserUserId, $adviserEmail));
+    $groups = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($groups as &$group) {
+        $group['milestones'] = rpGetMilestonesForPlan(
+            $crad,
+            !empty($group['plan_id']) ? (int) $group['plan_id'] : null
+        );
+    }
+    unset($group);
+
+    return $groups;
+}
+
+function rpGetAssignedResearchGroupForAdviser(PDO $crad, int $adviserUserId, string $adviserEmail, string $groupNumber): ?array
+{
+    $groupNumber = trim($groupNumber);
+    if ($groupNumber === '') {
+        return null;
+    }
+
+    foreach (rpGetAssignedResearchGroupsForAdviser($crad, $adviserUserId, $adviserEmail) as $group) {
+        if ((string) ($group['group_number'] ?? '') === $groupNumber) {
+            return $group;
+        }
+    }
+
+    return null;
+}
+
+function rpGetProgressUpdateForAdviser(PDO $crad, int $progressUpdateId, int $adviserUserId, string $adviserEmail): ?array
+{
+    if ($progressUpdateId <= 0) {
+        return null;
+    }
+
+    $assignmentMatch = rpAdviserAssignmentMatchSql('raa2', 'rg');
+    $identitySql = rpAdviserIdentitySql('raa2');
+    $statusSql = rpActiveAdviserAssignmentStatusSql('raa2');
+
+    $stmt = $crad->prepare("
+        SELECT
+            rpu.*,
+            rg.group_number,
+            rg.leader_id
+        FROM research_progress_updates rpu
+        INNER JOIN research_groups rg ON rg.id = rpu.research_group_id
+        INNER JOIN research_adviser_assignments raa ON raa.id = (
+            SELECT raa2.id
+            FROM research_adviser_assignments raa2
+            WHERE {$assignmentMatch}
+              AND {$identitySql}
+              AND {$statusSql}
+            ORDER BY (raa2.assignment_status = 'Confirmed') DESC,
+                     (raa2.assignment_status = 'Assigned') DESC,
+                     raa2.updated_at DESC,
+                     raa2.id DESC
+            LIMIT 1
+        )
+        WHERE rpu.id = :progress_update_id
+        LIMIT 1
+    ");
+
+    $params = rpAdviserIdentityParams($adviserUserId, $adviserEmail);
+    $params[':progress_update_id'] = $progressUpdateId;
+    $stmt->execute($params);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    return $row ?: null;
+}
+
 /**
  * Get the student's research group — but ONLY if it qualifies for the
  * Capstone Group/Student Registry (fully approved title, all three signatures,
@@ -132,8 +377,17 @@ function rpGetOrCreateResearchPlan(PDO $crad, int $groupId): ?array
     $groupStmt = $crad->prepare("
         SELECT rg.*, raa.adviser_user_id, raa.adviser_name, raa.adviser_email
         FROM research_groups rg
-        LEFT JOIN research_adviser_assignments raa ON raa.group_number = rg.group_number 
-            AND raa.assignment_status = 'Confirmed'
+        LEFT JOIN research_adviser_assignments raa ON raa.id = (
+            SELECT raa2.id
+            FROM research_adviser_assignments raa2
+            WHERE " . rpAdviserAssignmentMatchSql('raa2', 'rg') . "
+              AND " . rpActiveAdviserAssignmentStatusSql('raa2') . "
+            ORDER BY (raa2.assignment_status = 'Confirmed') DESC,
+                     (raa2.assignment_status = 'Assigned') DESC,
+                     raa2.updated_at DESC,
+                     raa2.id DESC
+            LIMIT 1
+        )
         WHERE rg.id = ?
         LIMIT 1
     ");

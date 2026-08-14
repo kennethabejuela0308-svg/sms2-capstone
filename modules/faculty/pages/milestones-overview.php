@@ -51,20 +51,10 @@ if (empty($groupNumber)) {
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; exit; }
 
 $adviserUserId = (int) ($_SESSION['user_id'] ?? 0);
+$adviserEmail  = rpCurrentUserEmail();
 
 try {
-    $groupStmt = $crad->prepare("
-        SELECT rg.*, raa.adviser_user_id, raa.assignment_status
-        FROM research_groups rg
-        INNER JOIN research_adviser_assignments raa ON raa.group_number = rg.group_number
-        WHERE rg.group_number = ?
-          AND raa.adviser_user_id = ?
-          AND raa.assignment_status = 'Confirmed'
-          AND rg.status = 'Approved'
-        LIMIT 1
-    ");
-    $groupStmt->execute([$groupNumber, $adviserUserId]);
-    $researchGroup = $groupStmt->fetch(PDO::FETCH_ASSOC);
+    $researchGroup = rpGetAssignedResearchGroupForAdviser($crad, $adviserUserId, $adviserEmail, $groupNumber);
 } catch (PDOException $e) { $researchGroup = null; }
 
 if (!$researchGroup) {
@@ -82,25 +72,29 @@ if (!$researchGroup) {
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; exit; }
 
 $groupId = (int) $researchGroup['id'];
-$plan    = rpGetOrCreateResearchPlan($crad, $groupId);
+$plan    = rpGetResearchPlan($crad, $groupId);
 
 try {
-    $milestonesStmt = $crad->prepare("
-        SELECT rm.*,
-               (SELECT COUNT(*) FROM research_progress_updates rpu WHERE rpu.milestone_id = rm.id) AS update_count,
-               (SELECT COUNT(*) FROM research_progress_updates rpu WHERE rpu.milestone_id = rm.id
-                  AND rpu.milestone_status = 'Submitted for Review') AS pending_count,
-               (SELECT rpu.submitted_at FROM research_progress_updates rpu WHERE rpu.milestone_id = rm.id
-                ORDER BY rpu.submitted_at DESC LIMIT 1) AS last_update_at
-        FROM research_milestones rm
-        WHERE rm.research_plan_id = ?
-        ORDER BY rm.milestone_order ASC
-    ");
-    $milestonesStmt->execute([$plan['id']]);
-    $milestones = $milestonesStmt->fetchAll(PDO::FETCH_ASSOC);
+    if (!empty($plan['id'])) {
+        $milestonesStmt = $crad->prepare("
+            SELECT rm.*,
+                   (SELECT COUNT(*) FROM research_progress_updates rpu WHERE rpu.milestone_id = rm.id) AS update_count,
+                   (SELECT COUNT(*) FROM research_progress_updates rpu WHERE rpu.milestone_id = rm.id
+                      AND rpu.milestone_status = 'Submitted for Review') AS pending_count,
+                   (SELECT rpu.submitted_at FROM research_progress_updates rpu WHERE rpu.milestone_id = rm.id
+                    ORDER BY rpu.submitted_at DESC LIMIT 1) AS last_update_at
+            FROM research_milestones rm
+            WHERE rm.research_plan_id = ?
+            ORDER BY rm.milestone_order ASC
+        ");
+        $milestonesStmt->execute([(int) $plan['id']]);
+        $milestones = $milestonesStmt->fetchAll(PDO::FETCH_ASSOC);
+    } else {
+        $milestones = rpGetMilestonesForPlan($crad, null);
+    }
 } catch (PDOException $e) { $milestones = []; }
 
-$overallProgress = (float) $plan['overall_progress'];
+$overallProgress = (float) ($plan['overall_progress'] ?? 0);
 $totalMilestones = count($milestones);
 $completedCount  = 0;
 $inProgressCount = 0;
@@ -182,25 +176,29 @@ $statusMeta = [
         <?php if (!empty($milestones)): ?>
             <div class="row g-4" data-milestones-container>
                 <?php foreach ($milestones as $ms):
-                    $mp      = (float) $ms['progress_percentage'];
-                    $status  = $ms['status'];
-                    $pending = (int) $ms['pending_count'];
-                    $updates = (int) $ms['update_count'];
+                    $mp          = (float) ($ms['progress_percentage'] ?? 0);
+                    $status      = (string) ($ms['status'] ?? 'Not Started');
+                    $pending     = (int) ($ms['pending_count'] ?? 0);
+                    $updates     = (int) ($ms['update_count'] ?? 0);
+                    $startDate   = $ms['start_date'] ?? null;
+                    $targetDate  = $ms['target_date'] ?? null;
+                    $completedAt = $ms['completed_at'] ?? null;
+                    $lastUpdate  = $ms['last_update_at'] ?? null;
                     $sc      = $statusMeta[$status] ?? $statusMeta['Not Started'];
 
                     // Overdue check
                     $isOverdue = false;
-                    if ($ms['target_date'] && !in_array($status, ['Approved','Completed'])) {
-                        $isOverdue = strtotime($ms['target_date']) < time();
+                    if ($targetDate && !in_array($status, ['Approved','Completed'])) {
+                        $isOverdue = strtotime((string) $targetDate) < time();
                     }
                 ?>
-                    <div class="col-xl-4 col-lg-6" data-milestone-id="<?= $ms['id'] ?>">
+                    <div class="col-xl-4 col-lg-6" data-milestone-id="<?= htmlspecialchars((string) ($ms['id'] ?? '')) ?>">
                         <div class="glass-panel rm-milestone-card h-100">
                             <div class="glass-panel-body d-flex flex-column h-100">
 
                                 <!-- Header row -->
                                 <div class="rm-milestone-header">
-                                    <div class="rm-milestone-number"><?= $ms['milestone_order'] ?></div>
+                                    <div class="rm-milestone-number"><?= htmlspecialchars((string) ($ms['milestone_order'] ?? '')) ?></div>
                                     <div class="rm-milestone-header-text">
                                         <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
                                             <?php if ($pending > 0): ?>
@@ -214,7 +212,7 @@ $statusMeta = [
                                                 </span>
                                             <?php endif; ?>
                                         </div>
-                                        <h6 class="rm-milestone-name"><?= htmlspecialchars($ms['milestone_name']) ?></h6>
+                                        <h6 class="rm-milestone-name"><?= htmlspecialchars((string) ($ms['milestone_name'] ?? '')) ?></h6>
                                         <?php if (!empty($ms['description'])): ?>
                                             <p class="rm-milestone-desc"><?= htmlspecialchars($ms['description']) ?></p>
                                         <?php endif; ?>
@@ -238,31 +236,31 @@ $statusMeta = [
                                 </div>
 
                                 <!-- Dates grid -->
-                                <?php if ($ms['start_date'] || $ms['target_date'] || $ms['actual_completion_date']): ?>
+                                <?php if ($startDate || $targetDate || $completedAt): ?>
                                 <div class="rm-milestone-dates">
-                                    <?php if ($ms['start_date']): ?>
+                                    <?php if ($startDate): ?>
                                         <div>
                                             <div class="rm-milestone-date-item-label"><i class="fas fa-play me-1"></i>Start</div>
-                                            <div class="rm-milestone-date-item-value"><?= date('M d, Y', strtotime($ms['start_date'])) ?></div>
+                                            <div class="rm-milestone-date-item-value"><?= date('M d, Y', strtotime((string) $startDate)) ?></div>
                                         </div>
                                     <?php endif; ?>
-                                    <?php if ($ms['target_date']): ?>
+                                    <?php if ($targetDate): ?>
                                         <div>
                                             <div class="rm-milestone-date-item-label" style="color:<?= $isOverdue ? '#ef4444' : '' ?>">
                                                 <i class="fas fa-flag-checkered me-1"></i>Target
                                             </div>
                                             <div class="rm-milestone-date-item-value" style="color:<?= $isOverdue ? '#ef4444' : '' ?>">
-                                                <?= date('M d, Y', strtotime($ms['target_date'])) ?>
+                                                <?= date('M d, Y', strtotime((string) $targetDate)) ?>
                                             </div>
                                         </div>
                                     <?php endif; ?>
-                                    <?php if ($ms['actual_completion_date']): ?>
-                                        <div class="<?= ($ms['start_date'] || $ms['target_date']) ? '' : '' ?>" style="grid-column:1/-1;">
+                                    <?php if ($completedAt): ?>
+                                        <div class="<?= ($startDate || $targetDate) ? '' : '' ?>" style="grid-column:1/-1;">
                                             <div class="rm-milestone-date-item-label" style="color:#10b981;">
                                                 <i class="fas fa-check-circle me-1"></i>Completed
                                             </div>
                                             <div class="rm-milestone-date-item-value" style="color:#10b981;">
-                                                <?= date('M d, Y', strtotime($ms['actual_completion_date'])) ?>
+                                                <?= date('M d, Y', strtotime((string) $completedAt)) ?>
                                             </div>
                                         </div>
                                     <?php endif; ?>

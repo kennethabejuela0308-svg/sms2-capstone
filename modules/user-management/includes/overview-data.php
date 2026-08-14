@@ -28,6 +28,7 @@ function umOverviewRoleBadgeClass(string $role, string $label = ''): string
         'crad_officer' => 'crad',
         'research_grant' => 'crad',
         'research_coordinator' => 'research_coordinator',
+        'grammarian' => 'grammarian',
         'qa_office' => 'qa',
     ];
 

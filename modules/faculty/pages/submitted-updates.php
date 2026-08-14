@@ -51,21 +51,11 @@ if (empty($groupNumber)) {
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; exit; }
 
 $adviserUserId = (int) ($_SESSION['user_id'] ?? 0);
+$adviserEmail  = rpCurrentUserEmail();
 $adviserName   = trim((string) ($_SESSION['full_name'] ?? $_SESSION['username'] ?? ''));
 
 try {
-    $groupStmt = $crad->prepare("
-        SELECT rg.*, raa.adviser_user_id, raa.assignment_status
-        FROM research_groups rg
-        INNER JOIN research_adviser_assignments raa ON raa.group_number = rg.group_number
-        WHERE rg.group_number = ?
-          AND raa.adviser_user_id = ?
-          AND raa.assignment_status = 'Confirmed'
-          AND rg.status = 'Approved'
-        LIMIT 1
-    ");
-    $groupStmt->execute([$groupNumber, $adviserUserId]);
-    $researchGroup = $groupStmt->fetch(PDO::FETCH_ASSOC);
+    $researchGroup = rpGetAssignedResearchGroupForAdviser($crad, $adviserUserId, $adviserEmail, $groupNumber);
 } catch (PDOException $e) { $researchGroup = null; }
 
 if (!$researchGroup) {
@@ -88,7 +78,7 @@ $milestoneFilter = isset($_GET['milestone_id']) ? (int) $_GET['milestone_id'] : 
 $updateIdFilter  = isset($_GET['update_id'])    ? (int) $_GET['update_id']    : null;
 $statusFilter    = $_GET['status'] ?? 'all';
 
-$plan = rpGetOrCreateResearchPlan($crad, $groupId);
+$plan = rpGetResearchPlan($crad, $groupId);
 
 $whereConditions = ["rpu.research_group_id = ?"];
 $params = [$groupId];
@@ -112,15 +102,17 @@ try {
 } catch (PDOException $e) { $progressUpdates = []; }
 
 try {
-    $milestonesStmt = $crad->prepare("
-        SELECT id, milestone_name, milestone_order FROM research_milestones
-        WHERE research_plan_id = ? ORDER BY milestone_order ASC
-    ");
-    $milestonesStmt->execute([$plan['id']]);
-    $milestones = $milestonesStmt->fetchAll(PDO::FETCH_ASSOC);
+    if (!empty($plan['id'])) {
+        $milestonesStmt = $crad->prepare("
+            SELECT id, milestone_name, milestone_order FROM research_milestones
+            WHERE research_plan_id = ? ORDER BY milestone_order ASC
+        ");
+        $milestonesStmt->execute([(int) $plan['id']]);
+        $milestones = $milestonesStmt->fetchAll(PDO::FETCH_ASSOC);
+    } else {
+        $milestones = [];
+    }
 } catch (PDOException $e) { $milestones = []; }
-
-$actionToken = rpGenerateSubmissionToken();
 
 $pendingCount  = 0;
 $approvedCount = 0;
@@ -390,7 +382,7 @@ $statusMeta = [
                                 </div>
                                 <div class="modal-body">
                                     <form class="feedback-form" data-action="comment" data-update-id="<?= $updateId ?>">
-                                        <input type="hidden" name="action_token" value="<?= htmlspecialchars($actionToken) ?>">
+                                        <input type="hidden" name="action_token" value="<?= htmlspecialchars(rpGenerateSubmissionToken()) ?>">
                                         <div class="mb-3">
                                             <label class="form-label" style="font-weight:700;font-size:0.88rem;">Your Comment</label>
                                             <textarea name="feedback_text" class="form-control" rows="4" required
@@ -424,7 +416,7 @@ $statusMeta = [
                                         Milestone status will change to <strong>Revision Requested</strong> and the student will be notified.
                                     </div>
                                     <form class="feedback-form" data-action="revision" data-update-id="<?= $updateId ?>">
-                                        <input type="hidden" name="action_token" value="<?= htmlspecialchars($actionToken) ?>">
+                                        <input type="hidden" name="action_token" value="<?= htmlspecialchars(rpGenerateSubmissionToken()) ?>">
                                         <div class="mb-3">
                                             <label class="form-label" style="font-weight:700;font-size:0.88rem;">Revision Instructions</label>
                                             <textarea name="feedback_text" class="form-control" rows="5" required
@@ -458,7 +450,7 @@ $statusMeta = [
                                         Milestone status will change to <strong>Approved</strong> and the student will be notified.
                                     </div>
                                     <form class="feedback-form" data-action="approve" data-update-id="<?= $updateId ?>">
-                                        <input type="hidden" name="action_token" value="<?= htmlspecialchars($actionToken) ?>">
+                                        <input type="hidden" name="action_token" value="<?= htmlspecialchars(rpGenerateSubmissionToken()) ?>">
                                         <div class="mb-3">
                                             <label class="form-label" style="font-weight:700;font-size:0.88rem;">Approval Message <span style="font-weight:400;color:var(--sms-text-muted);">(optional)</span></label>
                                             <textarea name="feedback_text" class="form-control" rows="3"

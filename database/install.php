@@ -88,6 +88,7 @@ $roles = [
     ['crad_officer', 'CRAD Officer', 'Research and development'],
     ['research_coordinator', 'Research Coordinator', 'Research coordination access'],
     ['research_director', 'Research Director', 'Research defense scheduling director account'],
+    ['grammarian', 'Grammarian', 'Research grammar and manuscript evaluation account'],
     ['student', 'Student', 'Student portal only'],
 ];
 
@@ -115,6 +116,7 @@ $defaults = [
     'crad'         => ['crad'],
     'research_coordinator' => ['crad'],
     'research_director' => ['faculty'],
+    'grammarian'   => ['faculty'],
     'student'      => ['student_portal'],
 ];
 
@@ -135,6 +137,7 @@ $permRows = [
     'crad_officer'  => ['crad'],
     'research_coordinator' => ['crad'],
     'research_director' => ['faculty'],
+    'grammarian'    => ['faculty'],
     'student'       => ['student_portal'],
 ];
 

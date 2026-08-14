@@ -32,6 +32,7 @@ $roles = [
     ['crad_officer', 'CRAD Officer', 'Research and development'],
     ['research_coordinator', 'Research Coordinator', 'Research coordination access'],
     ['research_director', 'Research Director', 'Research defense scheduling director account'],
+    ['grammarian', 'Grammarian', 'Research grammar and manuscript evaluation account'],
     ['student', 'Student', 'Student portal only'],
 ];
 
@@ -54,6 +55,7 @@ $perms = [
     'crad_officer' => ['crad'],
     'research_coordinator' => ['crad'],
     'research_director' => ['faculty'],
+    'grammarian'   => ['faculty'],
     'finance'      => ['payment'],
     'osa'          => ['cocurricular'],
     'it_office'    => ['lms'],
@@ -121,6 +123,14 @@ $accounts = [
         'password' => '@faculty123',
         'full_name' => 'Research Director',
         'role_key' => 'research_director',
+        'student_id' => null,
+    ],
+    [
+        'username' => 'grammarian',
+        'email' => 'grammarian@bestlink.edu.ph',
+        'password' => '@grammarian123',
+        'full_name' => 'Grammarian',
+        'role_key' => 'grammarian',
         'student_id' => null,
     ],
     [
