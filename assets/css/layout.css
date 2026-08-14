@@ -499,6 +499,61 @@ body.sidebar-collapsed .crad-officer-sidebar .crad-sidebar-link {
     color: #60a5fa !important;
     opacity: 0.9;
 }
+
+/* Research Director sidebar: compact pre-oral defense menu */
+.research-director-sidebar {
+    --sms-sidebar-bg: #edf2fa;
+    --sms-sidebar-hover: #e6ebf5;
+    --sms-sidebar-active: #d1daf0;
+    --sms-sidebar-border: #d7e0ee;
+    --sms-sidebar-text: #111827;
+    --sms-sidebar-text-muted: #111827;
+    --sms-sidebar-icon: #224fc0;
+    --sms-sidebar-active-accent: #244fc0;
+    box-shadow: 4px 0 18px rgba(15, 33, 88, 0.12);
+}
+.research-director-sidebar .sidebar-nav {
+    padding: 1rem 0.55rem 1.25rem;
+}
+.research-director-sidebar .sidebar-group-label {
+    margin-top: 1.35rem;
+    margin-bottom: 0.35rem;
+}
+.research-director-sidebar .sidebar-group-label:first-child {
+    margin-top: 0;
+}
+.research-director-sidebar .sidebar-group-heading {
+    padding: 0.35rem 0.85rem 0.2rem !important;
+    color: #111827 !important;
+    font-size: 0.76rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.09em !important;
+}
+.research-director-sidebar .sidebar-nav > ul > .nav-item {
+    margin-bottom: 0.18rem;
+}
+.research-director-sidebar .sidebar-nav > ul > .nav-item > .nav-link {
+    min-height: 46px;
+    padding: 0.74rem 0.85rem;
+    border-radius: 9px;
+    color: #111827 !important;
+    font-size: 0.88rem;
+    font-weight: 700;
+    gap: 0.72rem;
+}
+.research-director-sidebar .sidebar-nav > ul > .nav-item > .nav-link:hover {
+    background: #e5ebf6;
+    color: #111827 !important;
+}
+.research-director-sidebar .sidebar-nav > ul > .nav-item > .nav-link.active {
+    background: #d1daf0;
+    color: #111827 !important;
+    box-shadow: inset 3px 0 0 #244fc0;
+}
+.research-director-sidebar .sidebar-nav > ul > .nav-item > .nav-link > i:first-child {
+    width: 20px;
+    color: #244fc0 !important;
+}
 /* ============================================================
    Wrapper & Content
    ============================================================ */

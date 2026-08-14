@@ -251,49 +251,21 @@ $grammarianNavGroups = [
 
 $researchDirectorBaseUrl = BASE_URL . '/modules/faculty/pages/research-director.php?view=';
 $researchDirectorNavGroups = [
-    'Dashboard' => [
-        ['slug' => '', 'href' => BASE_URL . '/modules/faculty/index.php', 'icon' => 'fa-home', 'label' => 'Overview'],
-    ],
-    'Defense Management' => [
-        ['slug' => 'verify-research-defense', 'href' => $researchDirectorBaseUrl . 'verify-research-defense', 'icon' => 'fa-check-double', 'label' => 'Verify Research for Defense'],
-        ['slug' => 'defense-schedule', 'href' => $researchDirectorBaseUrl . 'defense-schedule', 'icon' => 'fa-calendar-check', 'label' => 'Defense Schedule'],
-    ],
-    'AI Scheduling' => [
+    'PRE-ORAL DEFENSE' => [
+        ['slug' => 'defense-scheduling-queue', 'href' => $researchDirectorBaseUrl . 'defense-scheduling-queue', 'icon' => 'fa-list-alt', 'label' => 'Ready for Scheduling'],
         ['slug' => 'ai-scheduling-optimizer', 'href' => $researchDirectorBaseUrl . 'ai-scheduling-optimizer', 'icon' => 'fa-magic', 'label' => 'AI Scheduling Optimizer'],
         ['slug' => 'proposed-schedules', 'href' => $researchDirectorBaseUrl . 'proposed-schedules', 'icon' => 'fa-calendar-plus', 'label' => 'Proposed Schedules'],
         ['slug' => 'alternative-time-slots', 'href' => $researchDirectorBaseUrl . 'alternative-time-slots', 'icon' => 'fa-clock', 'label' => 'Alternative Time Slots'],
-    ],
-    'Schedule Management' => [
         ['slug' => 'calendar', 'href' => $researchDirectorBaseUrl . 'calendar', 'icon' => 'fa-calendar-alt', 'label' => 'Calendar'],
         ['slug' => 'venues', 'href' => $researchDirectorBaseUrl . 'venues', 'icon' => 'fa-map-marker-alt', 'label' => 'Venues'],
-        ['slug' => 'finalize-defense-schedule', 'href' => $researchDirectorBaseUrl . 'finalize-defense-schedule', 'icon' => 'fa-clipboard-check', 'label' => 'Finalize Defense Schedule'],
+        ['slug' => 'finalize-defense-schedule', 'href' => $researchDirectorBaseUrl . 'finalize-defense-schedule', 'icon' => 'fa-clipboard-check', 'label' => 'Finalize Schedule'],
     ],
-    'Defense Participants' => [
-        ['slug' => 'researchers', 'href' => $researchDirectorBaseUrl . 'researchers', 'icon' => 'fa-users', 'label' => 'Researchers'],
-        ['slug' => 'advisers', 'href' => $researchDirectorBaseUrl . 'advisers', 'icon' => 'fa-user-tie', 'label' => 'Advisers'],
-        ['slug' => 'panel-members', 'href' => $researchDirectorBaseUrl . 'panel-members', 'icon' => 'fa-users', 'label' => 'Panel Members'],
-    ],
-    'Communication' => [
-        ['slug' => 'notifications', 'href' => $researchDirectorBaseUrl . 'notifications', 'icon' => 'fa-bell', 'label' => 'Notifications'],
-    ],
-    'Defense Results' => [
-        ['slug' => 'defense-results', 'href' => $researchDirectorBaseUrl . 'defense-results', 'icon' => 'fa-chart-bar', 'label' => 'Defense Results'],
-        ['slug' => 'digital-scores', 'href' => $researchDirectorBaseUrl . 'digital-scores', 'icon' => 'fa-poll', 'label' => 'Digital Scores'],
-        ['slug' => 'defense-history', 'href' => $researchDirectorBaseUrl . 'defense-history', 'icon' => 'fa-history', 'label' => 'Defense History'],
-    ],
-    'Archiving' => [
-        ['slug' => 'proceed-archiving', 'href' => $researchDirectorBaseUrl . 'proceed-archiving', 'icon' => 'fa-folder-open', 'label' => 'Proceed to Archiving'],
-    ],
-    'Profile' => [
-        ['slug' => 'my-profile', 'href' => BASE_URL . '/modules/faculty/pages/my-profile.php', 'icon' => 'fa-user', 'label' => 'My Profile'],
-        ['slug' => 'account-settings', 'href' => BASE_URL . '/account/profile.php', 'icon' => 'fa-user-cog', 'label' => 'Account Settings'],
-    ],
-    'System' => [
+    'SYSTEM' => [
         ['slug' => 'security-settings', 'href' => BASE_URL . '/account/module-security.php?module=faculty', 'icon' => 'fa-shield-alt', 'label' => 'Security Settings'],
     ],
 ];
 ?>
-<aside class="sms-sidebar" id="smsSidebar" aria-label="Main navigation">
+<aside class="sms-sidebar <?= ($roleKey === 'research_director' && $activeModule === 'faculty') ? 'research-director-sidebar' : '' ?>" id="smsSidebar" aria-label="Main navigation">
     <nav class="sidebar-nav" id="smsSidebarAccordion">
         <ul class="nav flex-column">
             <?php if ($isStudentPortal): ?>

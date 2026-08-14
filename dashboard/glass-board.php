@@ -4,6 +4,17 @@
  * Expects: $roleKey, $statCards, $visibleModules
  */
 
+// Self-contained bootstrap. In the normal dashboard/index.php include flow the
+// variables below are already set, so the null-coalescing defaults never
+// override them. This only covers direct access to this file (which previously
+// emitted "undefined variable" warnings and a fatal getCurrentUserName() error).
+if (!function_exists('getCurrentUserRoleKey')) {
+    require_once __DIR__ . '/../includes/authentication.php';
+}
+$roleKey        = $roleKey        ?? (function_exists('getCurrentUserRoleKey') ? getCurrentUserRoleKey() : '');
+$visibleModules = $visibleModules ?? [];
+$statCards      = $statCards      ?? [];
+
 $perfColors = ['blue', 'purple', 'green', 'orange'];
 $sourceLegend = [
     ['label' => 'BSIT', 'pct' => '21%', 'color' => '#3b82f6'],
