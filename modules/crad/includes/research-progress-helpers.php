@@ -209,6 +209,10 @@ function rpApplyChapterMilestoneOverrides(PDO $crad, int $groupId, array $milest
         if ($chapter) {
             $milestone['chapter_number'] = $chapter;
         }
+
+        if ((string) ($milestone['status'] ?? '') === 'Approved') {
+            $milestone['progress_percentage'] = 100.0;
+        }
     }
     unset($milestone);
 
@@ -252,6 +256,7 @@ function rpGetMilestonesForPlan(PDO $crad, ?int $planId, ?int $groupId = null): 
     $milestones = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $milestones = $milestones ?: rpDefaultMilestoneRows();
+    $milestones = rpNormalizeApprovedMilestoneProgress($milestones);
     return $groupId ? rpApplyChapterMilestoneOverrides($crad, $groupId, $milestones) : $milestones;
 }
 
@@ -276,7 +281,20 @@ function rpGetMilestonesWithUpdateStats(PDO $crad, ?int $planId, ?int $groupId =
     $stmt->execute([$planId]);
     $milestones = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: rpDefaultMilestoneRows();
 
+    $milestones = rpNormalizeApprovedMilestoneProgress($milestones);
     return $groupId ? rpApplyChapterMilestoneOverrides($crad, $groupId, $milestones) : $milestones;
+}
+
+function rpNormalizeApprovedMilestoneProgress(array $milestones): array
+{
+    foreach ($milestones as &$milestone) {
+        if ((string) ($milestone['status'] ?? '') === 'Approved') {
+            $milestone['progress_percentage'] = 100.0;
+        }
+    }
+    unset($milestone);
+
+    return $milestones;
 }
 
 function rpSyncChapterMilestonesFromSubmissions(PDO $crad, int $groupId): void
@@ -1086,6 +1104,7 @@ function rpRecalculateOverallProgress(PDO $crad, int $planId): void
     $stmt->execute([$planId]);
     $milestones = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    $milestones = rpNormalizeApprovedMilestoneProgress($milestones);
     $avgProgress = rpMilestonesOverallProgress($milestones);
     
     $updateStmt = $crad->prepare("

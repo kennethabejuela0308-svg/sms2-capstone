@@ -525,12 +525,35 @@ renderBreadcrumbs($breadcrumbs);
                 <canvas id="rctaSigCanvas" style="display:block;width:100%;height:160px;background:#fff;touch-action:none;cursor:crosshair;"></canvas>
             </div>
             <div id="rctaSigError" style="display:none;margin-top:.6rem;padding:.5rem .75rem;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;color:#991b1b;font-size:.8rem;font-weight:700;">
-                <i class="fas fa-exclamation-circle me-1"></i>Please draw your signature before approving.
+                <i class="fas fa-exclamation-circle me-1"></i>Please provide your signature before approving.
             </div>
         </div>
         <div style="padding:.85rem 1.25rem;border-top:1px solid #e5e7eb;display:flex;align-items:center;justify-content:flex-end;gap:.65rem;background:#f9fafb;">
             <button id="rctaSigCancel" class="btn btn-outline-secondary btn-sm" type="button" style="font-size:.82rem;">Cancel</button>
             <button id="rctaSigApprove" class="btn btn-success btn-sm" type="button">Confirm & Approve</button>
+        </div>
+    </div>
+</div>
+
+<div id="rctaApproveConfirmModal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(15,23,42,.72);overflow:auto;padding:2rem 1rem;">
+    <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.38);">
+        <div style="background:#17366f;color:#fff;padding:1rem 1.25rem;display:flex;justify-content:space-between;gap:1rem;align-items:center;">
+            <div>
+                <div style="color:rgba(219,234,254,.9);font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:.2rem;">TITLE APPROVAL</div>
+                <h3 style="margin:0;font-size:1.05rem;font-weight:800;"><i class="fas fa-check-circle me-2"></i>Confirm Approval</h3>
+            </div>
+            <button id="rctaApproveConfirmClose" type="button" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:.35rem .8rem;cursor:pointer;font-weight:700;font-size:.82rem;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div style="padding:1.2rem;">
+            <p style="margin:0 0 .75rem;color:#111827;font-size:1rem;font-weight:800;">Are you sure you want to approve this Title Approval Form?</p>
+            <p style="margin:0 0 .55rem;color:#64748b;font-size:.9rem;line-height:1.55;font-weight:600;">Your signature will be saved and this approval will be recorded.</p>
+            <p style="margin:0;color:#64748b;font-size:.9rem;line-height:1.55;font-weight:600;">Once confirmed, the existing Title Approval process will continue.</p>
+        </div>
+        <div style="padding:.9rem 1.2rem;border-top:1px solid #e5e7eb;background:#f8fafc;display:flex;justify-content:flex-end;gap:.65rem;">
+            <button id="rctaApproveConfirmCancel" type="button" class="btn btn-outline-secondary btn-sm" style="font-size:.82rem;">Cancel</button>
+            <button id="rctaApproveConfirmYes" type="button" class="btn btn-success btn-sm" style="font-size:.82rem;"><i class="fas fa-check me-1"></i>Yes, Approve</button>
         </div>
     </div>
 </div>
@@ -848,22 +871,57 @@ renderBreadcrumbs($breadcrumbs);
     const sigModal = document.getElementById('rctaSigModal');
     const canvas = document.getElementById('rctaSigCanvas');
     const ctx = canvas.getContext('2d');
+    const sigError = document.getElementById('rctaSigError');
+    const approveConfirmModal = document.getElementById('rctaApproveConfirmModal');
+    const approveConfirmYes = document.getElementById('rctaApproveConfirmYes');
     let drawing = false;
+    let pendingSignature = '';
+    let approveRequestInFlight = false;
     function resize(){ const ratio=Math.max(devicePixelRatio||1,1); const rect=canvas.getBoundingClientRect(); canvas.width=rect.width*ratio; canvas.height=160*ratio; ctx.setTransform(ratio,0,0,ratio,0,0); ctx.strokeStyle='#0f172a'; ctx.lineWidth=2; ctx.lineCap='round'; }
     function pos(e){ const r=canvas.getBoundingClientRect(); const p=e.touches?e.touches[0]:e; return {x:p.clientX-r.left,y:p.clientY-r.top}; }
     function hasDraw(){ const px=ctx.getImageData(0,0,canvas.width,canvas.height).data; for(let i=3;i<px.length;i+=4){ if(px[i]>0) return true; } return false; }
-    function openSig(){ sigModal.style.display='block'; setTimeout(()=>{resize(); ctx.clearRect(0,0,canvas.width,canvas.height);},30); }
-    function closeSig(){ sigModal.style.display='none'; }
+    function openSig(){ pendingSignature=''; resetApproveConfirmButton(); if(sigError) sigError.style.display='none'; sigModal.style.display='block'; setTimeout(()=>{resize(); ctx.clearRect(0,0,canvas.width,canvas.height);},30); }
+    function closeSig(){ if(approveRequestInFlight) return; sigModal.style.display='none'; if(sigError) sigError.style.display='none'; pendingSignature=''; }
     ['mousedown','touchstart'].forEach(ev => canvas.addEventListener(ev, e => { e.preventDefault(); drawing=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); }, {passive:false}));
     ['mousemove','touchmove'].forEach(ev => canvas.addEventListener(ev, e => { e.preventDefault(); if(!drawing)return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); }, {passive:false}));
     ['mouseup','mouseleave','touchend'].forEach(ev => canvas.addEventListener(ev, () => drawing=false));
     document.getElementById('rctaSigClose').onclick = closeSig;
     document.getElementById('rctaSigCancel').onclick = closeSig;
-    document.getElementById('rctaSigClear').onclick = () => ctx.clearRect(0,0,canvas.width,canvas.height);
+    document.getElementById('rctaSigClear').onclick = () => { ctx.clearRect(0,0,canvas.width,canvas.height); if(sigError) sigError.style.display='none'; pendingSignature=''; };
+    function resetApproveConfirmButton(){
+        approveRequestInFlight = false;
+        approveConfirmYes.disabled = false;
+        approveConfirmYes.innerHTML = '<i class="fas fa-check me-1"></i>Yes, Approve';
+    }
+    function closeApproveConfirm(){
+        if(approveRequestInFlight) return;
+        approveConfirmModal.style.display = 'none';
+    }
+    document.getElementById('rctaApproveConfirmClose').onclick = closeApproveConfirm;
+    document.getElementById('rctaApproveConfirmCancel').onclick = closeApproveConfirm;
+    approveConfirmModal.addEventListener('click', e => { if(e.target === approveConfirmModal) closeApproveConfirm(); });
+    approveConfirmYes.onclick = async () => {
+        if(!current || !pendingSignature || approveRequestInFlight) return;
+        approveRequestInFlight = true;
+        approveConfirmYes.disabled = true;
+        approveConfirmYes.innerHTML = 'Processing...';
+        try {
+            await updateStatus(current.id, 'Approved', '', pendingSignature);
+            approveConfirmModal.style.display = 'none';
+            sigModal.style.display = 'none';
+        } catch(e) {
+            showInlineAlert('Could not update coordinator status. Please try again.');
+        } finally {
+            resetApproveConfirmButton();
+        }
+    };
     document.getElementById('rctaSigApprove').onclick = () => {
-        if (!hasDraw()) { document.getElementById('rctaSigError').style.display='block'; return; }
+        if (!hasDraw()) { if(sigError) sigError.style.display='block'; return; }
+        if(sigError) sigError.style.display='none';
         const out = document.createElement('canvas'); out.width=400; out.height=100; const o=out.getContext('2d'); o.fillStyle='#fff'; o.fillRect(0,0,400,100); o.drawImage(canvas,0,0,canvas.width,canvas.height,0,0,400,100);
-        const sig = out.toDataURL('image/png'); closeSig(); if (current) updateStatus(current.id, 'Approved', '', sig);
+        pendingSignature = out.toDataURL('image/png');
+        approveConfirmModal.style.display = 'block';
+        setTimeout(() => approveConfirmYes.focus(), 30);
     };
     render();
     window.setInterval(refresh, 5000);

@@ -278,61 +278,7 @@ function rcSendNotificationStats(array $rows): array
 function rcSendAssignmentNotification(string $groupNumber, ?int $userId): array
 {
     $pdo = getCradDatabaseConnection();
-    smsAssignmentNotificationEnsureSentSchema($pdo);
-
-    $groupStmt = $pdo->prepare("
-        SELECT g.id, g.proposal_id, g.group_number
-        FROM research_groups g
-        LEFT JOIN title_approvals t ON t.id = g.title_approval_id
-        WHERE g.group_number = :group_number
-          AND (g.title_approval_id IS NULL OR g.title_approval_id = 0 OR t.id IS NOT NULL)
-        LIMIT 1
-    ");
-    $groupStmt->execute([':group_number' => $groupNumber]);
-    $group = $groupStmt->fetch();
-    if (!$group) {
-        throw new RuntimeException('Research group not found.');
-    }
-
-    $params = [
-        ':research_group_id' => (int) ($group['id'] ?? 0),
-        ':group_number_gate' => (string) ($group['group_number'] ?? ''),
-        ':group_number_match' => (string) ($group['group_number'] ?? ''),
-        ':proposal_id' => (int) ($group['proposal_id'] ?? 0),
-    ];
-
-    $adviserStmt = $pdo->prepare("
-        SELECT COUNT(*)
-        FROM research_adviser_assignments a
-        WHERE a.assignment_status = 'Assigned'
-          AND (
-            a.research_group_id = :research_group_id
-            OR (:group_number_gate <> '' AND a.group_number = :group_number_match)
-            OR a.proposal_id = :proposal_id
-          )
-    ");
-    $adviserStmt->execute($params);
-    if ((int) $adviserStmt->fetchColumn() < 1) {
-        throw new RuntimeException('Assign a research adviser before sending notifications.');
-    }
-
-    $updateParams = $params + [
-        ':sent_by' => $userId ?: null,
-    ];
-    $pdo->prepare("
-        UPDATE research_adviser_assignments a
-           SET a.notification_sent_at = NOW(),
-               a.notification_sent_by = :sent_by,
-               a.updated_at = NOW()
-         WHERE a.assignment_status = 'Assigned'
-           AND (
-            a.research_group_id = :research_group_id
-            OR (:group_number_gate <> '' AND a.group_number = :group_number_match)
-            OR a.proposal_id = :proposal_id
-           )
-    ")->execute($updateParams);
-
-    return ['message' => 'Notification sent to the student and research adviser.'];
+    return smsMarkResearchAdviserAssignmentNotificationSent($pdo, $groupNumber, $userId);
 }
 
 if ($rcPageSlug === 'send-notifications' && (($_POST['ajax'] ?? '') === 'send-assignment-notification')) {

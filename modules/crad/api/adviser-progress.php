@@ -569,12 +569,19 @@ function handleApproveProgress(PDO $crad, int $adviserUserId, string $adviserEma
         if (!empty($update['milestone_id'])) {
             $updateMilestone = $crad->prepare("
                 UPDATE research_milestones 
-                SET status = 'Approved',
+                SET progress_percentage = 100,
+                    status = 'Approved',
+                    completed_at = COALESCE(completed_at, NOW()),
                     adviser_remarks = ?,
                     updated_at = NOW()
                 WHERE id = ?
+                  AND research_plan_id = ?
             ");
-            $updateMilestone->execute([$input['remarks'] ?? $input['feedback_text'] ?? 'Approved', $update['milestone_id']]);
+            $updateMilestone->execute([
+                $input['remarks'] ?? $input['feedback_text'] ?? 'Approved',
+                $update['milestone_id'],
+                $update['research_plan_id'],
+            ]);
             rpRecalculateOverallProgress($crad, (int) $update['research_plan_id']);
         }
         

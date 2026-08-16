@@ -97,6 +97,70 @@ function smsDeleteStoredCradAssignmentNotifications(PDO $crad): void
     return;
 }
 
+function smsMarkResearchAdviserAssignmentNotificationSent(PDO $crad, string $groupNumber, ?int $sentBy = null): array
+{
+    $groupNumber = trim($groupNumber);
+    if ($groupNumber === '') {
+        throw new RuntimeException('Research group is required.');
+    }
+
+    smsAssignmentNotificationEnsureSentSchema($crad);
+
+    $groupStmt = $crad->prepare("
+        SELECT g.id, g.proposal_id, g.group_number
+        FROM research_groups g
+        LEFT JOIN title_approvals t ON t.id = g.title_approval_id
+        WHERE g.group_number = :group_number
+          AND (g.title_approval_id IS NULL OR g.title_approval_id = 0 OR t.id IS NOT NULL)
+        LIMIT 1
+    ");
+    $groupStmt->execute([':group_number' => $groupNumber]);
+    $group = $groupStmt->fetch();
+    if (!$group) {
+        throw new RuntimeException('Research group not found.');
+    }
+
+    $params = [
+        ':research_group_id' => (int) ($group['id'] ?? 0),
+        ':group_number_gate' => (string) ($group['group_number'] ?? ''),
+        ':group_number_match' => (string) ($group['group_number'] ?? ''),
+        ':proposal_id' => (int) ($group['proposal_id'] ?? 0),
+    ];
+
+    $adviserStmt = $crad->prepare("
+        SELECT COUNT(*)
+        FROM research_adviser_assignments a
+        WHERE a.assignment_status = 'Assigned'
+          AND (
+            a.research_group_id = :research_group_id
+            OR (:group_number_gate <> '' AND a.group_number = :group_number_match)
+            OR a.proposal_id = :proposal_id
+          )
+    ");
+    $adviserStmt->execute($params);
+    if ((int) $adviserStmt->fetchColumn() < 1) {
+        throw new RuntimeException('Assign a research adviser before sending notifications.');
+    }
+
+    $crad->prepare("
+        UPDATE research_adviser_assignments a
+           SET a.notification_sent_at = NOW(),
+               a.notification_sent_by = :sent_by,
+               a.updated_at = NOW()
+         WHERE a.assignment_status = 'Assigned'
+           AND a.notification_sent_at IS NULL
+           AND (
+            a.research_group_id = :research_group_id
+            OR (:group_number_gate <> '' AND a.group_number = :group_number_match)
+            OR a.proposal_id = :proposal_id
+           )
+    ")->execute($params + [
+        ':sent_by' => $sentBy ?: null,
+    ]);
+
+    return ['message' => 'Notification sent to the student and research adviser.'];
+}
+
 function smsCurrentUserNotifications(int $limit = 8): array
 {
     $crad = cradDb();
@@ -184,6 +248,39 @@ function smsCurrentUserNotifications(int $limit = 8): array
         $stmt->bindValue(':limit', max(1, min(50, $limit)), PDO::PARAM_INT);
         $stmt->execute();
         $rows = $stmt->fetchAll() ?: [];
+
+        $panelTable = $crad->query("SHOW TABLES LIKE 'panel_assignment_notifications'")->fetchColumn();
+        if ($panelTable) {
+            $panelRegistryFilter = function_exists('cradOfficialRegistryGroupWhereSql')
+                ? "AND (
+                    research_group_id IS NULL
+                    OR EXISTS (
+                        SELECT 1
+                        FROM research_groups panel_rg
+                        WHERE panel_rg.id = panel_assignment_notifications.research_group_id
+                          AND " . cradOfficialRegistryGroupWhereSql('panel_rg') . "
+                    )
+                )"
+                : '';
+            $panelStmt = $crad->prepare(
+                "SELECT id, event_key, 'panel_assignment' AS type, title, body, url, is_read, created_at
+                 FROM panel_assignment_notifications
+                 WHERE {$where['sql']}
+                 {$panelRegistryFilter}
+                 ORDER BY created_at DESC, id DESC
+                 LIMIT :limit"
+            );
+            foreach ($where['params'] as $key => $value) {
+                $panelStmt->bindValue($key, $value);
+            }
+            $panelStmt->bindValue(':limit', max(1, min(50, $limit)), PDO::PARAM_INT);
+            $panelStmt->execute();
+            $rows = array_merge($rows, $panelStmt->fetchAll() ?: []);
+            usort($rows, static function (array $a, array $b): int {
+                return strcmp((string) ($b['created_at'] ?? ''), (string) ($a['created_at'] ?? ''));
+            });
+            $rows = array_slice($rows, 0, max(1, min(50, $limit)));
+        }
     } catch (Throwable $e) {
         error_log('Chapter notification load failed: ' . $e->getMessage());
         return [];
@@ -191,9 +288,9 @@ function smsCurrentUserNotifications(int $limit = 8): array
 
     return array_map(static function (array $row): array {
         return [
-            'id' => (int) $row['id'],
+            'id' => (string) ($row['type'] ?? '') === 'panel_assignment' ? -1 * (int) $row['id'] : (int) $row['id'],
             'batch_key' => (string) ($row['event_key'] ?? ''),
-            'icon' => 'fa-file-alt',
+            'icon' => (string) ($row['type'] ?? '') === 'panel_assignment' ? 'fa-user-friends' : 'fa-file-alt',
             'status' => ((int) ($row['is_read'] ?? 0) === 1) ? 'read' : 'unread',
             'title' => (string) ($row['title'] ?? 'Notification'),
             'body' => (string) ($row['body'] ?? ''),
@@ -458,15 +555,20 @@ function smsCurrentUserCanReceiveAssignmentNotification(PDO $crad, array $row): 
     }
 
     $email = strtolower(trim((string) ($_SESSION['user_email'] ?? '')));
+    $userId = (int) ($_SESSION['user_id'] ?? 0);
 
     if ($role === 'adviser') {
+        $adviserUserId = (int) ($row['adviser_user_id'] ?? 0);
+        if ($adviserUserId > 0) {
+            return $userId > 0 && $userId === $adviserUserId;
+        }
+
         return $email !== '' && $email === strtolower(trim((string) ($row['adviser_email'] ?? '')));
     }
 
     if ($role === 'student') {
         $studentId = trim((string) ($_SESSION['student_id'] ?? ''));
         $studentName = strtolower(trim((string) ($_SESSION['user_name'] ?? '')));
-        $userId = (int) ($_SESSION['user_id'] ?? 0);
         $rowStudentIds = array_filter([
             trim((string) ($row['leader_id'] ?? '')),
             trim((string) ($row['rep_id'] ?? '')),
@@ -523,6 +625,7 @@ function smsCurrentUserAssignmentNotifications(int $limit = 8): array
                 t.student_id AS title_student_id,
                 t.student_name AS title_student_name,
                 t.student_user_id AS title_student_user_id,
+                a.adviser_user_id,
                 a.adviser_name,
                 a.adviser_email,
                 COALESCE(a.notification_sent_at, '1000-01-01 00:00:00') AS completed_at
@@ -551,7 +654,7 @@ function smsCurrentUserAssignmentNotifications(int $limit = 8): array
                 g.leader_id, g.leader_name, g.leader_email,
                 p.rep_id, p.rep_name, p.rep_email, p.submitted_by_user,
                 t.student_id, t.student_name, t.student_user_id,
-                a.adviser_name, a.adviser_email, a.notification_sent_at
+                a.adviser_user_id, a.adviser_name, a.adviser_email, a.notification_sent_at
              ORDER BY completed_at DESC, g.id DESC
              LIMIT 50
         ")->fetchAll() ?: [];
@@ -637,6 +740,7 @@ function smsCurrentUserAssignmentNotificationDetail(string $groupNumber = '', st
                 COALESCE(NULLIF(g.leader_email, ''), p.rep_email, '') AS student_email,
                 p.submitted_by_user,
                 t.student_user_id AS title_student_user_id,
+                a.adviser_user_id,
                 a.adviser_name,
                 a.adviser_email,
                 a.notification_sent_at
@@ -676,7 +780,13 @@ function smsCurrentUserAssignmentNotificationDetail(string $groupNumber = '', st
     }
 
     if ($role === 'adviser') {
-        if ($email === '' || $email !== strtolower(trim((string) ($row['adviser_email'] ?? '')))) {
+        $adviserUserId = (int) ($row['adviser_user_id'] ?? 0);
+        $currentUserId = (int) ($_SESSION['user_id'] ?? 0);
+        if ($adviserUserId > 0) {
+            if ($currentUserId <= 0 || $currentUserId !== $adviserUserId) {
+                return null;
+            }
+        } elseif ($email === '' || $email !== strtolower(trim((string) ($row['adviser_email'] ?? '')))) {
             return null;
         }
     } elseif ($role === 'student') {

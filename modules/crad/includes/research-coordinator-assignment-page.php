@@ -415,6 +415,7 @@ function rcAssignmentRows(PDO $pdo, string $kind): array
                 'adviser' AS assignment_kind,
                 a.id AS assignment_id,
                 g.title_approval_id,
+                a.adviser_user_id AS assignee_user_id,
                 a.adviser_name AS assignee_name,
                 a.adviser_email AS assignee_email,
                 '' AS assignee_role,
@@ -515,9 +516,6 @@ function rcAssignmentMatchScore(array $row, string $requiredExpertise): int
     if (strcasecmp((string) ($row['availability_status'] ?? ''), 'Available') === 0) {
         $score += 10;
     }
-    if (strcasecmp((string) ($row['assignment_status'] ?? ''), 'Assigned') === 0) {
-        $score += 5;
-    }
 
     return max(15, min(100, $score));
 }
@@ -597,7 +595,7 @@ function rcAssignmentAdviserAccountPool(): array
     try {
         $smsPdo = getDatabaseConnection();
         $stmt = $smsPdo->query("
-            SELECT full_name AS assignee_name, email AS assignee_email
+            SELECT id AS assignee_user_id, full_name AS assignee_name, email AS assignee_email
             FROM users
             WHERE role_key = 'adviser'
               AND status = 'active'
@@ -611,6 +609,7 @@ function rcAssignmentAdviserAccountPool(): array
     }
 
     return array_map(static fn(array $row): array => [
+        'assignee_user_id' => (int) ($row['assignee_user_id'] ?? 0),
         'assignee_name' => (string) ($row['assignee_name'] ?? ''),
         'assignee_email' => (string) ($row['assignee_email'] ?? ''),
         'assignee_role' => 'Research Adviser',
@@ -621,12 +620,53 @@ function rcAssignmentAdviserAccountPool(): array
     ], $rows);
 }
 
+function rcAssignmentResolveAdviserUserId(string $email, string $name): ?int
+{
+    $email = strtolower(trim($email));
+    $name = strtolower(trim($name));
+    if ($email === '' && $name === '') {
+        return null;
+    }
+
+    try {
+        $smsPdo = getDatabaseConnection();
+        $stmt = $smsPdo->prepare("
+            SELECT id
+            FROM users
+            WHERE role_key = 'adviser'
+              AND status = 'active'
+              AND (
+                    (:email_gate <> '' AND LOWER(TRIM(email)) = :email_match)
+                 OR (:name_gate <> '' AND LOWER(TRIM(full_name)) = :name_match)
+              )
+            ORDER BY
+              CASE WHEN :email_gate_order <> '' AND LOWER(TRIM(email)) = :email_match_order THEN 0 ELSE 1 END,
+              id ASC
+            LIMIT 1
+        ");
+        $stmt->execute([
+            ':email_gate' => $email,
+            ':email_match' => $email,
+            ':name_gate' => $name,
+            ':name_match' => $name,
+            ':email_gate_order' => $email,
+            ':email_match_order' => $email,
+        ]);
+        $userId = (int) $stmt->fetchColumn();
+        return $userId > 0 ? $userId : null;
+    } catch (Throwable $e) {
+        error_log('Adviser user id resolution failed: ' . $e->getMessage());
+        return null;
+    }
+}
+
 function rcAssignmentCandidatePool(PDO $pdo): array
 {
     $rows = $pdo->query("
         SELECT
             adviser_name AS assignee_name,
             adviser_email AS assignee_email,
+            adviser_user_id AS assignee_user_id,
             'Research Adviser' AS assignee_role,
             expertise,
             availability_status,
@@ -672,6 +712,7 @@ function rcAssignmentEnsureGroupCandidateRows(PDO $pdo, array $groups): void
                proposal_id = COALESCE(:proposal_id, proposal_id),
                proposal_number = COALESCE(NULLIF(:proposal_number, ''), proposal_number),
                group_number = COALESCE(NULLIF(:group_number, ''), group_number),
+               adviser_user_id = COALESCE(:adviser_user_id, adviser_user_id),
                adviser_name = COALESCE(NULLIF(:adviser_name, ''), adviser_name),
                adviser_email = COALESCE(NULLIF(:adviser_email, ''), adviser_email),
                expertise = CASE
@@ -689,9 +730,9 @@ function rcAssignmentEnsureGroupCandidateRows(PDO $pdo, array $groups): void
     ");
     $insertAdviser = $pdo->prepare("
         INSERT INTO research_adviser_assignments
-            (research_group_id, proposal_id, proposal_number, group_number, adviser_name, adviser_email, expertise, availability_status, assignment_status, notes, assigned_by, assigned_at, created_at, updated_at, notification_sent_at, notification_sent_by)
+            (research_group_id, proposal_id, proposal_number, group_number, adviser_user_id, adviser_name, adviser_email, expertise, availability_status, assignment_status, notes, assigned_by, assigned_at, created_at, updated_at, notification_sent_at, notification_sent_by)
         VALUES
-            (:research_group_id, :proposal_id, :proposal_number, :group_number, :adviser_name, :adviser_email, :expertise, :availability_status, 'Pending', :notes, NULL, NULL, NOW(), NOW(), NULL, NULL)
+            (:research_group_id, :proposal_id, :proposal_number, :group_number, :adviser_user_id, :adviser_name, :adviser_email, :expertise, :availability_status, 'Pending', :notes, NULL, NULL, NOW(), NOW(), NULL, NULL)
     ");
 
     foreach ($groups as $group) {
@@ -727,7 +768,13 @@ function rcAssignmentEnsureGroupCandidateRows(PDO $pdo, array $groups): void
                 ':name_match' => $name,
             ]);
             $existing = $adviserExists->fetch();
+            $adviserUserId = rcAssignmentNullableInt($adviser['assignee_user_id'] ?? null)
+                ?? rcAssignmentResolveAdviserUserId(
+                    (string) ($adviser['assignee_email'] ?? ''),
+                    (string) ($adviser['assignee_name'] ?? '')
+                );
             $adviserParams = [
+                ':adviser_user_id' => $adviserUserId,
                 ':adviser_name' => (string) ($adviser['assignee_name'] ?? ''),
                 ':adviser_email' => (string) ($adviser['assignee_email'] ?? ''),
                 ':expertise' => (string) (($adviser['expertise'] ?? '') ?: 'General Research Methods'),
@@ -952,7 +999,7 @@ function rcAssignmentProposalStudentRecipients(PDO $pdo, array $group): array
     }
 }
 
-function rcAssignmentMaybeSendCompletionNotifications(PDO $pdo, array $candidate, string $groupNumber): void
+function rcAssignmentMaybeSendCompletionNotifications(PDO $pdo, array $candidate, string $groupNumber, ?int $userId): void
 {
     $group = rcAssignmentCompletionGroup($pdo, $candidate, $groupNumber);
     if (!$group) {
@@ -964,7 +1011,7 @@ function rcAssignmentMaybeSendCompletionNotifications(PDO $pdo, array $candidate
         return;
     }
 
-    smsDeleteStoredCradAssignmentNotifications($pdo);
+    smsMarkResearchAdviserAssignmentNotificationSent($pdo, $groupNumber, $userId);
 }
 
 function rcAssignmentPayload(string $kind): array
@@ -1102,32 +1149,71 @@ function rcAssignmentSave(PDO $pdo, string $kind, int $assignmentId, string $gro
         $candidate = $groupCandidate;
         $assignmentId = (int) ($candidate['id'] ?? 0);
     }
+    if (!$matchesSelectedGroup($candidate)) {
+        throw new RuntimeException('Adviser candidate does not match the selected research group.');
+    }
     if (strcasecmp((string) ($candidate['availability_status'] ?? ''), 'Available') !== 0) {
         throw new RuntimeException('Cannot assign this research adviser because availability is not Available.');
     }
+    $resolvedAdviserUserId = rcAssignmentNullableInt($candidate['adviser_user_id'] ?? null)
+        ?? rcAssignmentResolveAdviserUserId(
+            (string) ($candidate['adviser_email'] ?? ''),
+            (string) ($candidate['adviser_name'] ?? '')
+        );
     if ($matchesSelectedGroup($candidate) && strcasecmp((string) ($candidate['assignment_status'] ?? ''), 'Assigned') === 0) {
-        rcAssignmentMaybeSendCompletionNotifications($pdo, $candidate, $groupNumber);
+        if ($resolvedAdviserUserId !== null && (int) ($candidate['adviser_user_id'] ?? 0) <= 0) {
+            $stampUser = $pdo->prepare("
+                UPDATE research_adviser_assignments
+                   SET adviser_user_id = :adviser_user_id,
+                       updated_at = NOW()
+                 WHERE id = :id
+                 LIMIT 1
+            ");
+            $stampUser->execute([
+                ':adviser_user_id' => $resolvedAdviserUserId,
+                ':id' => $assignmentId,
+            ]);
+        }
+        rcAssignmentMaybeSendCompletionNotifications($pdo, $candidate, $groupNumber, $userId);
         return ['message' => 'Research adviser is already assigned.'];
     }
 
-    if ($matchesSelectedGroup($candidate)) {
-        rcAssignmentResetOtherRowsForGroup($pdo, 'research_adviser_assignments', $assignmentId, $selectedGroup);
-        $stmt = $pdo->prepare("
-            UPDATE research_adviser_assignments
-               SET assignment_status = 'Assigned',
-                   assigned_by = :assigned_by,
-                   assigned_at = NOW(),
-                   notification_sent_at = NULL,
-                   notification_sent_by = NULL,
-                   updated_at = NOW()
-             WHERE id = :id
-        ");
-        $stmt->execute([
-            ':assigned_by' => $userId,
-            ':id' => $assignmentId,
-        ]);
+    $startedTransaction = !$pdo->inTransaction();
+    if ($startedTransaction) {
+        $pdo->beginTransaction();
     }
-    rcAssignmentMaybeSendCompletionNotifications($pdo, $candidate, $groupNumber);
+
+    try {
+        if ($matchesSelectedGroup($candidate)) {
+            rcAssignmentResetOtherRowsForGroup($pdo, 'research_adviser_assignments', $assignmentId, $selectedGroup);
+            $stmt = $pdo->prepare("
+                UPDATE research_adviser_assignments
+                   SET assignment_status = 'Assigned',
+                       adviser_user_id = COALESCE(:adviser_user_id, adviser_user_id),
+                       assigned_by = :assigned_by,
+                       assigned_at = NOW(),
+                       notification_sent_at = NULL,
+                       notification_sent_by = NULL,
+                       updated_at = NOW()
+                 WHERE id = :id
+            ");
+            $stmt->execute([
+                ':adviser_user_id' => $resolvedAdviserUserId,
+                ':assigned_by' => $userId,
+                ':id' => $assignmentId,
+            ]);
+        }
+        rcAssignmentMaybeSendCompletionNotifications($pdo, $candidate, $groupNumber, $userId);
+
+        if ($startedTransaction) {
+            $pdo->commit();
+        }
+    } catch (Throwable $e) {
+        if ($startedTransaction && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
+    }
 
     return ['message' => 'Research adviser assigned successfully.'];
 }
@@ -1679,7 +1765,6 @@ renderBreadcrumbs($breadcrumbs);
         const hits = words.filter((word) => haystack.includes(word)).length;
         let score = Math.round((hits / words.length) * 85);
         if (String(row.availability_status || '').toLowerCase() === 'available') score += 10;
-        if (String(row.assignment_status || '').toLowerCase() === 'assigned') score += 5;
         return Math.max(15, Math.min(100, score));
     };
     const expertiseFitScore = (row, group) => {
@@ -2025,6 +2110,9 @@ renderBreadcrumbs($breadcrumbs);
             if (assigned) assigned.textContent = data.stats?.assigned ?? 0;
             if (lastSync) lastSync.textContent = `Synced ${data.last_sync || 'just now'}`;
             showNotice(data.message || 'Assignment saved.', 'ok');
+            if (typeof window.SMSRefreshNotifications === 'function') {
+                window.SMSRefreshNotifications();
+            }
             render();
         } catch (error) {
             showNotice(error.message || 'Failed to assign.', 'error');

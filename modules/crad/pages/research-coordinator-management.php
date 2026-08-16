@@ -337,9 +337,100 @@ function rcmRoster(PDO $pdo): array
     return $byName;
 }
 
+function rcmResolveGroupMembers(PDO $pdo, array $group): array
+{
+    $roster = [];
+
+    if ((int) ($group['proposal_id'] ?? 0) > 0) {
+        try {
+            $stmt = $pdo->prepare(
+                "SELECT sort_order, student_id, student_name, email, contact
+                 FROM proposal_members
+                 WHERE proposal_id = ?
+                 ORDER BY sort_order ASC, id ASC"
+            );
+            $stmt->execute([(int) $group['proposal_id']]);
+            foreach ($stmt->fetchAll() ?: [] as $member) {
+                $name = trim((string) ($member['student_name'] ?? ''));
+                if ($name === '') {
+                    continue;
+                }
+                $roster[] = [
+                    'sort_order'   => (int) ($member['sort_order'] ?? 1),
+                    'student_id'   => trim((string) ($member['student_id'] ?? '')),
+                    'student_name' => $name,
+                    'email'        => trim((string) ($member['email'] ?? '')),
+                    'contact'      => trim((string) ($member['contact'] ?? '')),
+                ];
+            }
+        } catch (Throwable $e) {
+            error_log('Research coordinator management proposal member lookup failed: ' . $e->getMessage());
+            $roster = [];
+        }
+    }
+
+    if ($roster === []) {
+        $json = trim((string) ($group['members_json'] ?? ''));
+        if ($json !== '') {
+            $decoded = json_decode($json, true);
+            if (is_array($decoded)) {
+                $order = 1;
+                foreach ($decoded as $entry) {
+                    if (!is_array($entry)) {
+                        continue;
+                    }
+                    $name = trim((string) ($entry[0] ?? ($entry['name'] ?? '')));
+                    if ($name === '') {
+                        continue;
+                    }
+                    $studentId = trim((string) ($entry[2] ?? ($entry['student_id'] ?? ($entry[1] ?? ''))));
+                    $roster[] = [
+                        'sort_order'   => $order++,
+                        'student_id'   => $studentId,
+                        'student_name' => $name,
+                        'email'        => trim((string) ($entry['email'] ?? '')),
+                        'contact'      => trim((string) ($entry['contact'] ?? '')),
+                    ];
+                }
+            }
+        }
+    }
+
+    $leaderName = trim((string) ($group['leader_name'] ?? ''));
+    $leaderId = trim((string) ($group['leader_id'] ?? ''));
+    if ($leaderName === '' && $roster !== []) {
+        $leaderName = (string) ($roster[0]['student_name'] ?? '');
+        $leaderId = (string) ($roster[0]['student_id'] ?? '');
+    }
+
+    $leaderKey = function_exists('mb_strtolower')
+        ? mb_strtolower($leaderName)
+        : strtolower($leaderName);
+    $members = [];
+    foreach ($roster as $entry) {
+        $name = trim((string) ($entry['student_name'] ?? ''));
+        $nameKey = function_exists('mb_strtolower') ? mb_strtolower($name) : strtolower($name);
+        if ($name === '' || ($leaderName !== '' && $nameKey === $leaderKey)) {
+            continue;
+        }
+        $members[] = $entry;
+    }
+
+    return [
+        'leader' => [
+            'sort_order' => 0,
+            'student_id' => $leaderId,
+            'student_name' => $leaderName,
+            'email' => trim((string) ($group['leader_email'] ?? '')),
+            'contact' => trim((string) ($group['leader_contact'] ?? '')),
+        ],
+        'members' => $members,
+    ];
+}
+
 /**
  * Rich read-only details for the View Details modal.
- * Returns the research group record, its members (from the linked proposal),
+ * Returns the research group record, its members from the official registry data,
  * and the full coordinator assignment history for that group.
  *
  * @return array<string, mixed>
@@ -347,7 +438,7 @@ function rcmRoster(PDO $pdo): array
 function rcmGroupDetails(PDO $pdo, string $groupNumber): array
 {
     $stmt = $pdo->prepare(
-        "SELECT g.*, t.coordinator_name AS approval_coordinator
+        "SELECT g.*, t.coordinator_name AS approval_coordinator, t.members_json
          FROM research_groups g
          LEFT JOIN title_approvals t ON t.id = g.title_approval_id
          WHERE g.group_number = ?
@@ -359,17 +450,7 @@ function rcmGroupDetails(PDO $pdo, string $groupNumber): array
         return ['ok' => false, 'message' => 'Research group not found.'];
     }
 
-    $members = [];
-    if (!empty($g['proposal_id'])) {
-        $ms = $pdo->prepare(
-            "SELECT sort_order, student_id, student_name, email, contact
-             FROM proposal_members
-             WHERE proposal_id = ?
-             ORDER BY sort_order ASC"
-        );
-        $ms->execute([(int) $g['proposal_id']]);
-        $members = $ms->fetchAll();
-    }
+    $memberData = rcmResolveGroupMembers($pdo, $g);
 
     $as = $pdo->prepare(
         "SELECT status, coordinator_name, coordinator_email, assigned_at, updated_at
@@ -396,13 +477,14 @@ function rcmGroupDetails(PDO $pdo, string $groupNumber): array
             'leader_contact'       => (string) ($g['leader_contact'] ?? ''),
             'date_assigned'        => (string) ($g['date_assigned'] ?? ''),
             'approval_coordinator' => (string) ($g['approval_coordinator'] ?? ''),
+            'leader'               => $memberData['leader'],
             'members'              => array_map(static fn(array $m): array => [
                 'sort_order'   => (int) $m['sort_order'],
                 'student_id'   => (string) $m['student_id'],
                 'student_name' => (string) $m['student_name'],
                 'email'        => (string) $m['email'],
                 'contact'      => (string) $m['contact'],
-            ], $members),
+            ], $memberData['members']),
             'assignments' => array_map(static fn(array $a): array => [
                 'status'             => (string) $a['status'],
                 'coordinator_name'   => (string) $a['coordinator_name'],
@@ -1803,9 +1885,14 @@ document.addEventListener('DOMContentLoaded', function () {
     function buildGroupModalHtml(d) {
         const g = d.detail;
         const current = (g.assignments && g.assignments.length) ? g.assignments[0] : null;
+        const leader = g.leader && g.leader.student_name
+            ? '<div class="rcm-detail-list"><div class="rcm-detail-list-item"><span class="rcm-detail-role">Leader</span>' +
+                '<div><strong>' + esc(g.leader.student_name) + '</strong>' +
+                '<span class="rcm-meta">' + esc(g.leader.student_id || '') + (g.leader.email ? ' &bull; ' + esc(g.leader.email) : '') + (g.leader.contact ? ' &bull; ' + esc(g.leader.contact) : '') + '</span></div></div></div>'
+            : '<span class="rcm-meta">No group leader recorded.</span>';
         const members = g.members && g.members.length
             ? '<div class="rcm-detail-list">' + g.members.map(function (m, i) {
-                return '<div class="rcm-detail-list-item"><span class="rcm-detail-role">' + (i === 0 ? 'Leader' : 'Member ' + (i + 1)) + '</span>' +
+                return '<div class="rcm-detail-list-item"><span class="rcm-detail-role">Member ' + (i + 1) + '</span>' +
                     '<div><strong>' + esc(m.student_name) + '</strong>' +
                     '<span class="rcm-meta">' + esc(m.student_id) + (m.email ? ' &bull; ' + esc(m.email) : '') + (m.contact ? ' &bull; ' + esc(m.contact) : '') + '</span></div></div>';
               }).join('') + '</div>'
@@ -1833,11 +1920,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 detailField('Academic Year', esc(g.academic_year)) +
                 detailField('College / Department', esc(g.college_dept)) +
                 detailField('Research Adviser', esc(g.adviser)) +
-                detailField('Group Leader', esc(g.leader_name)) +
-                detailField('Leader Email', esc(g.leader_email)) +
-                detailField('Leader Contact', esc(g.leader_contact)) +
                 detailField('Group Assigned Date', esc(g.date_assigned)) +
             '</div>' +
+            '<div class="rcm-detail-section"><h4><i class="fas fa-user"></i> Leader</h4>' + leader + '</div>' +
             '<div class="rcm-detail-section"><h4><i class="fas fa-users"></i> Group Members</h4>' + members + '</div>' +
             '<div class="rcm-detail-section"><h4><i class="fas fa-clipboard-check"></i> Current Coordinator</h4>' + assignment + '</div>' +
             '<div class="rcm-detail-section"><h4><i class="fas fa-history"></i> Assignment History</h4>' + history + '</div>';

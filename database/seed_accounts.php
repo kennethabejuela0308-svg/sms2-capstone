@@ -33,6 +33,7 @@ $roles = [
     ['research_coordinator', 'Research Coordinator', 'Research coordination access'],
     ['research_director', 'Research Director', 'Research defense scheduling director account'],
     ['grammarian', 'Grammarian', 'Research grammar and manuscript evaluation account'],
+    ['panel', 'Panel Member', 'Research defense panel account'],
     ['student', 'Student', 'Student portal only'],
 ];
 
@@ -56,6 +57,7 @@ $perms = [
     'research_coordinator' => ['crad'],
     'research_director' => ['faculty'],
     'grammarian'   => ['faculty'],
+    'panel'        => ['faculty'],
     'finance'      => ['payment'],
     'osa'          => ['cocurricular'],
     'it_office'    => ['lms'],
@@ -131,6 +133,30 @@ $accounts = [
         'password' => '@grammarian123',
         'full_name' => 'Grammarian',
         'role_key' => 'grammarian',
+        'student_id' => null,
+    ],
+    [
+        'username' => 'jobert.valentino',
+        'email' => 'jobert.valentino@bestlink.edu.ph',
+        'password' => '@panel123',
+        'full_name' => 'Dr. Jobert Valentino',
+        'role_key' => 'panel',
+        'student_id' => null,
+    ],
+    [
+        'username' => 'jonathan.estrada',
+        'email' => 'jonathan.estrada@bestlink.edu.ph',
+        'password' => '@panel123',
+        'full_name' => 'Dr. Jonathan Estrada',
+        'role_key' => 'panel',
+        'student_id' => null,
+    ],
+    [
+        'username' => 'michelle.guevarra',
+        'email' => 'michelle.guevarra@bestlink.edu.ph',
+        'password' => '@panel123',
+        'full_name' => 'Dr. Michelle Guevarra',
+        'role_key' => 'panel',
         'student_id' => null,
     ],
     [

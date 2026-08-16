@@ -4,13 +4,14 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../../config/config.php';
 require_once ROOT_PATH . '/includes/authentication.php';
 require_once ROOT_PATH . '/modules/crad/includes/chapter-evaluation-workflow.php';
+require_once ROOT_PATH . '/modules/faculty/includes/panel-defense-page.php';
 
 requireAuth();
 
 $crad = chapterDb();
 $id = (int) ($_GET['id'] ?? 0);
 $submission = $id > 0 ? chapterGetSubmission($crad, $id) : null;
-if (!$submission || (!chapterEvaluatorCanAccess($submission) && !chapterStudentCanAccess($submission))) {
+if (!$submission || (!chapterEvaluatorCanAccess($submission) && !chapterStudentCanAccess($submission) && !chapterPanelCanAccessSubmission($crad, $submission))) {
     http_response_code(403);
     echo 'Access denied.';
     exit;

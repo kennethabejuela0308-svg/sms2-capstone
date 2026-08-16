@@ -242,6 +242,12 @@ function handleSubmitProgress(PDO $crad, int $groupId, array $researchGroup, int
         echo json_encode(['success' => false, 'message' => 'Milestone not found']);
         return;
     }
+
+    if ((string) ($milestone['status'] ?? '') === 'Approved') {
+        http_response_code(409);
+        echo json_encode(['success' => false, 'message' => 'This milestone is already approved and finalized at 100%.']);
+        return;
+    }
     
     $allowedStudentStatuses = ['Not Started', 'Submitted for Review'];
     $milestoneStatus = trim((string) ($input['milestone_status'] ?? 'Not Started'));

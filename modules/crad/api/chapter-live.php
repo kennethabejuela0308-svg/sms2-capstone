@@ -78,6 +78,18 @@ function chapterLiveSubmissionRow(array $row): array
         'updated_at' => chapterFormatDate((string) $row['updated_at']),
         'result' => (string) ($row['result'] ?? ''),
         'evaluator' => (string) ($row['evaluator_name'] ?? ''),
-        'scoring_url' => BASE_URL . '/modules/faculty/pages/evaluation-scoring.php?id=' . (int) $row['id'],
+        'scoring_url' => chapterLiveAppBaseUrl() . '/modules/faculty/pages/evaluation-scoring.php?id=' . (int) $row['id'],
     ];
+}
+
+function chapterLiveAppBaseUrl(): string
+{
+    $scriptName = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
+    $modulePos = strpos($scriptName, '/modules/');
+    if ($modulePos !== false) {
+        return rtrim(substr($scriptName, 0, $modulePos), '/');
+    }
+
+    $base = '/' . ltrim((string) BASE_URL, '/');
+    return rtrim($base, '/');
 }

@@ -127,6 +127,67 @@ $statusMeta = [
 ];
 ?>
 
+<style>
+.rm-modal .modal-dialog {
+    width: min(560px, calc(100vw - 2rem));
+    max-width: 560px;
+    margin-left: auto;
+    margin-right: auto;
+}
+.rm-modal .modal-content {
+    border: 0;
+    border-radius: 12px;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+    overflow: hidden;
+}
+.rm-modal .modal-header {
+    align-items: center;
+    padding: 1rem 1.15rem;
+}
+.rm-modal .modal-title {
+    font-size: 1rem;
+    font-weight: 850;
+}
+.rm-modal .modal-body {
+    padding: 1.15rem;
+}
+.rm-modal .alert {
+    align-items: center;
+    border-radius: 8px;
+    display: block;
+    line-height: 1.45;
+}
+.rm-modal .alert i { margin-right: 0.45rem; }
+.rm-modal .alert strong { white-space: nowrap; }
+.rm-modal textarea.form-control {
+    min-height: 120px;
+    resize: vertical;
+}
+.rm-modal .rm-modal-actions {
+    display: flex;
+    gap: 0.6rem;
+    justify-content: flex-end;
+}
+.rm-modal .rm-modal-actions .btn {
+    border-radius: 8px;
+    font-weight: 800;
+    min-height: 40px;
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+@media (max-width: 575.98px) {
+    .rm-modal .modal-dialog {
+        width: calc(100vw - 1.25rem);
+    }
+    .rm-modal .rm-modal-actions {
+        flex-direction: column;
+    }
+    .rm-modal .rm-modal-actions .btn {
+        width: 100%;
+    }
+}
+</style>
+
 <div class="glass-dashboard" data-live-update-page="submitted-updates" data-group-number="<?= htmlspecialchars($groupNumber) ?>">
     <div class="glass-board">
 
@@ -398,8 +459,8 @@ $statusMeta = [
                                             <textarea name="feedback_text" class="form-control" rows="4" required
                                                       placeholder="Provide feedback, suggestions, or questions..."></textarea>
                                         </div>
-                                        <div class="d-flex gap-2">
-                                            <button type="submit" class="btn btn-primary flex-grow-1">
+                                        <div class="rm-modal-actions">
+                                            <button type="submit" class="btn btn-primary">
                                                 <i class="fas fa-paper-plane me-2"></i>Submit Comment
                                             </button>
                                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -432,8 +493,8 @@ $statusMeta = [
                                             <textarea name="feedback_text" class="form-control" rows="5" required
                                                       placeholder="Explain what needs to be revised and why..."></textarea>
                                         </div>
-                                        <div class="d-flex gap-2">
-                                            <button type="submit" class="btn btn-warning flex-grow-1">
+                                        <div class="rm-modal-actions">
+                                            <button type="submit" class="btn btn-warning">
                                                 <i class="fas fa-redo me-2"></i>Request Revision
                                             </button>
                                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -466,8 +527,8 @@ $statusMeta = [
                                             <textarea name="feedback_text" class="form-control" rows="3"
                                                       placeholder="Provide encouragement or additional notes..."></textarea>
                                         </div>
-                                        <div class="d-flex gap-2">
-                                            <button type="submit" class="btn btn-success flex-grow-1">
+                                        <div class="rm-modal-actions">
+                                            <button type="submit" class="btn btn-success">
                                                 <i class="fas fa-check-circle me-2"></i>Approve Progress
                                             </button>
                                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>

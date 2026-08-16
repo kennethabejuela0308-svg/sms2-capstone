@@ -627,6 +627,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
     };
+    window.SMSRefreshNotifications = refreshNotifications;
 
     document.addEventListener('click', function (event) {
         const link = event.target.closest('[data-sms-notification-link]');

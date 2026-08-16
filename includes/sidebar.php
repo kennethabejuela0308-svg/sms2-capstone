@@ -249,11 +249,27 @@ $grammarianNavGroups = [
     ],
 ];
 
+$panelNavGroups = [
+    'DEFENSE' => [
+        ['slug' => 'assigned-defenses', 'href' => BASE_URL . '/modules/faculty/pages/assigned-defenses.php', 'icon' => 'fa-clipboard-list', 'label' => 'Assigned Defenses'],
+        ['slug' => 'defense-details', 'href' => BASE_URL . '/modules/faculty/pages/defense-details.php', 'icon' => 'fa-file-alt', 'label' => 'Defense Details'],
+        ['slug' => 'panel-evaluation-scoring', 'href' => BASE_URL . '/modules/faculty/pages/panel-evaluation-scoring.php', 'icon' => 'fa-star-half-alt', 'label' => 'Evaluation & Scoring'],
+        ['slug' => 'panel-evaluation-history', 'href' => BASE_URL . '/modules/faculty/pages/panel-evaluation-history.php', 'icon' => 'fa-history', 'label' => 'Evaluation History'],
+    ],
+    'PROFILE' => [
+        ['slug' => 'my-profile', 'href' => BASE_URL . '/modules/faculty/pages/my-profile.php', 'icon' => 'fa-user', 'label' => 'My Profile'],
+        ['slug' => 'availability', 'href' => BASE_URL . '/modules/faculty/pages/availability.php', 'icon' => 'fa-user-check', 'label' => 'Availability'],
+    ],
+    'System' => [
+        ['slug' => 'security-settings', 'href' => BASE_URL . '/account/module-security.php?module=faculty', 'icon' => 'fa-shield-alt', 'label' => 'Security Setting'],
+    ],
+];
+
 $researchDirectorBaseUrl = BASE_URL . '/modules/faculty/pages/research-director.php?view=';
 $researchDirectorNavGroups = [
     'PRE-ORAL DEFENSE' => [
         ['slug' => 'defense-scheduling-queue', 'href' => $researchDirectorBaseUrl . 'defense-scheduling-queue', 'icon' => 'fa-list-alt', 'label' => 'Ready for Scheduling'],
-        ['slug' => 'ai-scheduling-optimizer', 'href' => $researchDirectorBaseUrl . 'ai-scheduling-optimizer', 'icon' => 'fa-magic', 'label' => 'AI Scheduling Optimizer'],
+        ['slug' => 'manual-scheduling-optimizer', 'href' => $researchDirectorBaseUrl . 'manual-scheduling-optimizer', 'icon' => 'fa-calendar-check', 'label' => 'Manual Scheduling Optimizer'],
         ['slug' => 'proposed-schedules', 'href' => $researchDirectorBaseUrl . 'proposed-schedules', 'icon' => 'fa-calendar-plus', 'label' => 'Proposed Schedules'],
         ['slug' => 'alternative-time-slots', 'href' => $researchDirectorBaseUrl . 'alternative-time-slots', 'icon' => 'fa-clock', 'label' => 'Alternative Time Slots'],
         ['slug' => 'calendar', 'href' => $researchDirectorBaseUrl . 'calendar', 'icon' => 'fa-calendar-alt', 'label' => 'Calendar'],
@@ -302,13 +318,15 @@ $researchDirectorNavGroups = [
                     <?php endforeach; ?>
                 <?php endforeach; ?>
 
-            <?php elseif (in_array($roleKey, ['adviser', 'research_director', 'grammarian'], true) && $activeModule === 'faculty'): ?>
+            <?php elseif (in_array($roleKey, ['adviser', 'research_director', 'grammarian', 'panel'], true) && $activeModule === 'faculty'): ?>
                 <?php
                 $accountNavGroups = $facultyAccountNavGroups;
                 if ($roleKey === 'research_director') {
                     $accountNavGroups = $researchDirectorNavGroups;
                 } elseif ($roleKey === 'grammarian') {
                     $accountNavGroups = $grammarianNavGroups;
+                } elseif ($roleKey === 'panel') {
+                    $accountNavGroups = $panelNavGroups;
                 }
                 ?>
                 <?php foreach ($accountNavGroups as $groupLabel => $groupItems): ?>

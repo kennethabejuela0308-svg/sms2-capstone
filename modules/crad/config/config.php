@@ -46,6 +46,7 @@ function getCradDatabaseConnection(): PDO
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES   => false,
         ]);
+        cradEnsurePanelNotificationDeleteTrigger($pdo);
     } catch (PDOException $e) {
         error_log('CRAD DB connection failed: ' . $e->getMessage());
         throw new RuntimeException(
@@ -81,6 +82,119 @@ function cradValidTitleApprovalWhereSql(string $alias = 't'): string
         AND {$alias}.coordinator_signature_data <> ''
         AND {$alias}.crad_signature_data IS NOT NULL
         AND {$alias}.crad_signature_data <> ''";
+}
+
+function cradOfficialRegistryGroupWhereSql(string $groupAlias = 'rg'): string
+{
+    return "{$groupAlias}.title_approval_id IS NOT NULL
+        AND TRIM(COALESCE({$groupAlias}.research_title, '')) <> ''
+        AND TRIM(COALESCE({$groupAlias}.academic_year, '')) <> ''
+        AND EXISTS (
+            SELECT 1
+            FROM title_approvals official_t
+            WHERE official_t.id = {$groupAlias}.title_approval_id
+              AND " . cradValidTitleApprovalWhereSql('official_t') . "
+              AND (
+                    TRIM(COALESCE({$groupAlias}.college_dept, '')) <> ''
+                 OR TRIM(COALESCE(official_t.department, '')) <> ''
+              )
+        )
+        AND EXISTS (
+            SELECT 1
+            FROM research_coordinator_assignments official_ca
+            WHERE official_ca.status = 'Active'
+              AND (
+                    official_ca.research_group_id = {$groupAlias}.id
+                 OR (official_ca.research_group_id IS NULL AND official_ca.group_number = {$groupAlias}.group_number)
+              )
+        )
+        AND EXISTS (
+            SELECT 1
+            FROM research_adviser_assignments official_aa
+            WHERE (
+                    official_aa.research_group_id = {$groupAlias}.id
+                 OR (official_aa.research_group_id IS NULL AND official_aa.group_number = {$groupAlias}.group_number)
+              )
+        )";
+}
+
+function cradCleanupPanelNotificationsForInvalidRegistry(PDO $pdo, ?array $groupIds = null): array
+{
+    if (!$pdo->query("SHOW TABLES LIKE 'panel_assignment_notifications'")->fetchColumn()
+        || !$pdo->query("SHOW TABLES LIKE 'research_groups'")->fetchColumn()) {
+        return ['ok' => true, 'deleted' => 0, 'message' => 'Panel notification cleanup skipped; required table is missing.'];
+    }
+
+    $params = [];
+    $scopeSql = '';
+    if (is_array($groupIds)) {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $groupIds), static fn(int $id): bool => $id > 0)));
+        if (!$ids) {
+            return ['ok' => true, 'deleted' => 0, 'message' => 'No research group ids selected for panel notification cleanup.'];
+        }
+        $scopeSql = 'AND pan.research_group_id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')';
+        $params = $ids;
+    }
+
+    $stmt = $pdo->prepare("
+        DELETE pan
+        FROM panel_assignment_notifications pan
+        WHERE pan.research_group_id IS NOT NULL
+          {$scopeSql}
+          AND NOT EXISTS (
+                SELECT 1
+                FROM research_groups rg
+                WHERE rg.id = pan.research_group_id
+                  AND " . cradOfficialRegistryGroupWhereSql('rg') . "
+          )
+    ");
+    $stmt->execute($params);
+
+    return [
+        'ok' => true,
+        'deleted' => $stmt->rowCount(),
+        'message' => 'Cleaned invalid registry-linked panel notification(s).',
+    ];
+}
+
+function cradEnsurePanelNotificationDeleteTrigger(PDO $pdo): void
+{
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+    $checked = true;
+
+    try {
+        if (!$pdo->query("SHOW TABLES LIKE 'research_groups'")->fetchColumn()
+            || !$pdo->query("SHOW TABLES LIKE 'panel_assignment_notifications'")->fetchColumn()) {
+            return;
+        }
+
+        $stmt = $pdo->prepare("
+            SELECT TRIGGER_NAME
+            FROM information_schema.TRIGGERS
+            WHERE TRIGGER_SCHEMA = DATABASE()
+              AND TRIGGER_NAME = 'trg_research_groups_panel_notifications_after_delete'
+            LIMIT 1
+        ");
+        $stmt->execute();
+        if ($stmt->fetchColumn()) {
+            return;
+        }
+
+        $pdo->exec("
+            CREATE TRIGGER trg_research_groups_panel_notifications_after_delete
+            AFTER DELETE ON research_groups
+            FOR EACH ROW
+            BEGIN
+                DELETE FROM panel_assignment_notifications
+                WHERE research_group_id = OLD.id;
+            END
+        ");
+    } catch (Throwable $e) {
+        error_log('Panel notification delete trigger ensure failed: ' . $e->getMessage());
+    }
 }
 
 function cradFindForeignKey(PDO $pdo, string $table, string $column, string $referencedTable, string $referencedColumn): ?array
@@ -230,13 +344,14 @@ function cradReconcileOrphanResearchGroups(PDO $pdo): array
         $delete = $pdo->prepare("DELETE FROM research_groups WHERE id IN ({$placeholders})");
         $delete->execute($ids);
         $deleted = $delete->rowCount();
+        $notificationCleanup = cradCleanupPanelNotificationsForInvalidRegistry($pdo, $ids);
         $pdo->commit();
 
         return [
             'ok' => true,
             'changed' => true,
             'deleted' => $deleted,
-            'message' => 'Removed ' . $deleted . ' orphaned research group(s) by title_approval_id.',
+            'message' => 'Removed ' . $deleted . ' orphaned research group(s) by title_approval_id. Cleaned ' . (int) ($notificationCleanup['deleted'] ?? 0) . ' panel notification(s).',
         ];
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) {

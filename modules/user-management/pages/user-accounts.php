@@ -37,6 +37,7 @@ if ($pdo) {
                 ('adviser', 'Adviser', 'Research adviser faculty account', 1),
                 ('research_director', 'Research Director', 'Research defense scheduling director account', 1),
                 ('grammarian', 'Grammarian', 'Research grammar and manuscript evaluation account', 1),
+                ('panel', 'Panel Member', 'Research defense panel account', 1),
                 ('research_grant', 'CRAD Officer', 'Research grant management access', 1)"
         )->execute();
         $pdo->prepare(
@@ -104,12 +105,15 @@ if ($pdo) {
         $seedFaculty->execute(['rsantos', 'rsantos@bestlink.edu.ph', $facultyHash, 'Dr. Roberto M. Santos', 'adviser', 'Research Adviser']);
         $seedFaculty->execute(['researchdirector', 'research.director@bestlink.edu.ph', $facultyHash, 'Research Director', 'research_director', 'Research Director']);
         $seedFaculty->execute(['grammarian', 'grammarian@bestlink.edu.ph', password_hash('@grammarian123', PASSWORD_DEFAULT), 'Grammarian', 'grammarian', 'Research grammar and manuscript evaluator']);
+        $seedFaculty->execute(['jobert.valentino', 'jobert.valentino@bestlink.edu.ph', password_hash('@panel123', PASSWORD_DEFAULT), 'Dr. Jobert Valentino', 'panel', 'Panel Member']);
+        $seedFaculty->execute(['jonathan.estrada', 'jonathan.estrada@bestlink.edu.ph', password_hash('@panel123', PASSWORD_DEFAULT), 'Dr. Jonathan Estrada', 'panel', 'Panel Member']);
+        $seedFaculty->execute(['michelle.guevarra', 'michelle.guevarra@bestlink.edu.ph', password_hash('@panel123', PASSWORD_DEFAULT), 'Dr. Michelle Guevarra', 'panel', 'Panel Member']);
         $insFacultyPerm = $pdo->prepare(
             "INSERT INTO role_permissions (role_key, module_key, granted)
              VALUES (?, 'faculty', 1)
              ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
         );
-        foreach (['adviser', 'research_director', 'grammarian'] as $facultyRole) {
+        foreach (['adviser', 'research_director', 'grammarian', 'panel'] as $facultyRole) {
             $insFacultyPerm->execute([$facultyRole]);
         }
 
@@ -197,6 +201,9 @@ foreach ($users as &$u) {
     if ($u['role'] === 'grammarian') {
         $u['roleLabel'] = 'Grammarian';
     }
+    if ($u['role'] === 'panel') {
+        $u['roleLabel'] = 'Panel Member';
+    }
 }
 unset($u);
 
@@ -215,6 +222,7 @@ function umRoleBadgeClass(string $role, string $label = ''): string
         'research_coordinator' => 'research_coordinator',
         'research_director' => 'research_director',
         'grammarian' => 'grammarian',
+        'panel' => 'panel',
         'qa_office' => 'qa',
     ];
 
@@ -225,7 +233,7 @@ function umRoleBadgeClass(string $role, string $label = ''): string
 $avatarColors = ['a', 'b', 'c', 'd', 'e', 'f'];
 $csrf = csrfToken();
 $total = count($users);
-$facultyAccountRoles = ['hr', 'adviser', 'grammarian'];
+$facultyAccountRoles = ['hr', 'adviser', 'grammarian', 'panel'];
 $facultyUsers = array_values(array_filter($users, fn($u) => in_array($u['role'], $facultyAccountRoles, true)));
 $studentUsers = array_values(array_filter($users, fn($u) => $u['role'] === 'student'));
 $systemUsers = array_values(array_filter($users, fn($u) => !in_array($u['role'], array_merge($facultyAccountRoles, ['student']), true)));
@@ -324,7 +332,9 @@ renderBreadcrumbs($breadcrumbs);
                 <option value="finance">Finance</option>
                 <option value="hr">Dean</option>
                 <option value="adviser">Adviser</option>
+                <option value="research_director">Research Director</option>
                 <option value="grammarian">Grammarian</option>
+                <option value="panel">Panel Member</option>
                 <option value="it_office">IT Office</option>
                 <option value="osa">OSA</option>
                 <option value="qa">QA Office</option>
@@ -534,7 +544,9 @@ renderBreadcrumbs($breadcrumbs);
                                 <option value="finance">Finance</option>
                                 <option value="hr">Dean</option>
                                 <option value="adviser">Adviser</option>
+                                <option value="research_director">Research Director</option>
                                 <option value="grammarian">Grammarian</option>
+                                <option value="panel">Panel Member</option>
                                 <option value="it_office">IT Office</option>
                                 <option value="osa">OSA</option>
                                 <option value="qa">QA Office</option>

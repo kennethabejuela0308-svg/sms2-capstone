@@ -728,10 +728,34 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
                 </div>
                 <canvas id="cradTaSignatureCanvas" class="rp-ta-canvas"></canvas>
             </div>
+            <div id="cradTaSignError" style="display:none;margin-top:.6rem;padding:.5rem .75rem;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;color:#991b1b;font-size:.8rem;font-weight:700;">
+                <i class="fas fa-exclamation-circle"></i> Please provide your signature before approving.
+            </div>
         </div>
         <div class="rp-ta-sign-actions">
             <button type="button" class="rp-btn rp-btn-light" data-close-crad-ta-sign>Cancel</button>
             <button type="button" class="rp-btn rp-btn-success" id="cradTaConfirmSign"><i class="fas fa-check"></i> Confirm & Approve</button>
+        </div>
+    </div>
+</div>
+
+<div id="cradTaApproveConfirmModal" class="rp-ta-modal" hidden>
+    <div class="rp-ta-dialog signature" role="dialog" aria-modal="true" aria-labelledby="cradTaApproveConfirmTitle">
+        <div class="rp-ta-head">
+            <div>
+                <span>TITLE APPROVAL</span>
+                <h3 id="cradTaApproveConfirmTitle"><i class="fas fa-check-circle"></i> Confirm Approval</h3>
+            </div>
+            <button type="button" class="rp-ta-close" data-close-crad-ta-approve-confirm><i class="fas fa-times"></i></button>
+        </div>
+        <div class="rp-ta-sign-panel">
+            <p style="margin:0 0 .75rem;color:#111827;font-size:1rem;font-weight:800;">Are you sure you want to approve this Title Approval Form?</p>
+            <p style="margin:0 0 .55rem;color:#64748b;font-size:.9rem;line-height:1.55;font-weight:600;">Your signature will be saved and this approval will be recorded.</p>
+            <p style="margin:0;color:#64748b;font-size:.9rem;line-height:1.55;font-weight:600;">Once confirmed, the existing Title Approval process will continue.</p>
+        </div>
+        <div class="rp-ta-sign-actions">
+            <button type="button" class="rp-btn rp-btn-light" data-close-crad-ta-approve-confirm>Cancel</button>
+            <button type="button" class="rp-btn rp-btn-success" id="cradTaApproveConfirmYes"><i class="fas fa-check"></i> Yes, Approve</button>
         </div>
     </div>
 </div>
@@ -784,6 +808,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const statusEl = document.getElementById('cradTaStatusText');
     const actionsEl = document.getElementById('cradTaActions');
     const signModal = document.getElementById('cradTaSignModal');
+    const approveConfirmModal = document.getElementById('cradTaApproveConfirmModal');
+    const approveConfirmYes = document.getElementById('cradTaApproveConfirmYes');
+    const signError = document.getElementById('cradTaSignError');
     const canvas = document.getElementById('cradTaSignatureCanvas');
     const ctx = canvas ? canvas.getContext('2d') : null;
     const dialog = modal ? modal.querySelector('.rp-ta-dialog') : null;
@@ -792,6 +819,8 @@ document.addEventListener('DOMContentLoaded', function () {
     let activeId = null;
     let drawing = false;
     let hasInk = false;
+    let pendingSignature = '';
+    let approveRequestInFlight = false;
 
     const esc = function (value) {
         const div = document.createElement('div');
@@ -1035,20 +1064,28 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!canvas || !ctx) return;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         hasInk = false;
+        pendingSignature = '';
+        if (signError) signError.style.display = 'none';
     }
     function canvasPoint(event) {
         const rect = canvas.getBoundingClientRect();
         return {x: event.clientX - rect.left, y: event.clientY - rect.top};
     }
     function openSignModal() {
+        resetApproveConfirmButton();
+        pendingSignature = '';
+        if (signError) signError.style.display = 'none';
         signModal.hidden = false;
         document.body.style.overflow = 'hidden';
         if (signDialog) signDialog.scrollTop = 0;
         window.setTimeout(function () { resizeCanvas(); clearCanvas(); }, 30);
     }
     function closeSignModal() {
+        if (approveRequestInFlight) return;
         signModal.hidden = true;
         drawing = false;
+        pendingSignature = '';
+        if (signError) signError.style.display = 'none';
         if (modal.hidden) {
             document.body.style.overflow = '';
         }
@@ -1075,20 +1112,29 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    async function approveActive() {
-        if (!activeId || !canvas || !hasInk) {
-            alert('Please draw your signature first.');
-            return;
-        }
+    function resetApproveConfirmButton() {
+        approveRequestInFlight = false;
+        approveConfirmYes.disabled = false;
+        approveConfirmYes.innerHTML = '<i class="fas fa-check"></i> Yes, Approve';
+    }
+
+    function closeApproveConfirmModal() {
+        if (approveRequestInFlight) return;
+        approveConfirmModal.hidden = true;
+    }
+
+    async function approveActive(signatureData) {
+        if (!activeId || !signatureData) return;
         const res = await fetch(updateUrl, {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
             credentials: 'same-origin',
-            body: JSON.stringify({id: activeId, crad_signature_data: canvas.toDataURL('image/png')})
+            body: JSON.stringify({id: activeId, crad_signature_data: signatureData})
         });
         const data = await res.json();
         if (!data.ok) throw new Error(data.error || 'Could not save CRAD officer approval.');
-        closeSignModal();
+        approveConfirmModal.hidden = true;
+        signModal.hidden = true;
         await refreshRows();
         const row = findRow(activeId);
         if (row) renderForm(row);
@@ -1109,15 +1155,21 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     document.querySelectorAll('[data-close-crad-ta]').forEach(function (btn) { btn.addEventListener('click', closeModal); });
     document.querySelectorAll('[data-close-crad-ta-sign]').forEach(function (btn) { btn.addEventListener('click', closeSignModal); });
+    document.querySelectorAll('[data-close-crad-ta-approve-confirm]').forEach(function (btn) { btn.addEventListener('click', closeApproveConfirmModal); });
     modal.addEventListener('click', function (event) {
         if (event.target === modal) closeModal();
     });
     signModal.addEventListener('click', function (event) {
         if (event.target === signModal) closeSignModal();
     });
+    approveConfirmModal.addEventListener('click', function (event) {
+        if (event.target === approveConfirmModal) closeApproveConfirmModal();
+    });
     document.addEventListener('keydown', function (event) {
         if (event.key !== 'Escape') return;
-        if (!signModal.hidden) {
+        if (!approveConfirmModal.hidden) {
+            closeApproveConfirmModal();
+        } else if (!signModal.hidden) {
             closeSignModal();
         } else if (!modal.hidden) {
             closeModal();
@@ -1125,7 +1177,28 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     document.getElementById('cradTaClearPad')?.addEventListener('click', clearCanvas);
     document.getElementById('cradTaConfirmSign')?.addEventListener('click', function () {
-        approveActive().catch(function (error) { alert(error.message); });
+        if (!activeId || !canvas || !hasInk) {
+            if (signError) signError.style.display = 'block';
+            return;
+        }
+        if (signError) signError.style.display = 'none';
+        pendingSignature = canvas.toDataURL('image/png');
+        approveConfirmModal.hidden = false;
+        window.setTimeout(function () { approveConfirmYes.focus(); }, 30);
+    });
+    approveConfirmYes?.addEventListener('click', function () {
+        if (!pendingSignature || approveRequestInFlight) return;
+        approveRequestInFlight = true;
+        approveConfirmYes.disabled = true;
+        approveConfirmYes.innerHTML = 'Processing...';
+        approveActive(pendingSignature)
+            .catch(function (error) {
+                if (signError) {
+                    signError.textContent = error.message || 'Could not save CRAD officer approval.';
+                    signError.style.display = 'block';
+                }
+            })
+            .finally(resetApproveConfirmButton);
     });
     if (searchEl) searchEl.addEventListener('input', applyTitleFilter);
     if (filterEl) filterEl.addEventListener('change', applyTitleFilter);

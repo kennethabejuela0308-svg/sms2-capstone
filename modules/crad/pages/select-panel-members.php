@@ -1,3 +1,3 @@
 <?php
-$rcPanelPageSlug = 'assign-panel-members';
+$rcPanelPageSlug = 'select-panel-members';
 require_once __DIR__ . '/../includes/research-coordinator-panel-assignment-page.php';

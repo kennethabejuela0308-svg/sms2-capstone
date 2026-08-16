@@ -492,10 +492,12 @@ function facultyTitleApprovalsUpdateStatus(int $id, string $status, string $rema
                  crad_reviewed_at = NULL,
                  reviewed_at = NOW()
              WHERE id = :id
-               AND (LOWER(adviser_email) = :email OR LOWER(adviser_name) = LOWER(:name))"
+               AND (LOWER(adviser_email) = :email OR LOWER(adviser_name) = LOWER(:name))
+               AND (:status_gate <> 'Approved' OR status = 'Pending')"
         );
         $stmt->execute([
             ':status'  => $status,
+            ':status_gate' => $status,
             ':coord_status' => $coordStatus,
             ':remarks' => $remarks ?: null,
             ':sig'     => $signature,
@@ -1029,6 +1031,53 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
         </div>
     </div>
 
+    <div id="taReturnConfirmModal" style="display:none;position:fixed;inset:0;z-index:10002;background:rgba(15,23,42,.72);overflow-y:auto;padding:2rem 1rem;">
+        <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.45);">
+            <div style="background:#991b1b;padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+                <div>
+                    <div style="color:rgba(254,226,226,.86);font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:.2rem;">Title Approval</div>
+                    <h3 style="margin:0;color:#fff;font-size:1.05rem;font-weight:800;"><i class="fas fa-exclamation-triangle me-2"></i>Confirm Return</h3>
+                </div>
+                <button id="taReturnConfirmClose" type="button" style="background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.32);color:#fff;border-radius:8px;padding:.35rem .75rem;cursor:pointer;font-weight:700;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div style="padding:1.2rem;">
+                <p style="margin:0 0 .75rem;color:#111827;font-size:1rem;font-weight:800;">Are you sure you want to return this submission?</p>
+                <p style="margin:0;color:#64748b;font-size:.9rem;line-height:1.55;font-weight:600;">
+                    This action will return the Title Approval submission to the student for revision. If return remarks were entered, they will be sent with the returned status.
+                </p>
+            </div>
+            <div style="padding:.9rem 1.2rem;border-top:1px solid #e5e7eb;background:#f8fafc;display:flex;justify-content:flex-end;gap:.65rem;">
+                <button id="taReturnConfirmCancel" type="button" class="btn btn-outline-secondary btn-sm" style="font-size:.82rem;">Cancel</button>
+                <button id="taReturnConfirmYes" type="button" class="btn btn-danger btn-sm" style="font-size:.82rem;"><i class="fas fa-undo me-1"></i>Yes, Return Submission</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="taApproveConfirmModal" style="display:none;position:fixed;inset:0;z-index:10003;background:rgba(15,23,42,.72);overflow-y:auto;padding:2rem 1rem;">
+        <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.45);">
+            <div style="background:#17366f;padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+                <div>
+                    <div style="color:rgba(219,234,254,.9);font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:.2rem;">TITLE APPROVAL</div>
+                    <h3 style="margin:0;color:#fff;font-size:1.05rem;font-weight:800;"><i class="fas fa-check-circle me-2"></i>Confirm Approval</h3>
+                </div>
+                <button id="taApproveConfirmClose" type="button" style="background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.32);color:#fff;border-radius:8px;padding:.35rem .75rem;cursor:pointer;font-weight:700;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div style="padding:1.2rem;">
+                <p style="margin:0 0 .75rem;color:#111827;font-size:1rem;font-weight:800;">Are you sure you want to approve this Title Approval Form?</p>
+                <p style="margin:0 0 .55rem;color:#64748b;font-size:.9rem;line-height:1.55;font-weight:600;">Your signature will be saved and this approval will be recorded.</p>
+                <p style="margin:0;color:#64748b;font-size:.9rem;line-height:1.55;font-weight:600;">Once confirmed, the existing Title Approval process will continue.</p>
+            </div>
+            <div style="padding:.9rem 1.2rem;border-top:1px solid #e5e7eb;background:#f8fafc;display:flex;justify-content:flex-end;gap:.65rem;">
+                <button id="taApproveConfirmCancel" type="button" class="btn btn-outline-secondary btn-sm" style="font-size:.82rem;">Cancel</button>
+                <button id="taApproveConfirmYes" type="button" class="btn btn-success btn-sm" style="font-size:.82rem;"><i class="fas fa-check me-1"></i>Yes, Approve</button>
+            </div>
+        </div>
+    </div>
+
     <script>
     (function() {
         var card      = document.querySelector('[data-ta-inbox]');
@@ -1047,7 +1096,10 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
         var returnModal = document.getElementById('taReturnModal');
         var returnRemarks = document.getElementById('taReturnRemarks');
         var returnConfirm = document.getElementById('taReturnConfirm');
+        var returnConfirmModal = document.getElementById('taReturnConfirmModal');
+        var returnConfirmYes = document.getElementById('taReturnConfirmYes');
         var pendingReturnRow = null;
+        var returnRequestInFlight = false;
         var knownIds  = new Set(Array.from(tbody.querySelectorAll('tr[data-ta-id]')).map(function(r){ return r.dataset.taId; }));
         var currentRow = null;
 
@@ -1251,7 +1303,7 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
         }
 
         function doAction(id, status, remarks, signatureData) {
-            fetch(updateUrl, {
+            return fetch(updateUrl, {
                 method: 'POST',
                 headers: {'Content-Type':'application/json','Accept':'application/json'},
                 credentials: 'same-origin',
@@ -1262,7 +1314,10 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
                 return res.json();
             })
             .then(function(data){
-                if (!data.ok) { alert('Error: ' + (data.error || 'Could not update status.')); return; }
+                if (!data.ok) {
+                    alert('Error: ' + (data.error || 'Could not update status.'));
+                    return data;
+                }
 
                 /* Update currentRow in-place so the open modal immediately reflects
                    the new status + signature without needing to close and re-open */
@@ -1279,8 +1334,12 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
                     closeModal();
                 }
                 refresh();
+                return data;
             })
-            .catch(function(err){ alert('Could not save: ' + err.message); });
+            .catch(function(err){
+                alert('Could not save: ' + err.message);
+                return {ok:false, error: err.message};
+            });
         }
 
         /* Bind Open buttons */
@@ -1303,7 +1362,18 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
         /* Modal close */
         document.getElementById('taModalClose').addEventListener('click', closeModal);
         modal.addEventListener('click', function(e){ if (e.target === modal) closeModal(); });
-        document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeModal(); });
+        document.addEventListener('keydown', function(e){
+            if (e.key !== 'Escape') return;
+            if (returnConfirmModal.style.display === 'block') {
+                cancelReturnConfirm();
+                return;
+            }
+            if (returnModal.style.display === 'block') {
+                closeReturnModal();
+                return;
+            }
+            closeModal();
+        });
 
         function openReturnModal(r) {
             pendingReturnRow = r;
@@ -1318,19 +1388,46 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
             returnRemarks.value = '';
         }
 
+        function openReturnConfirmModal() {
+            if (!pendingReturnRow || returnRequestInFlight) return;
+            returnModal.style.display = 'none';
+            returnConfirmModal.style.display = 'block';
+            setTimeout(function(){ returnConfirmYes.focus(); }, 30);
+        }
+
+        function cancelReturnConfirm() {
+            if (returnRequestInFlight) return;
+            returnConfirmModal.style.display = 'none';
+            returnModal.style.display = 'block';
+            setTimeout(function(){ returnRemarks.focus(); }, 30);
+        }
+
+        function resetReturnConfirmButton() {
+            returnRequestInFlight = false;
+            returnConfirmYes.disabled = false;
+            returnConfirmYes.innerHTML = '<i class="fas fa-undo me-1"></i>Yes, Return Submission';
+        }
+
         document.getElementById('taReturnClose').addEventListener('click', closeReturnModal);
         document.getElementById('taReturnCancel').addEventListener('click', closeReturnModal);
         returnModal.addEventListener('click', function(e){ if (e.target === returnModal) closeReturnModal(); });
-        returnConfirm.addEventListener('click', function(){
-            if (!pendingReturnRow) return;
-            returnConfirm.disabled = true;
-            returnConfirm.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Returning...';
-            doAction(pendingReturnRow.id, 'Returned', returnRemarks.value.trim(), '');
-            setTimeout(function(){
-                returnConfirm.disabled = false;
-                returnConfirm.innerHTML = '<i class="fas fa-undo me-1"></i>Return';
-                closeReturnModal();
-            }, 250);
+        returnConfirm.addEventListener('click', openReturnConfirmModal);
+        document.getElementById('taReturnConfirmClose').addEventListener('click', cancelReturnConfirm);
+        document.getElementById('taReturnConfirmCancel').addEventListener('click', cancelReturnConfirm);
+        returnConfirmModal.addEventListener('click', function(e){ if (e.target === returnConfirmModal) cancelReturnConfirm(); });
+        returnConfirmYes.addEventListener('click', function(){
+            if (!pendingReturnRow || returnRequestInFlight) return;
+            returnRequestInFlight = true;
+            returnConfirmYes.disabled = true;
+            returnConfirmYes.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
+
+            doAction(pendingReturnRow.id, 'Returned', returnRemarks.value.trim(), '').then(function(data){
+                if (data && data.ok) {
+                    returnConfirmModal.style.display = 'none';
+                    closeReturnModal();
+                }
+                resetReturnConfirmButton();
+            });
         });
 
         /* Refresh every 5s */
@@ -1413,7 +1510,7 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
                     <canvas id="taSigCanvas" style="display:block;width:100%;height:160px;cursor:crosshair;touch-action:none;"></canvas>
                 </div>
                 <div id="taSigError" style="display:none;margin-top:.6rem;padding:.5rem .75rem;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;color:#991b1b;font-size:.8rem;font-weight:700;">
-                    <i class="fas fa-exclamation-circle me-1"></i>Please draw your signature before approving.
+                    <i class="fas fa-exclamation-circle me-1"></i>Please provide your signature before approving.
                 </div>
             </div>
             <div style="padding:.85rem 1.25rem;border-top:1px solid #e5e7eb;display:flex;align-items:center;justify-content:flex-end;gap:.65rem;background:#f9fafb;">
@@ -1434,11 +1531,15 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
         var confirmBtn = document.getElementById('taSigConfirmBtn');
         var closeBtn   = document.getElementById('taSigModalClose');
         var errBox     = document.getElementById('taSigError');
+        var approveConfirmModal = document.getElementById('taApproveConfirmModal');
+        var approveConfirmYes = document.getElementById('taApproveConfirmYes');
         if (!sigModal || !canvas) return;
 
         var ctx = canvas.getContext('2d');
         var drawing = false;
         var pendingRow = null;  /* the title_approvals row awaiting approval */
+        var pendingSigData = '';
+        var approveRequestInFlight = false;
 
         /* ── Canvas setup ── */
         function resizeCanvas() {
@@ -1486,15 +1587,42 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
         });
 
         function closeSigModal() {
+            if (approveRequestInFlight) return;
             sigModal.style.display = 'none';
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             errBox.style.display = 'none';
             pendingRow = null;
+            pendingSigData = '';
         }
 
         closeBtn.addEventListener('click',  closeSigModal);
         cancelBtn.addEventListener('click', closeSigModal);
         sigModal.addEventListener('click',  function (e) { if (e.target === sigModal) closeSigModal(); });
+
+        function resetApproveConfirmButton() {
+            approveRequestInFlight = false;
+            approveConfirmYes.disabled = false;
+            approveConfirmYes.innerHTML = '<i class="fas fa-check me-1"></i>Yes, Approve';
+        }
+
+        function closeApproveConfirmModal() {
+            if (approveRequestInFlight) return;
+            approveConfirmModal.style.display = 'none';
+        }
+
+        document.getElementById('taApproveConfirmClose').addEventListener('click', closeApproveConfirmModal);
+        document.getElementById('taApproveConfirmCancel').addEventListener('click', closeApproveConfirmModal);
+        approveConfirmModal.addEventListener('click', function (e) { if (e.target === approveConfirmModal) closeApproveConfirmModal(); });
+        approveConfirmYes.addEventListener('click', function () {
+            if (!pendingRow || !pendingSigData || approveRequestInFlight) return;
+            approveRequestInFlight = true;
+            approveConfirmYes.disabled = true;
+            approveConfirmYes.innerHTML = 'Processing...';
+            document.dispatchEvent(new CustomEvent('ta-do-approve', { detail: { row: pendingRow, sig: pendingSigData } }));
+            approveConfirmModal.style.display = 'none';
+            sigModal.style.display = 'none';
+            setTimeout(resetApproveConfirmButton, 3000);
+        });
 
         confirmBtn.addEventListener('click', function () {
             if (!hasDrawing()) {
@@ -1517,7 +1645,10 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
             var scaleX = exportW / (canvas.width  / (window.devicePixelRatio || 1));
             var scaleY = exportH / (canvas.height / (window.devicePixelRatio || 1));
             octx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, exportW, exportH);
-            var sigData = offscreen.toDataURL('image/png');
+            pendingSigData = offscreen.toDataURL('image/png');
+            approveConfirmModal.style.display = 'block';
+            setTimeout(function () { approveConfirmYes.focus(); }, 30);
+            return;
 
             /* Disable confirm while saving */
             confirmBtn.disabled = true;
@@ -1541,6 +1672,8 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
         /* Expose opener to outer IIFE */
         window._taSigOpen = function (row) {
             pendingRow = row;
+            pendingSigData = '';
+            resetApproveConfirmButton();
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             errBox.style.display = 'none';
             sigModal.style.display = 'block';

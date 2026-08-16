@@ -206,23 +206,6 @@ $totalPending = array_sum(array_column($assignedGroups, 'pending_reviews'));
                                        class="rm-primary-action">
                                         <i class="fas fa-chart-line"></i>View Progress
                                     </a>
-                                    <div class="rm-secondary-actions">
-                                        <a href="<?= BASE_URL ?>/modules/faculty/pages/milestones-overview.php?group=<?= urlencode($group['group_number']) ?>"
-                                           class="rm-sec-action">
-                                            <i class="fas fa-tasks"></i>Milestones
-                                        </a>
-                                        <a href="<?= BASE_URL ?>/modules/faculty/pages/submitted-updates.php?group=<?= urlencode($group['group_number']) ?>"
-                                           class="rm-sec-action">
-                                            <i class="fas fa-inbox"></i>Updates
-                                            <?php if ($pendingReviews > 0): ?>
-                                                <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;"><?= $pendingReviews ?></span>
-                                            <?php endif; ?>
-                                        </a>
-                                        <a href="<?= BASE_URL ?>/modules/faculty/pages/adviser-feedback-history.php?group=<?= urlencode($group['group_number']) ?>"
-                                           class="rm-sec-action">
-                                            <i class="fas fa-comments"></i>Feedback
-                                        </a>
-                                    </div>
                                 </div>
 
                             </div>

@@ -63,6 +63,7 @@ if (!$researchGroup) {
 }
 
 $groupId = (int) $researchGroup['id'];
+$defaultUpdateTitle = trim((string) ($researchGroup['research_title'] ?? ''));
 
 // Get or create research plan
 $plan = rpGetOrCreateResearchPlan($crad, $groupId);
@@ -184,6 +185,7 @@ try {
                                 <input type="text" class="form-control" 
                                        id="update_title" name="update_title" 
                                        placeholder="e.g., Completed database design and implementation" 
+                                       value="<?= htmlspecialchars($defaultUpdateTitle, ENT_QUOTES) ?>"
                                        required maxlength="255">
                             </div>
 
@@ -340,6 +342,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const statusSelect = document.getElementById('milestone_status');
     const documentInput = document.getElementById('document');
     const documentRequiredMarker = document.getElementById('document_required_marker');
+    const submitBtn = document.getElementById('submitBtn');
+    let isSubmitting = false;
+    let formLocked = false;
 
     progressInput.addEventListener('input', function() {
         progressDisplay.textContent = this.value;
@@ -355,6 +360,7 @@ document.addEventListener('DOMContentLoaded', function() {
         progressDisplay.textContent = progressInput.value;
         const allowedStatuses = ['Not Started', 'Submitted for Review'];
         statusSelect.value = allowedStatuses.includes(currentStatus) ? currentStatus : 'Not Started';
+        updateApprovedState(currentStatus);
         updateDocumentRequirement();
     });
 
@@ -371,6 +377,61 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    function updateApprovedState(currentStatus) {
+        const isApproved = currentStatus === 'Approved';
+        progressInput.disabled = isApproved;
+        statusSelect.disabled = isApproved;
+        documentInput.disabled = isApproved;
+        if (submitBtn && !isSubmitting && !formLocked) {
+            submitBtn.disabled = isApproved;
+            submitBtn.innerHTML = isApproved
+                ? '<i class="fas fa-check-circle me-2"></i>Milestone Approved'
+                : '<i class="fas fa-paper-plane me-2"></i>Submit Progress Update';
+        }
+    }
+
+    function refreshMilestoneOptions(milestones) {
+        const selectedId = milestoneSelect.value;
+        milestones.forEach(function (milestone) {
+            const id = String(milestone.id || '');
+            if (!id) {
+                return;
+            }
+
+            const option = Array.from(milestoneSelect.options).find(function (candidate) {
+                return candidate.value === id;
+            });
+            if (!option) {
+                return;
+            }
+
+            const progress = parseFloat(milestone.progress_percentage || 0);
+            const status = milestone.status || 'Not Started';
+            option.setAttribute('data-current-progress', progress);
+            option.setAttribute('data-current-status', status);
+            option.textContent = milestone.milestone_name + ' (Current: ' + progress.toFixed(1) + '%)';
+        });
+
+        if (selectedId) {
+            milestoneSelect.dispatchEvent(new Event('change'));
+        }
+    }
+
+    async function pollCurrentMilestones() {
+        try {
+            const response = await fetch('<?= BASE_URL ?>/modules/crad/api/research-progress.php?action=get_milestones', {
+                credentials: 'same-origin',
+                cache: 'no-store'
+            });
+            const data = await response.json();
+            if (data.success && Array.isArray(data.milestones)) {
+                refreshMilestoneOptions(data.milestones);
+            }
+        } catch (error) {
+            console.error('Milestone refresh failed:', error);
+        }
+    }
+
     statusSelect.addEventListener('change', updateDocumentRequirement);
     
     // Initialize displays
@@ -379,10 +440,11 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
         progressDisplay.textContent = progressInput.value;
     }
+
+    setInterval(pollCurrentMilestones, 15000);
     
     // Form submission with DUPLICATE PREVENTION
     const form = document.getElementById('progressUpdateForm');
-    const submitBtn = document.getElementById('submitBtn');
     const formAlert = document.getElementById('progress_form_alert');
 
     function showFormAlert(type, message) {
@@ -398,11 +460,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function restoreSubmitButton() {
+        isSubmitting = false;
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Submit Progress Update';
     }
 
     function setSubmittedState() {
+        isSubmitting = false;
+        formLocked = true;
         form.querySelectorAll('input, select, textarea').forEach(function (field) {
             field.disabled = true;
         });
@@ -450,6 +515,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // DUPLICATE PREVENTION: Disable button immediately
+        isSubmitting = true;
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting...';
         
