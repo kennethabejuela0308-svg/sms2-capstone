@@ -47,6 +47,7 @@ function getCradDatabaseConnection(): PDO
             PDO::ATTR_EMULATE_PREPARES   => false,
         ]);
         cradEnsurePanelNotificationDeleteTrigger($pdo);
+        cradCleanupPreoralEvaluationsForInvalidRegistry($pdo);
     } catch (PDOException $e) {
         error_log('CRAD DB connection failed: ' . $e->getMessage());
         throw new RuntimeException(
@@ -155,6 +156,75 @@ function cradCleanupPanelNotificationsForInvalidRegistry(PDO $pdo, ?array $group
         'deleted' => $stmt->rowCount(),
         'message' => 'Cleaned invalid registry-linked panel notification(s).',
     ];
+}
+
+/**
+ * Delete preoral_defense_evaluations rows whose research_group_id no longer
+ * belongs to a group that qualifies for the official Capstone Registry.
+ *
+ * Called automatically on every getCradDatabaseConnection() so the cleanup is
+ * real-time: the moment a group loses its registry eligibility (e.g. title
+ * approval revoked, coordinator/adviser removed) all related pre-oral evaluation
+ * records are purged from the database and disappear from the Evaluation History
+ * page on the next poll cycle (≤ 10 seconds).
+ *
+ * @param PDO         $pdo      CRAD database connection.
+ * @param int[]|null  $groupIds Optional: limit the sweep to specific group ids.
+ * @return array{ok: bool, deleted: int, message: string}
+ */
+function cradCleanupPreoralEvaluationsForInvalidRegistry(PDO $pdo, ?array $groupIds = null): array
+{
+    static $checked = false;
+    // Only run the full global sweep once per request (subsequent calls with
+    // specific $groupIds will still execute the scoped delete).
+    if ($checked && $groupIds === null) {
+        return ['ok' => true, 'deleted' => 0, 'message' => 'Pre-oral evaluation cleanup already ran this request.'];
+    }
+    if ($groupIds === null) {
+        $checked = true;
+    }
+
+    foreach (['preoral_defense_evaluations', 'research_groups'] as $tbl) {
+        if (!$pdo->query("SHOW TABLES LIKE " . $pdo->quote($tbl))->fetchColumn()) {
+            return ['ok' => true, 'deleted' => 0, 'message' => 'Pre-oral evaluation cleanup skipped; table ' . $tbl . ' is missing.'];
+        }
+    }
+
+    $params   = [];
+    $scopeSql = '';
+    if (is_array($groupIds)) {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $groupIds), static fn(int $id): bool => $id > 0)));
+        if (!$ids) {
+            return ['ok' => true, 'deleted' => 0, 'message' => 'No research group ids selected for pre-oral evaluation cleanup.'];
+        }
+        $scopeSql = 'AND ev.research_group_id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')';
+        $params   = $ids;
+    }
+
+    try {
+        $stmt = $pdo->prepare("
+            DELETE ev
+            FROM preoral_defense_evaluations ev
+            WHERE ev.research_group_id IS NOT NULL
+              {$scopeSql}
+              AND NOT EXISTS (
+                    SELECT 1
+                    FROM research_groups rg
+                    WHERE rg.id = ev.research_group_id
+                      AND " . cradOfficialRegistryGroupWhereSql('rg') . "
+              )
+        ");
+        $stmt->execute($params);
+
+        return [
+            'ok'      => true,
+            'deleted' => $stmt->rowCount(),
+            'message' => 'Removed ' . $stmt->rowCount() . ' pre-oral evaluation(s) for groups no longer in the official registry.',
+        ];
+    } catch (Throwable $e) {
+        error_log('Pre-oral evaluation registry cleanup failed: ' . $e->getMessage());
+        return ['ok' => false, 'deleted' => 0, 'message' => 'Pre-oral evaluation cleanup error: ' . $e->getMessage()];
+    }
 }
 
 function cradEnsurePanelNotificationDeleteTrigger(PDO $pdo): void

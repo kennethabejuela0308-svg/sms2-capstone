@@ -75,6 +75,14 @@ switch ($action) {
     case 'get_progress_updates':
         handleGetProgressUpdates($crad, $adviserUserId, $adviserEmail);
         break;
+
+    case 'get_revision_monitoring':
+        handleGetRevisionMonitoring($crad, $adviserUserId, $adviserEmail);
+        break;
+
+    case 'get_revision_detail':
+        handleGetRevisionDetail($crad, $adviserUserId, $adviserEmail);
+        break;
         
     case 'submit_feedback':
     case 'comment':
@@ -567,21 +575,88 @@ function handleApproveProgress(PDO $crad, int $adviserUserId, string $adviserEma
             ->execute([$updateId]);
         
         if (!empty($update['milestone_id'])) {
-            $updateMilestone = $crad->prepare("
-                UPDATE research_milestones 
-                SET progress_percentage = 100,
-                    status = 'Approved',
-                    completed_at = COALESCE(completed_at, NOW()),
-                    adviser_remarks = ?,
-                    updated_at = NOW()
-                WHERE id = ?
-                  AND research_plan_id = ?
-            ");
-            $updateMilestone->execute([
-                $input['remarks'] ?? $input['feedback_text'] ?? 'Approved',
-                $update['milestone_id'],
-                $update['research_plan_id'],
-            ]);
+            // Determine whether this is a Chapter 1-3 milestone.
+            // For Chapter 1-3, the Adviser approval alone must NOT set the final
+            // Approved / 100% state — that requires the official Pre-Oral Panel
+            // result to be APPROVED first.  We still persist adviser_remarks so
+            // both portals always show the adviser's feedback.
+            $milestoneRowStmt = $crad->prepare(
+                "SELECT milestone_order, milestone_name
+                 FROM research_milestones
+                 WHERE id = ? AND research_plan_id = ?
+                 LIMIT 1"
+            );
+            $milestoneRowStmt->execute([$update['milestone_id'], $update['research_plan_id']]);
+            $milestoneRow = $milestoneRowStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+            $chapterNum = $milestoneRow ? rpMilestoneChapterNumber($milestoneRow) : null;
+            $isChapter123 = ($chapterNum !== null && in_array($chapterNum, [1, 2, 3], true));
+
+            if ($isChapter123) {
+                // Check whether the panel has already officially approved this group.
+                $panelRecord  = rpGetGroupPanelApproval($crad, (int) $update['research_group_id']);
+                $panelApproved = ($panelRecord !== null && ($panelRecord['final_result'] ?? '') === 'APPROVED');
+
+                if ($panelApproved) {
+                    // Panel already approved → write full final state now.
+                    // rpSyncChapterMilestonesFromPanelApproval handles the complete
+                    // Chapter 1-3 batch; we still update this individual row here for
+                    // immediate consistency, then let the batch sync handle the others.
+                    $updateMilestone = $crad->prepare("
+                        UPDATE research_milestones
+                        SET progress_percentage = 100,
+                            status              = 'Approved',
+                            completed_at        = COALESCE(completed_at, NOW()),
+                            adviser_remarks     = ?,
+                            updated_at          = NOW()
+                        WHERE id = ?
+                          AND research_plan_id  = ?
+                    ");
+                    $updateMilestone->execute([
+                        $input['remarks'] ?? $input['feedback_text'] ?? 'Approved',
+                        $update['milestone_id'],
+                        $update['research_plan_id'],
+                    ]);
+                } else {
+                    // No panel approval yet → save adviser_remarks but keep the
+                    // milestone status as 'Submitted for Review' and leave the
+                    // current progress_percentage unchanged.
+                    // The milestone will be promoted to Approved/100% automatically
+                    // by rpSyncChapterMilestonesFromPanelApproval() as soon as the
+                    // panel submits all evaluations with result = APPROVED.
+                    $updateMilestone = $crad->prepare("
+                        UPDATE research_milestones
+                        SET adviser_remarks = ?,
+                            updated_at      = NOW()
+                        WHERE id = ?
+                          AND research_plan_id = ?
+                    ");
+                    $updateMilestone->execute([
+                        $input['remarks'] ?? $input['feedback_text'] ?? 'Progress approved',
+                        $update['milestone_id'],
+                        $update['research_plan_id'],
+                    ]);
+                }
+            } else {
+                // Non-chapter milestone (Chapter 4, 5, System Dev, Testing, etc.) —
+                // existing behaviour unchanged: Adviser approval immediately finalises it.
+                $updateMilestone = $crad->prepare("
+                    UPDATE research_milestones
+                    SET progress_percentage = 100,
+                        status              = 'Approved',
+                        completed_at        = COALESCE(completed_at, NOW()),
+                        adviser_remarks     = ?,
+                        updated_at          = NOW()
+                    WHERE id = ?
+                      AND research_plan_id  = ?
+                ");
+                $updateMilestone->execute([
+                    $input['remarks'] ?? $input['feedback_text'] ?? 'Approved',
+                    $update['milestone_id'],
+                    $update['research_plan_id'],
+                ]);
+            }
+
             rpRecalculateOverallProgress($crad, (int) $update['research_plan_id']);
         }
         
@@ -622,4 +697,44 @@ function handleApproveProgress(PDO $crad, int $adviserUserId, string $adviserEma
         http_response_code(500);
         echo json_encode(['success' => false, 'message' => 'Failed to approve progress']);
     }
+}
+
+/**
+ * Get all research groups eligible for Revision Monitoring (3/3 AWR).
+ */
+function handleGetRevisionMonitoring(PDO $crad, int $adviserUserId, string $adviserEmail): void
+{
+    $groups = rpGetRevisionMonitoringGroups($crad, $adviserUserId, $adviserEmail);
+    echo json_encode([
+        'success'    => true,
+        'groups'     => $groups,
+        'count'      => count($groups),
+        'counters'   => rpRevisionMonitoringCounts($groups),
+        'generated_at' => date('Y-m-d H:i:s'),
+    ]);
+}
+
+/**
+ * Get the detailed revision case (3 panel results + remarks) for one Adviser-owned group.
+ */
+function handleGetRevisionDetail(PDO $crad, int $adviserUserId, string $adviserEmail): void
+{
+    $groupNumber = (string) ($_GET['group_number'] ?? $_GET['group'] ?? '');
+    if ($groupNumber === '') {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Group number required']);
+        return;
+    }
+
+    $detail = rpGetRevisionDetail($crad, $adviserUserId, $adviserEmail, $groupNumber);
+    if (!$detail) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Access denied or this group is not under revision monitoring.']);
+        return;
+    }
+
+    echo json_encode([
+        'success'    => true,
+        'detail'     => $detail,
+    ]);
 }

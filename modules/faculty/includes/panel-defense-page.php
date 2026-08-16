@@ -109,6 +109,22 @@ function panelDefenseRows(bool $history = false): array
              WHERE rds.defense_datetime IS NOT NULL
                AND LOWER(rds.status) IN ('scheduled', 'finalized', 'final', 'completed', 'passed', 'failed')
                AND rpa_self.id IS NOT NULL
+               AND (
+                     -- History mode: only show rows whose group is still in the official
+                     -- Capstone Registry. When a group loses registry eligibility its
+                     -- preoral_defense_evaluations rows are deleted by
+                     -- cradCleanupPreoralEvaluationsForInvalidRegistry() (runs on every
+                     -- DB connect) and the query below immediately stops returning those
+                     -- rows on the next poll cycle, keeping the Evaluation History page
+                     -- real-time with the CRAD officer's registry.
+                     NOT :history_gate
+                     OR EXISTS (
+                           SELECT 1
+                           FROM research_groups rg_gate
+                           WHERE rg_gate.id = rds.research_group_id
+                             AND " . cradOfficialRegistryGroupWhereSql('rg_gate') . "
+                     )
+               )
              GROUP BY rds.id, rds.research_group_id, rds.proposal_id, rds.proposal_number,
                       rds.group_number, rds.research_group, rds.research_title, rds.adviser_name,
                       rds.panel_chair, rds.venue, rv.venue_name, rds.defense_datetime, rds.status, rds.updated_at,
@@ -116,29 +132,11 @@ function panelDefenseRows(bool $history = false): array
                       ev.id, ev.result, ev.overall_score, ev.submitted_at
              ORDER BY COALESCE(rds.defense_datetime, rds.updated_at) DESC, rds.id DESC";
 
-        if ($history) {
-            // Backend synchronization gate: evaluation history is only rendered
-            // while the related research group still exists in the official
-            // Capstone Group/Student Registry (managed by the CRAD Officer).
-            // As soon as the group is removed from the registry, this EXISTS
-            // stops matching, so the record is excluded immediately for every
-            // assigned panel member (no logout/login required). This reuses the
-            // exact authoritative registry clause behind the Capstone
-            // Group/Student Registry page and keys off the stable
-            // research_group_id relationship, never on title/name/username.
-            $sql .= "
-               AND EXISTS (
-                    SELECT 1
-                    FROM research_groups rg
-                    WHERE rg.id = rds.research_group_id
-                      AND " . cradOfficialRegistryGroupWhereSql('rg') . "
-               )";
-        }
-
         $stmt = $crad->prepare($sql);
         $stmt->execute([
-            ':panel_user_id' => (int) getCurrentUserId(),
+            ':panel_user_id'       => (int) getCurrentUserId(),
             ':panel_user_id_match' => (int) getCurrentUserId(),
+            ':history_gate'        => $history ? 1 : 0,
         ]);
 
         $rows = array_values(array_filter($stmt->fetchAll() ?: [], static function (array $row) use ($history): bool {
@@ -543,11 +541,21 @@ function panelRenderScoring(?array $defense, string $message = '', string $error
         </form>
     </section>
     <div class="modal fade" id="panelSubmitConfirmModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
-            <div class="modal-header"><h5 class="modal-title">Submit Evaluation</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
-            <div class="modal-body">Are you sure you want to submit this Pre-Oral Defense evaluation?</div>
-            <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" class="btn btn-sms-primary" data-panel-confirm-submit>Submit Evaluation</button></div>
-        </div></div>
+        <div class="modal-dialog modal-dialog-centered" style="max-width:380px;">
+            <div class="modal-content shadow" style="border-radius:14px;overflow:hidden;">
+                <div class="modal-header border-0 pb-1">
+                    <h6 class="modal-title fw-bold">Submit Evaluation</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center py-3" style="font-size:0.9rem;color:var(--sms-text,#374151);">
+                    Are you sure you want to submit this<br>Pre-Oral Defense evaluation?
+                </div>
+                <div class="modal-footer border-0 justify-content-center gap-2 pt-0 pb-4">
+                    <button type="button" class="btn btn-outline-secondary btn-sm px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-sms-primary btn-sm px-4" data-panel-confirm-submit>Submit Evaluation</button>
+                </div>
+            </div>
+        </div>
     </div>
     <?php
 }

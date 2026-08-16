@@ -262,6 +262,20 @@ $statusMeta = [
                                     </div>
                                 <?php endif; ?>
 
+                                <!-- Panel Remarks — shown when official Pre-Oral result is APPROVED.
+                                     Wrapper always rendered so live-polling JS can toggle it. -->
+                                <div data-milestone-panel-remarks
+                                     <?= empty($ms['panel_remarks']) ? 'style="display:none;"' : '' ?>>
+                                    <div class="rm-note-block mb-2" style="background:#ecfdf5;border-left:3px solid #059669;color:#064e3b;">
+                                        <div style="font-size:0.68rem;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;color:#059669;">
+                                            <i class="fas fa-users me-1"></i>Panel Remarks
+                                        </div>
+                                        <div data-milestone-panel-remarks-text>
+                                            <?= nl2br(htmlspecialchars((string) ($ms['panel_remarks'] ?? ''))) ?>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <!-- View Updates button -->
                                 <div class="mt-auto pt-2">
                                     <a href="<?= BASE_URL ?>/modules/faculty/pages/submitted-updates.php?group=<?= urlencode($groupNumber) ?>&milestone_id=<?= $ms['id'] ?>"

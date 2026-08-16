@@ -175,7 +175,7 @@ function handleGetMilestones(PDO $crad, int $groupId): void
         return;
     }
     
-    $milestones = rpGetMilestonesForPlan($crad, (int) $plan['id'], $groupId);
+    $milestones = rpGetMilestonesWithPendingFlags($crad, (int) $plan['id'], $groupId);
     
     echo json_encode([
         'success' => true,
@@ -248,7 +248,23 @@ function handleSubmitProgress(PDO $crad, int $groupId, array $researchGroup, int
         echo json_encode(['success' => false, 'message' => 'This milestone is already approved and finalized at 100%.']);
         return;
     }
-    
+
+    // PENDING REVIEW GUARD — database-level check (not session-based).
+    // Rejects a new submission if this milestone already has an active
+    // "Submitted for Review" update that the adviser has not yet acted on.
+    $pendingUpdate = rpHasPendingSubmission($crad, $groupId, (int) $input['milestone_id']);
+    if ($pendingUpdate) {
+        http_response_code(409);
+        echo json_encode([
+            'success'           => false,
+            'is_pending_review' => true,
+            'milestone_name'    => $milestone['milestone_name'],
+            'submitted_at'      => $pendingUpdate['submitted_at'],
+            'message'           => $milestone['milestone_name'] . ' already has a progress update awaiting Adviser review. Please wait for your adviser to respond before submitting another update.',
+        ]);
+        return;
+    }
+
     $allowedStudentStatuses = ['Not Started', 'Submitted for Review'];
     $milestoneStatus = trim((string) ($input['milestone_status'] ?? 'Not Started'));
     if (!in_array($milestoneStatus, $allowedStudentStatuses, true)) {
@@ -332,10 +348,29 @@ function handleSubmitProgress(PDO $crad, int $groupId, array $researchGroup, int
         ]);
     }
     
+    // Determine the next/current milestone using the actual milestone_order sequence.
+    // Re-fetch fresh milestones (post-commit) so the order, statuses, and pending flags are current.
+    $freshMilestones = rpGetMilestonesWithPendingFlags($crad, (int) $plan['id'], $groupId);
+
+    $nextMilestoneId  = null;
+    $submittedOrder   = (int) ($milestone['milestone_order'] ?? 0);
+
+    // Walk the ordered list and find the first milestone whose order is greater
+    // than the one just submitted. This respects the actual DB order without
+    // hardcoding any chapter names or IDs.
+    foreach ($freshMilestones as $fm) {
+        if ((int) ($fm['milestone_order'] ?? 0) > $submittedOrder) {
+            $nextMilestoneId = (int) $fm['id'];
+            break;
+        }
+    }
+
     echo json_encode([
-        'success' => true,
-        'message' => 'Progress update submitted successfully',
-        'update_id' => $result['update_id']
+        'success'            => true,
+        'message'            => 'Progress update submitted successfully',
+        'update_id'          => $result['update_id'],
+        'next_milestone_id'  => $nextMilestoneId,   // null when no further milestone exists
+        'milestones'         => $freshMilestones,    // fresh list for client-side UI refresh
     ]);
 }
 

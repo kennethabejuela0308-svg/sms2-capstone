@@ -398,6 +398,27 @@
                             statusBadge.className = `badge ${this.getStatusBadgeClass(milestone.status)}`;
                         }
                     }
+
+                    // Update Panel Remarks block — show when panel_remarks is non-empty,
+                    // hide when null/empty. Works on both student and adviser milestone cards.
+                    const panelRemarksWrapper = card.querySelector('[data-milestone-panel-remarks]');
+                    if (panelRemarksWrapper) {
+                        const remarks = (milestone.panel_remarks || '').trim();
+                        if (remarks) {
+                            const textEl = panelRemarksWrapper.querySelector('[data-milestone-panel-remarks-text]');
+                            if (textEl) {
+                                // Preserve line breaks from the server value.
+                                textEl.innerHTML = remarks
+                                    .replace(/&/g, '&amp;')
+                                    .replace(/</g, '&lt;')
+                                    .replace(/>/g, '&gt;')
+                                    .replace(/\n/g, '<br>');
+                            }
+                            panelRemarksWrapper.style.display = '';
+                        } else {
+                            panelRemarksWrapper.style.display = 'none';
+                        }
+                    }
                 }
             });
 

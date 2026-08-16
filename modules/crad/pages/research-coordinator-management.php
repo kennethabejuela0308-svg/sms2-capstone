@@ -1777,42 +1777,128 @@ document.addEventListener('DOMContentLoaded', function () {
         }, 6000);
     }
 
+    function ensureAssignConfirmModal() {
+        if (document.getElementById('rcmAssignConfirmModal')) return;
+        const wrap = document.createElement('div');
+        wrap.innerHTML =
+            '<div class="modal fade" id="rcmAssignConfirmModal" tabindex="-1" aria-hidden="true">' +
+            '<div class="modal-dialog modal-dialog-centered rcas-confirm-dialog">' +
+            '<div class="modal-content rcas-confirm-modal">' +
+            '<div class="modal-header rcas-confirm-modal-header">' +
+            '<div class="d-flex align-items-center gap-2">' +
+            '<span class="rcas-confirm-modal-icon-wrap"><i class="fas fa-user-tie"></i></span>' +
+            '<h5 class="modal-title mb-0">Confirm Coordinator Assignment</h5>' +
+            '</div>' +
+            '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>' +
+            '</div>' +
+            '<div class="modal-body rcas-confirm-modal-body">' +
+            '<p class="rcas-confirm-question">Are you sure you want to assign this research coordinator to the selected research group?</p>' +
+            '<div class="rcas-confirm-details-card">' +
+            '<div class="rcas-confirm-detail"><span class="rcas-confirm-label">Research Group</span><span class="rcas-confirm-value" id="rcmConfirmGroupNumber">—</span></div>' +
+            '<div class="rcas-confirm-detail"><span class="rcas-confirm-label">Research Title</span><span class="rcas-confirm-value" id="rcmConfirmResearchTitle">—</span></div>' +
+            '<div class="rcas-confirm-detail"><span class="rcas-confirm-label">Research Coordinator</span><span class="rcas-confirm-value" id="rcmConfirmCoordinatorName">—</span></div>' +
+            '</div>' +
+            '</div>' +
+            '<div class="modal-footer rcas-confirm-modal-footer">' +
+            '<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="rcmAssignCancel">Cancel</button>' +
+            '<button type="button" class="btn btn-primary rcas-confirm-btn" id="rcmAssignConfirm"><i class="fas fa-check me-1"></i>Confirm Assignment</button>' +
+            '</div>' +
+            '</div></div></div>';
+        document.body.appendChild(wrap.firstChild);
+    }
+
+    let pendingAssignData = null;
+
+    function openAssignConfirm(btn, groupNumber, coordinatorLabel, researchTitle) {
+        ensureAssignConfirmModal();
+        pendingAssignData = { btn: btn, groupNumber: groupNumber };
+
+        const grpEl = document.getElementById('rcmConfirmGroupNumber');
+        const titleEl = document.getElementById('rcmConfirmResearchTitle');
+        const nameEl = document.getElementById('rcmConfirmCoordinatorName');
+        if (grpEl) grpEl.textContent = groupNumber || '—';
+        if (titleEl) titleEl.textContent = researchTitle || '—';
+        if (nameEl) nameEl.textContent = coordinatorLabel || '—';
+
+        const modalEl = document.getElementById('rcmAssignConfirmModal');
+        if (modalEl && window.bootstrap) {
+            window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        }
+
+        const confirmBtn = document.getElementById('rcmAssignConfirm');
+        if (confirmBtn) {
+            confirmBtn.onclick = function () {
+                if (modalEl && window.bootstrap) {
+                    window.bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+                }
+                if (pendingAssignData) {
+                    doAssign(pendingAssignData.btn);
+                    pendingAssignData = null;
+                }
+            };
+        }
+
+        const cancelBtn = document.getElementById('rcmAssignCancel');
+        if (cancelBtn) {
+            cancelBtn.onclick = function () {
+                pendingAssignData = null;
+            };
+        }
+    }
+
+    function doAssign(btn) {
+        const tr = btn.closest('tr');
+        const select = tr ? tr.querySelector('.rcm-coordinator-select') : null;
+        if (!select || !select.value) {
+            showFlash('Please select a Research Coordinator first.', false);
+            return;
+        }
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+
+        const fd = new FormData();
+        fd.append('ajax', 'assign');
+        fd.append('_token', CSRF);
+        fd.append('group_number', btn.dataset.group);
+        fd.append('coordinator', select.value);
+
+        fetch(endpoint, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'fetch' } })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                render(data);
+                if (data && data.message) showFlash(data.message, data.ok !== false);
+            })
+            .catch(function () {
+                showFlash('Could not save the assignment. Please try again.', false);
+            })
+            .finally(function () {
+                btn.disabled = false;
+                btn.innerHTML = original;
+            });
+    }
+
     function bindActions() {
         document.querySelectorAll('.rcm-assign-btn').forEach(function (btn) {
             btn.onclick = function () {
                 const tr = btn.closest('tr');
-                const select = tr.querySelector('.rcm-coordinator-select');
+                const select = tr ? tr.querySelector('.rcm-coordinator-select') : null;
                 if (!select || !select.value) {
                     showFlash('Please select a Research Coordinator first.', false);
                     return;
                 }
-                const original = btn.innerHTML;
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
 
-                const fd = new FormData();
-                fd.append('ajax', 'assign');
-                fd.append('_token', CSRF);
-                fd.append('group_number', btn.dataset.group);
-                fd.append('coordinator', select.value);
+                // Gather display info for the confirmation modal
+                const groupNumber = btn.dataset.group || '—';
+                const selectedOption = select.options[select.selectedIndex];
+                const coordinatorLabel = selectedOption ? selectedOption.text : '—';
+                const titleCell = tr.querySelector('td:nth-child(2) .rcm-title');
+                const researchTitle = titleCell ? titleCell.textContent.trim() : '—';
 
-                fetch(endpoint, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'fetch' } })
-                    .then(function (r) { return r.json(); })
-                    .then(function (data) {
-                        render(data);
-                        if (data && data.message) showFlash(data.message, data.ok !== false);
-                    })
-                    .catch(function () {
-                        showFlash('Could not save the assignment. Please try again.', false);
-                    })
-                    .finally(function () {
-                        btn.disabled = false;
-                        btn.innerHTML = original;
-                    });
+                openAssignConfirm(btn, groupNumber, coordinatorLabel, researchTitle);
             };
         });
     }
-
     function toggleAssignment(item) {
         const fd = new FormData();
         fd.append('ajax', 'set-status');

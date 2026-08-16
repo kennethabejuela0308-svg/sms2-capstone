@@ -256,6 +256,22 @@ $overallProgress = (float) $plan['overall_progress'];
                                 </div>
                             <?php endif; ?>
 
+                            <!-- Panel Remarks — shown only when the official Pre-Oral
+                                 panel result is APPROVED for this research group.
+                                 The data-milestone-panel-remarks wrapper is always
+                                 rendered so the live-polling JS can show/hide it. -->
+                            <div data-milestone-panel-remarks
+                                 <?= empty($milestone['panel_remarks']) ? 'style="display:none;"' : '' ?>>
+                                <div class="p-3 mb-3" style="border-radius:8px;background:rgba(16,185,129,0.05);border-left:3px solid #10b981;">
+                                    <div style="font-size:0.75rem;font-weight:700;color:#10b981;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">
+                                        <i class="fas fa-users me-1"></i> Panel Remarks
+                                    </div>
+                                    <div style="font-size:0.85rem;color:var(--sms-text);line-height:1.5;" data-milestone-panel-remarks-text>
+                                        <?= nl2br(htmlspecialchars((string) ($milestone['panel_remarks'] ?? ''))) ?>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Researcher Notes -->
                             <?php if (!empty($milestone['researcher_notes'])): ?>
                                 <div class="p-3 mb-3" style="border-radius:8px;background:rgba(148,163,184,0.05);border-left:3px solid #94a3b8;">

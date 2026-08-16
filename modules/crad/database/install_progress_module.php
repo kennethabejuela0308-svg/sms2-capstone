@@ -179,12 +179,14 @@ try {
                 
                 // Create default milestones (with duplicate prevention)
                 $defaultMilestones = [
-                    ['name' => 'Chapter 1', 'order' => 1, 'desc' => 'Introduction and Background'],
-                    ['name' => 'Chapter 2', 'order' => 2, 'desc' => 'Review of Related Literature'],
-                    ['name' => 'Chapter 3', 'order' => 3, 'desc' => 'Methodology'],
-                    ['name' => 'System Development', 'order' => 4, 'desc' => 'System Implementation'],
-                    ['name' => 'Testing', 'order' => 5, 'desc' => 'Testing and Quality Assurance'],
-                    ['name' => 'Documentation', 'order' => 6, 'desc' => 'Final Documentation and Report']
+                    ['name' => 'Chapter 1',          'order' => 1, 'desc' => 'Introduction and Background'],
+                    ['name' => 'Chapter 2',          'order' => 2, 'desc' => 'Review of Related Literature'],
+                    ['name' => 'Chapter 3',          'order' => 3, 'desc' => 'Methodology'],
+                    ['name' => 'Chapter 4',          'order' => 4, 'desc' => 'Results / System Design and Development'],
+                    ['name' => 'Chapter 5',          'order' => 5, 'desc' => 'Summary, Conclusions and Recommendations'],
+                    ['name' => 'System Development', 'order' => 6, 'desc' => 'System Implementation'],
+                    ['name' => 'Testing',            'order' => 7, 'desc' => 'Testing and Quality Assurance'],
+                    ['name' => 'Documentation',      'order' => 8, 'desc' => 'Final Documentation and Report'],
                 ];
                 
                 $insertMilestone = $crad->prepare("

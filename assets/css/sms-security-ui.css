@@ -810,6 +810,102 @@ button.nav-link.sms-sec-tab {
 .sms-confirm-modal .modal-title {
     font-weight: 700;
 }
+
+/* Adviser Assignment confirm modal */
+.rcas-confirm-dialog {
+    max-width: 460px;
+    width: 100%;
+}
+.rcas-confirm-modal {
+    border-radius: 12px;
+    overflow: hidden;
+    border: none;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+.rcas-confirm-modal-header {
+    background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+    padding: 1rem 1.25rem;
+    border-bottom: none;
+    color: #fff;
+}
+.rcas-confirm-modal-header .btn-close {
+    filter: invert(1) grayscale(1);
+    opacity: 0.85;
+}
+.rcas-confirm-modal-icon-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.18);
+    font-size: 1rem;
+    color: #fff;
+    flex-shrink: 0;
+}
+.rcas-confirm-modal-header .modal-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.01em;
+}
+.rcas-confirm-modal-body {
+    padding: 1.25rem 1.5rem 0.75rem;
+}
+.rcas-confirm-question {
+    font-size: 0.925rem;
+    color: #374151;
+    margin-bottom: 1rem;
+}
+.rcas-confirm-details-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+.rcas-confirm-detail {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.55rem 1rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+.rcas-confirm-detail:last-child {
+    border-bottom: none;
+}
+.rcas-confirm-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #64748b;
+    white-space: nowrap;
+    min-width: 120px;
+    flex-shrink: 0;
+}
+.rcas-confirm-value {
+    font-size: 0.875rem;
+    color: #1e293b;
+    font-weight: 500;
+    word-break: break-word;
+}
+.rcas-confirm-modal-footer {
+    padding: 0.875rem 1.5rem 1.25rem;
+    border-top: 1px solid #f1f5f9;
+    gap: 0.5rem;
+}
+.rcas-confirm-btn {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    border: none;
+    font-weight: 600;
+    padding: 0.45rem 1.1rem;
+    font-size: 0.875rem;
+}
+.rcas-confirm-btn:hover {
+    background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+    border: none;
+}
 .sms-sec-card .sms-sec-card-title > div {
     min-width: 0;
 }

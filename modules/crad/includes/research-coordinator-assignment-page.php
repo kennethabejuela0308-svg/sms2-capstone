@@ -1438,6 +1438,12 @@ renderBreadcrumbs($breadcrumbs);
 [data-theme="dark"] .rcas-contact-footer,
 [data-theme="dark"] .rcas-contact-row { border-color: rgba(148,163,184,0.2); }
 [data-theme="dark"] .rcas-contact-row { background: rgba(148,163,184,0.07); }
+/* Adviser assignment confirmation modal (same BCP design as sms-confirm-modal) */
+.rcas-confirm-detail { display: grid; grid-template-columns: max-content 1fr; gap: 0.35rem 0.75rem; margin-top: 0.6rem; }
+.rcas-confirm-label { color: var(--sms-text-muted, #64748b); font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; }
+.rcas-confirm-value { color: var(--sms-heading, #0f172a); font-weight: 600; line-height: 1.45; word-break: break-word; }
+.rcas-confirm-divider { height: 1px; background: var(--sms-border, #e2e8f0); margin: 0.75rem 0; }
+
 @media (max-width: 767.98px) {
     .rcas-header,
     .rcas-card-head,
@@ -1938,7 +1944,7 @@ renderBreadcrumbs($breadcrumbs);
                             <div class="rcas-actions">
                                 <span class="rcas-badge ${badgeClass(row.availability_status)}">${esc(row.availability_status || 'Pending')}</span>
                                 <span class="rcas-load"><i class="fas fa-briefcase"></i>${esc(loadCount)} current record${loadCount === 1 ? '' : 's'}</span>
-                                <button type="button" class="rcas-action success" data-assign-id="${esc(row.assignment_id || '')}" ${disabled ? 'disabled' : ''}>
+                                <button type="button" class="rcas-action success" data-assign-id="${esc(row.assignment_id || '')}" data-assign-row="${encoded}" ${disabled ? 'disabled' : ''}>
                                     <i class="fas fa-hand-pointer"></i>${esc(actionLabel)}
                                 </button>
                             </div>
@@ -2074,24 +2080,48 @@ renderBreadcrumbs($breadcrumbs);
             copyText(emailButton.dataset.copyEmail || '');
         }
     });
-    matchList?.addEventListener('click', async (event) => {
-        const assignButton = event.target.closest('[data-assign-id]');
-        if (!assignButton || mode !== 'assign') return;
-        const group = groups.find((item) => {
-            const value = item.group_number || item.proposal_number || String(item.research_group_id || '');
-            return value === selectedGroup;
-        });
-        if (!group?.group_number) {
-            showNotice('Please select an approved research group first.', 'error');
-            return;
-        }
+    let pendingAssign = null;
 
-        assignButton.disabled = true;
-        assignButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>Saving';
+    const ensureAssignConfirmModal = function () {
+        if (document.getElementById('rcasAssignConfirmModal')) return;
+        const wrap = document.createElement('div');
+        wrap.innerHTML =
+            '<div class="modal fade" id="rcasAssignConfirmModal" tabindex="-1" aria-hidden="true">' +
+            '<div class="modal-dialog modal-dialog-centered rcas-confirm-dialog">' +
+            '<div class="modal-content rcas-confirm-modal">' +
+            '<div class="modal-header rcas-confirm-modal-header">' +
+            '<div class="d-flex align-items-center gap-2">' +
+            '<span class="rcas-confirm-modal-icon-wrap"><i class="fas fa-user-tie"></i></span>' +
+            '<h5 class="modal-title mb-0" id="rcasAssignConfirmTitle">Confirm Adviser Assignment</h5>' +
+            '</div>' +
+            '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>' +
+            '</div>' +
+            '<div class="modal-body rcas-confirm-modal-body">' +
+            '<p class="rcas-confirm-question">Are you sure you want to assign this research adviser to the selected research group?</p>' +
+            '<div class="rcas-confirm-details-card">' +
+            '<div class="rcas-confirm-detail"><span class="rcas-confirm-label">Research Group</span><span class="rcas-confirm-value" id="rcasConfirmGroupNumber">—</span></div>' +
+            '<div class="rcas-confirm-detail"><span class="rcas-confirm-label">Research Title</span><span class="rcas-confirm-value" id="rcasConfirmResearchTitle">—</span></div>' +
+            '<div class="rcas-confirm-detail"><span class="rcas-confirm-label">Research Adviser</span><span class="rcas-confirm-value" id="rcasConfirmAdviserName">—</span></div>' +
+            '<div class="rcas-confirm-detail"><span class="rcas-confirm-label">Email</span><span class="rcas-confirm-value" id="rcasConfirmAdviserEmail">—</span></div>' +
+            '</div>' +
+            '</div>' +
+            '<div class="modal-footer rcas-confirm-modal-footer">' +
+            '<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="rcasAssignCancel">Cancel</button>' +
+            '<button type="button" class="btn btn-primary rcas-confirm-btn" id="rcasAssignConfirm"><i class="fas fa-check me-1"></i>Confirm Assignment</button>' +
+            '</div>' +
+            '</div></div></div>';
+        document.body.appendChild(wrap.firstChild);
+    };
+
+    const doAssign = async function (row, group, assignButton) {
+        if (assignButton) {
+            assignButton.disabled = true;
+            assignButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>Saving';
+        }
         try {
             const form = new FormData();
             form.append('ajax', 'assign');
-            form.append('assignment_id', assignButton.dataset.assignId || '');
+            form.append('assignment_id', String(row.assignment_id || (assignButton ? (assignButton.dataset.assignId || '') : '') || ''));
             form.append('group_number', group.group_number || '');
             const res = await fetch(window.location.href, {
                 method: 'POST',
@@ -2118,6 +2148,57 @@ renderBreadcrumbs($breadcrumbs);
             showNotice(error.message || 'Failed to assign.', 'error');
             renderProcess();
         }
+    };
+
+    const openAssignConfirm = function (row, group, assignButton) {
+        ensureAssignConfirmModal();
+        pendingAssign = { row: row, group: group, assignButton: assignButton };
+        const grpEl = document.getElementById('rcasConfirmGroupNumber');
+        const titleEl = document.getElementById('rcasConfirmResearchTitle');
+        const nameEl = document.getElementById('rcasConfirmAdviserName');
+        const emailEl = document.getElementById('rcasConfirmAdviserEmail');
+        if (grpEl) grpEl.textContent = group.group_number || '—';
+        if (titleEl) titleEl.textContent = group.research_title || group.group_name || '—';
+        if (nameEl) nameEl.textContent = row.assignee_name || row.assignee_role || '—';
+        if (emailEl) emailEl.textContent = row.assignee_email || '—';
+
+        const modalEl = document.getElementById('rcasAssignConfirmModal');
+        const hasBs = (typeof window !== 'undefined' && window.bootstrap && window.bootstrap.Modal);
+        const modal = hasBs ? window.bootstrap.Modal.getOrCreateInstance(modalEl) : null;
+        const confirmBtn = document.getElementById('rcasAssignConfirm');
+        if (confirmBtn && confirmBtn.dataset.rcasConfirmBound !== '1') {
+            confirmBtn.dataset.rcasConfirmBound = '1';
+            confirmBtn.addEventListener('click', function () {
+                const ctx = pendingAssign;
+                if (!ctx) return;
+                confirmBtn.disabled = true;
+                confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Assigning...';
+                if (modal) modal.hide();
+                doAssign(ctx.row, ctx.group, ctx.assignButton);
+            });
+        }
+        if (modal) modal.show();
+    };
+
+    matchList?.addEventListener('click', (event) => {
+        const assignButton = event.target.closest('[data-assign-id]');
+        if (!assignButton || mode !== 'assign') return;
+        if (assignButton.disabled) return;
+        let row = {};
+        try {
+            row = JSON.parse(assignButton.dataset.assignRow || '{}') || {};
+        } catch (e) {
+            row = {};
+        }
+        const group = groups.find((item) => {
+            const value = item.group_number || item.proposal_number || String(item.research_group_id || '');
+            return value === selectedGroup;
+        });
+        if (!group?.group_number) {
+            showNotice('Please select an approved research group first.', 'error');
+            return;
+        }
+        openAssignConfirm(row, group, assignButton);
     });
     contactClose?.addEventListener('click', closeContact);
     contactPanel?.addEventListener('click', (event) => {

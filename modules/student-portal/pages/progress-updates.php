@@ -69,7 +69,15 @@ $defaultUpdateTitle = trim((string) ($researchGroup['research_title'] ?? ''));
 $plan = rpGetOrCreateResearchPlan($crad, $groupId);
 
 // Get milestones from Research Development progress only.
-$milestones = rpGetMilestonesForPlan($crad, (int) $plan['id'], $groupId);
+// Uses rpGetMilestonesWithPendingFlags so each milestone carries has_pending_submission.
+$milestones = rpGetMilestonesWithPendingFlags($crad, (int) $plan['id'], $groupId);
+
+// Build a lookup: milestone_id => has_pending_submission (bool), for use in PHP template
+// and also serialised into JS as the initial pending-state map.
+$milestonePendingMap = [];
+foreach ($milestones as $m) {
+    $milestonePendingMap[(int) $m['id']] = !empty($m['has_pending_submission']);
+}
 
 // Get pre-selected milestone if provided
 $selectedMilestoneId = isset($_GET['milestone_id']) ? (int)$_GET['milestone_id'] : null;
@@ -82,6 +90,10 @@ if ($selectedMilestoneId) {
         }
     }
 }
+
+// Determine whether the pre-selected (or only) milestone is already pending review.
+// This drives the initial render state without a round-trip.
+$selectedIsPending = $selectedMilestone && !empty($selectedMilestone['has_pending_submission']);
 
 // Get recent progress updates
 try {
@@ -132,6 +144,8 @@ try {
                                                 data-current-progress="<?= $milestone['progress_percentage'] ?>"
                                                 data-current-status="<?= htmlspecialchars((string) ($milestone['status'] ?? 'Not Started'), ENT_QUOTES) ?>"
                                                 data-chapter-number="<?= (int) ($milestone['chapter_number'] ?? 0) ?>"
+                                                data-pending="<?= empty($milestone['has_pending_submission']) ? '0' : '1' ?>"
+                                                data-pending-at="<?= htmlspecialchars((string) ($milestone['pending_submitted_at'] ?? ''), ENT_QUOTES) ?>"
                                                 <?= $selectedMilestone && (int)$milestone['id'] === (int)$selectedMilestone['id'] ? 'selected' : '' ?>>
                                             <?= htmlspecialchars($milestone['milestone_name']) ?> 
                                             (Current: <?= number_format((float)$milestone['progress_percentage'], 1) ?>%)
@@ -162,7 +176,6 @@ try {
                                     Milestone Status <span class="text-danger">*</span>
                                 </label>
                                 <select class="form-select" id="milestone_status" name="milestone_status" required>
-                                    <option value="Not Started">Not Started</option>
                                     <option value="Submitted for Review">Submitted for Review</option>
                                 </select>
                                 <small class="text-muted">Select "Submitted for Review" when ready for adviser review</small>
@@ -238,6 +251,31 @@ try {
                                             <button type="button" class="btn btn-sm btn-outline-success" id="submitAnotherBtn">
                                                 <i class="fas fa-plus me-1"></i>Submit Another Update
                                             </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Pending-review lock banner.
+                                 Shown whenever the selected milestone already has a
+                                 submission awaiting adviser action (has_pending_submission=true).
+                                 Hidden/shown entirely by JS — no page reload needed. -->
+                            <div id="pending_review_state" class="d-none mt-3" role="status">
+                                <div class="p-4" style="border-radius:12px;background:rgba(59,130,246,0.07);border:1.5px solid rgba(59,130,246,0.25);">
+                                    <div class="d-flex align-items-start gap-3">
+                                        <div style="flex-shrink:0;width:40px;height:40px;border-radius:10px;background:rgba(59,130,246,0.12);display:flex;align-items:center;justify-content:center;">
+                                            <i class="fas fa-paper-plane" style="color:#3b82f6;font-size:1.1rem;"></i>
+                                        </div>
+                                        <div style="flex:1;">
+                                            <div style="font-weight:700;color:var(--sms-heading);font-size:1rem;margin-bottom:4px;">
+                                                Progress Update Submitted
+                                            </div>
+                                            <div id="pending_review_milestone_label" style="font-size:0.85rem;color:var(--sms-text-muted);margin-bottom:10px;">
+                                                Your progress update is currently waiting for Adviser review.
+                                            </div>
+                                            <span class="badge" style="background:rgba(59,130,246,0.12);color:#3b82f6;font-weight:700;font-size:0.78rem;padding:6px 14px;border-radius:20px;">
+                                                <i class="fas fa-clock me-1"></i>Waiting for Adviser Review
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
@@ -333,34 +371,108 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(err => console.error('Token generation failed:', err));
-    
-    // Update progress display
-    const progressInput = document.getElementById('new_progress');
-    const progressDisplay = document.getElementById('progress_display');
-    const milestoneSelect = document.getElementById('milestone_id');
+
+    // Pending-submission map seeded from PHP at page-render time.
+    // Keys are milestone IDs (strings), values are booleans.
+    // Updated in real-time by refreshMilestoneOptions() after every poll / submit.
+    const pendingMap = <?= json_encode(array_map('boolval', $milestonePendingMap), JSON_FORCE_OBJECT) ?>;
+
+    const progressInput          = document.getElementById('new_progress');
+    const progressDisplay        = document.getElementById('progress_display');
+    const milestoneSelect        = document.getElementById('milestone_id');
     const currentProgressDisplay = document.getElementById('current_progress_display');
-    const statusSelect = document.getElementById('milestone_status');
-    const documentInput = document.getElementById('document');
+    const statusSelect           = document.getElementById('milestone_status');
+    const documentInput          = document.getElementById('document');
     const documentRequiredMarker = document.getElementById('document_required_marker');
-    const submitBtn = document.getElementById('submitBtn');
+    const submitBtn              = document.getElementById('submitBtn');
+    const pendingReviewState     = document.getElementById('pending_review_state');
+    const pendingReviewLabel     = document.getElementById('pending_review_milestone_label');
     let isSubmitting = false;
-    let formLocked = false;
+    let formLocked   = false;
 
     progressInput.addEventListener('input', function() {
         progressDisplay.textContent = this.value;
     });
-    
-    // Update current progress when milestone changes
+
+    // ------------------------------------------------------------------ //
+    // updateMilestoneState — replaces the old updateApprovedState().
+    // Handles three mutually exclusive lock states:
+    //   1. Approved          — milestone fully approved by adviser
+    //   2. Pending review    — submitted and awaiting adviser action
+    //   3. Available         — student may submit
+    // ------------------------------------------------------------------ //
+    function updateMilestoneState(currentStatus, isPending, milestoneName, pendingAt) {
+        const isApproved = currentStatus === 'Approved';
+
+        // Lock inputs for any non-submittable state
+        const lockInputs = isApproved || isPending;
+        progressInput.disabled  = lockInputs;
+        statusSelect.disabled   = lockInputs;
+        documentInput.disabled  = lockInputs;
+
+        // Show/hide the pending-review banner
+        if (pendingReviewState) {
+            pendingReviewState.classList.toggle('d-none', !isPending);
+        }
+
+        if (isPending && pendingReviewLabel && milestoneName) {
+            let labelHtml = 'Your <strong>' + escapeHtml(milestoneName) + '</strong> progress update is currently waiting for Adviser review.';
+            if (pendingAt) {
+                try {
+                    const d = new Date(pendingAt.replace(' ', 'T'));
+                    if (!isNaN(d.getTime())) {
+                        labelHtml += ' <span style="color:var(--sms-text-muted);font-size:0.8rem;">Submitted ' + d.toLocaleString() + '</span>';
+                    }
+                } catch (_) { /* ignore date parse errors */ }
+            }
+            pendingReviewLabel.innerHTML = labelHtml;
+        }
+
+        if (!isSubmitting && !formLocked) {
+            submitBtn.disabled = lockInputs;
+            if (isApproved) {
+                submitBtn.classList.replace('btn-primary', 'btn-success');
+                submitBtn.innerHTML = '<i class="fas fa-check-circle me-2"></i>Milestone Approved';
+            } else if (isPending) {
+                submitBtn.classList.replace('btn-primary', 'btn-secondary');
+                submitBtn.innerHTML = '<i class="fas fa-clock me-2"></i>Waiting for Adviser Review';
+            } else {
+                // Restore to submittable state (e.g. adviser returned the milestone)
+                submitBtn.classList.remove('btn-success', 'btn-secondary');
+                submitBtn.classList.add('btn-primary');
+                submitBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Submit Progress Update';
+            }
+        }
+    }
+
+    // Escape HTML for safe injection into innerHTML
+    function escapeHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    // Update current progress and lock state when milestone dropdown changes
     milestoneSelect.addEventListener('change', function() {
         const selectedOption = this.options[this.selectedIndex];
+        if (!selectedOption || !selectedOption.value) {
+            return;
+        }
         const currentProgress = selectedOption.getAttribute('data-current-progress') || 0;
-        const currentStatus = selectedOption.getAttribute('data-current-status') || 'Not Started';
+        const currentStatus   = selectedOption.getAttribute('data-current-status') || 'Not Started';
+        const isPending       = selectedOption.getAttribute('data-pending') === '1';
+        const pendingAt       = selectedOption.getAttribute('data-pending-at') || '';
+        const milestoneName   = selectedOption.textContent.replace(/\s*\(Current:.*\)/, '').trim();
+
         currentProgressDisplay.textContent = parseFloat(currentProgress).toFixed(1) + '%';
-        progressInput.value = Math.ceil(parseFloat(currentProgress));
+        progressInput.value    = Math.ceil(parseFloat(currentProgress));
         progressDisplay.textContent = progressInput.value;
-        const allowedStatuses = ['Not Started', 'Submitted for Review'];
-        statusSelect.value = allowedStatuses.includes(currentStatus) ? currentStatus : 'Not Started';
-        updateApprovedState(currentStatus);
+        statusSelect.value = 'Submitted for Review';
+
+        updateMilestoneState(currentStatus, isPending, milestoneName, pendingAt);
         updateDocumentRequirement();
     });
 
@@ -370,48 +482,48 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateDocumentRequirement() {
-        const required = selectedChapterNumber() >= 1 && selectedChapterNumber() <= 3 && statusSelect.value === 'Submitted for Review';
+        const selectedOption = milestoneSelect.options[milestoneSelect.selectedIndex];
+        const isPending = selectedOption ? selectedOption.getAttribute('data-pending') === '1' : false;
+        // If pending, document field is already disabled — no required marker needed.
+        const required = !isPending && selectedChapterNumber() >= 1 && selectedChapterNumber() <= 3 && statusSelect.value === 'Submitted for Review';
         documentInput.required = required;
         if (documentRequiredMarker) {
             documentRequiredMarker.classList.toggle('d-none', !required);
         }
     }
 
-    function updateApprovedState(currentStatus) {
-        const isApproved = currentStatus === 'Approved';
-        progressInput.disabled = isApproved;
-        statusSelect.disabled = isApproved;
-        documentInput.disabled = isApproved;
-        if (submitBtn && !isSubmitting && !formLocked) {
-            submitBtn.disabled = isApproved;
-            submitBtn.innerHTML = isApproved
-                ? '<i class="fas fa-check-circle me-2"></i>Milestone Approved'
-                : '<i class="fas fa-paper-plane me-2"></i>Submit Progress Update';
-        }
-    }
-
+    // ------------------------------------------------------------------ //
+    // refreshMilestoneOptions — called after every poll and after submit.
+    // Updates option data attributes AND the pendingMap in-place.
+    // ------------------------------------------------------------------ //
     function refreshMilestoneOptions(milestones) {
         const selectedId = milestoneSelect.value;
+
         milestones.forEach(function (milestone) {
             const id = String(milestone.id || '');
-            if (!id) {
-                return;
-            }
+            if (!id) { return; }
 
-            const option = Array.from(milestoneSelect.options).find(function (candidate) {
-                return candidate.value === id;
+            const option = Array.from(milestoneSelect.options).find(function (c) {
+                return c.value === id;
             });
-            if (!option) {
-                return;
-            }
+            if (!option) { return; }
 
-            const progress = parseFloat(milestone.progress_percentage || 0);
-            const status = milestone.status || 'Not Started';
+            const progress  = parseFloat(milestone.progress_percentage || 0);
+            const status    = milestone.status || 'Not Started';
+            const isPending = milestone.has_pending_submission ? '1' : '0';
+            const pendingAt = milestone.pending_submitted_at || '';
+
             option.setAttribute('data-current-progress', progress);
             option.setAttribute('data-current-status', status);
+            option.setAttribute('data-pending', isPending);
+            option.setAttribute('data-pending-at', pendingAt);
             option.textContent = milestone.milestone_name + ' (Current: ' + progress.toFixed(1) + '%)';
+
+            // Keep the pendingMap in sync so any further logic can reference it.
+            pendingMap[id] = isPending === '1';
         });
 
+        // Re-evaluate the selected milestone's state.
         if (selectedId) {
             milestoneSelect.dispatchEvent(new Event('change'));
         }
@@ -433,8 +545,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     statusSelect.addEventListener('change', updateDocumentRequirement);
-    
-    // Initialize displays
+
+    // Initialize displays on page load
     if (milestoneSelect.value) {
         milestoneSelect.dispatchEvent(new Event('change'));
     } else {
@@ -442,9 +554,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     setInterval(pollCurrentMilestones, 15000);
-    
-    // Form submission with DUPLICATE PREVENTION
-    const form = document.getElementById('progressUpdateForm');
+
+    // ------------------------------------------------------------------ //
+    // Form submission
+    // ------------------------------------------------------------------ //
+    const form      = document.getElementById('progressUpdateForm');
     const formAlert = document.getElementById('progress_form_alert');
 
     function showFormAlert(type, message) {
@@ -461,18 +575,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function restoreSubmitButton() {
         isSubmitting = false;
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Submit Progress Update';
+        // Re-evaluate current milestone state — honours pending/approved locks.
+        if (milestoneSelect.value) {
+            milestoneSelect.dispatchEvent(new Event('change'));
+        } else {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Submit Progress Update';
+        }
     }
 
     function setSubmittedState() {
         isSubmitting = false;
-        formLocked = true;
+        formLocked   = true;
         form.querySelectorAll('input, select, textarea').forEach(function (field) {
             field.disabled = true;
         });
         submitBtn.disabled = true;
-        submitBtn.classList.remove('btn-primary');
+        submitBtn.classList.remove('btn-primary', 'btn-secondary');
         submitBtn.classList.add('btn-success');
         submitBtn.innerHTML = '<i class="fas fa-check-circle me-2"></i>Done Sent';
 
@@ -483,12 +602,39 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Show the pending-review lock state — used both on page load (via change event)
+    // and when the API returns 409 with is_pending_review.
+    function setPendingReviewState(milestoneName, pendingAt) {
+        formLocked = true;
+        form.querySelectorAll('input, select, textarea').forEach(function (field) {
+            field.disabled = true;
+        });
+        submitBtn.disabled = true;
+        submitBtn.classList.remove('btn-primary', 'btn-success');
+        submitBtn.classList.add('btn-secondary');
+        submitBtn.innerHTML = '<i class="fas fa-clock me-2"></i>Waiting for Adviser Review';
+
+        if (pendingReviewState) {
+            pendingReviewState.classList.remove('d-none');
+            pendingReviewState.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+        if (pendingReviewLabel && milestoneName) {
+            let labelHtml = 'Your <strong>' + escapeHtml(milestoneName) + '</strong> progress update is currently waiting for Adviser review.';
+            if (pendingAt) {
+                try {
+                    const d = new Date(pendingAt.replace(' ', 'T'));
+                    if (!isNaN(d.getTime())) {
+                        labelHtml += ' <span style="color:var(--sms-text-muted);font-size:0.8rem;">Submitted ' + d.toLocaleString() + '</span>';
+                    }
+                } catch (_) { /* ignore */ }
+            }
+            pendingReviewLabel.innerHTML = labelHtml;
+        }
+    }
+
     async function readJsonResponse(response) {
         const text = await response.text();
-        if (!text.trim()) {
-            return {};
-        }
-
+        if (!text.trim()) { return {}; }
         try {
             return JSON.parse(text);
         } catch (error) {
@@ -503,40 +649,53 @@ document.addEventListener('DOMContentLoaded', function() {
             window.location.reload();
         });
     }
-    
+
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
         hideFormAlert();
-        
-        // Check token
+
         if (!submissionToken) {
             showFormAlert('warning', '<i class="fas fa-clock me-2"></i>Please wait, initializing submission token...');
             return;
         }
-        
-        // DUPLICATE PREVENTION: Disable button immediately
+
+        // DUPLICATE PREVENTION: disable immediately on first click.
         isSubmitting = true;
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting...';
-        
+
         const formData = new FormData(form);
         formData.set('action', 'submit_progress');
         formData.set('new_progress', progressInput.value);
         formData.set('milestone_status', statusSelect.value);
-        
+
         try {
             const response = await fetch('<?= BASE_URL ?>/modules/crad/api/research-progress.php', {
                 method: 'POST',
                 credentials: 'same-origin',
                 body: formData
             });
-            
+
             const result = await readJsonResponse(response);
-            
-            // Check for duplicate (HTTP 409)
+
             if (response.status === 409) {
-                showFormAlert('warning', '<i class="fas fa-copy me-2"></i>Duplicate submission detected. This update was already submitted.');
-                restoreSubmitButton();
+                if (result.is_pending_review) {
+                    // This milestone already has an active pending submission.
+                    // Show the waiting-state banner — do NOT treat this as an error.
+                    // Mark the option as pending so the change-handler stays in sync.
+                    const currentOption = milestoneSelect.options[milestoneSelect.selectedIndex];
+                    if (currentOption) {
+                        currentOption.setAttribute('data-pending', '1');
+                        currentOption.setAttribute('data-pending-at', result.submitted_at || '');
+                        pendingMap[currentOption.value] = true;
+                    }
+                    isSubmitting = false;
+                    setPendingReviewState(result.milestone_name || '', result.submitted_at || '');
+                } else {
+                    // Token-based duplicate (double-click / fast resubmit).
+                    showFormAlert('warning', '<i class="fas fa-copy me-2"></i>Duplicate submission detected. This update was already submitted.');
+                    restoreSubmitButton();
+                }
                 return;
             }
 
@@ -545,11 +704,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 restoreSubmitButton();
                 return;
             }
-            
+
             if (result.success) {
                 submissionToken = null;
                 showFormAlert('success', '<i class="fas fa-check-circle me-2"></i><strong>Done Sent.</strong> Your adviser can now see this progress update in Submitted Updates.');
                 setSubmittedState();
+
+                // Refresh option data from the fresh milestones the server returned.
+                if (Array.isArray(result.milestones)) {
+                    refreshMilestoneOptions(result.milestones);
+                }
+
+                // Navigate to the next milestone (or clean page) after 1.8 s.
+                const nextId = result.next_milestone_id || null;
+                const redirectUrl = nextId
+                    ? '<?= BASE_URL ?>/modules/student-portal/pages/progress-updates.php?milestone_id=' + encodeURIComponent(nextId)
+                    : '<?= BASE_URL ?>/modules/student-portal/pages/progress-updates.php';
+
+                setTimeout(function () {
+                    window.location.href = redirectUrl;
+                }, 1800);
             } else {
                 showFormAlert('danger', '<i class="fas fa-exclamation-triangle me-2"></i>' + (result.message || 'Failed to submit progress update. Please try again.'));
                 restoreSubmitButton();
@@ -557,11 +731,14 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             console.error('Submission error:', error);
             const message = error.message === 'invalid_success_response'
-                ? '<i class="fas fa-check-circle me-2"></i><strong>Done Sent.</strong> The update was submitted, but the confirmation response could not be read. Please refresh to see the latest record.'
+                ? '<i class="fas fa-check-circle me-2"></i><strong>Done Sent.</strong> The update was submitted, but the confirmation response could not be read. Redirecting...'
                 : '<i class="fas fa-wifi me-2"></i>Network error. Please check your connection and try again.';
             showFormAlert(error.message === 'invalid_success_response' ? 'success' : 'danger', message);
             if (error.message === 'invalid_success_response') {
                 setSubmittedState();
+                setTimeout(function () {
+                    window.location.href = '<?= BASE_URL ?>/modules/student-portal/pages/progress-updates.php';
+                }, 1800);
                 return;
             }
             restoreSubmitButton();

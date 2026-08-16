@@ -503,10 +503,15 @@ body {
     --bs-table-active-bg:   rgba(59,130,246,0.12);
     color: var(--sms-text);
 }
-[data-theme="dark"] .table thead th {
-    background: var(--sms-table-head-bg);
-    color: var(--sms-text-muted);
-    border-color: var(--sms-table-border);
+[data-theme="dark"] .table thead th,
+[data-theme="dark"] .table-light,
+[data-theme="dark"] .table thead.table-light tr th,
+[data-theme="dark"] thead.table-light th {
+    background: var(--sms-table-head-bg) !important;
+    color: var(--sms-text-muted) !important;
+    border-color: var(--sms-table-border) !important;
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--sms-text-muted);
 }
 [data-theme="dark"] .table td,
 [data-theme="dark"] .table th {

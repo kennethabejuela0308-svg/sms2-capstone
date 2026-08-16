@@ -212,6 +212,7 @@ if (!isset($facultyAccountNavGroups['Research Monitoring'])) {
         ['slug' => 'my-research-groups', 'href' => BASE_URL . '/modules/faculty/pages/my-research-groups.php', 'icon' => 'fa-users', 'label' => 'My Research Groups'],
         ['slug' => 'research-progress-monitoring', 'href' => BASE_URL . '/modules/faculty/pages/research-progress-monitoring.php', 'icon' => 'fa-chart-line', 'label' => 'Research Progress'],
         ['slug' => 'milestones-overview', 'href' => BASE_URL . '/modules/faculty/pages/milestones-overview.php', 'icon' => 'fa-tasks', 'label' => 'Milestones'],
+        ['slug' => 'revision-monitoring', 'href' => BASE_URL . '/modules/faculty/pages/revision-monitoring.php', 'icon' => 'fa-redo', 'label' => 'Revision Monitoring'],
         ['slug' => 'submitted-updates', 'href' => BASE_URL . '/modules/faculty/pages/submitted-updates.php', 'icon' => 'fa-inbox', 'label' => 'Submitted Updates'],
         ['slug' => 'adviser-feedback-history', 'href' => BASE_URL . '/modules/faculty/pages/adviser-feedback-history.php', 'icon' => 'fa-comments', 'label' => 'Adviser Feedback'],
     ];
@@ -237,6 +238,13 @@ $facultyAccountNavGroups += [
         ['slug' => 'security-settings', 'href' => BASE_URL . '/account/module-security.php?module=faculty', 'icon' => 'fa-shield-alt', 'label' => 'Security Settings'],
     ],
 ];
+
+// ── Adviser visibility-only: hide the entire "MY RESEARCH" sidebar section.
+//    This affects ONLY the Adviser account. Backend pages/APIs/tables are NOT
+//    deleted; their navigation entries are suppressed for the Adviser role only.
+if ($roleKey === 'adviser' && isset($facultyAccountNavGroups['My Research'])) {
+    unset($facultyAccountNavGroups['My Research']);
+}
 
 $grammarianNavGroups = [
     'Evaluation' => [
@@ -400,6 +408,9 @@ $researchDirectorNavGroups = [
                         <?php foreach ($groupSlugs as $slug): ?>
                             <?php
                             if (!isset($pageTitles[$slug])) { continue; }
+                            // CRAD Officer: hide Research Defense Scheduling from sidebar only.
+                            // The page, its files, database tables, and APIs are NOT removed.
+                            if ($roleKey === 'crad_officer' && $slug === 'research-defense-scheduling') { continue; }
                             $isPageActive = ($isModuleActive && $activePage === $slug);
                             $pageHref = BASE_URL . '/modules/' . $moduleFolder . '/pages/' . $slug . '.php';
                             if ($slug === 'security-settings') {

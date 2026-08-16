@@ -281,7 +281,7 @@ $statusMeta = [
                                 <div class="rm-update-meta">
                                     <!-- Status + milestone badges -->
                                     <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
-                                        <span class="rm-status-pill" style="background:<?= $sc['bg'] ?>;color:<?= $sc['color'] ?>;">
+                                        <span class="rm-status-pill" data-status="<?= htmlspecialchars($update['milestone_status']) ?>" style="background:<?= $sc['bg'] ?>;color:<?= $sc['color'] ?>;">
                                             <?= htmlspecialchars($update['milestone_status']) ?>
                                         </span>
                                         <?php if ($update['milestone_name']): ?>

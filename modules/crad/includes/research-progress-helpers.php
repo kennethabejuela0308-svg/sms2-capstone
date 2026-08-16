@@ -85,9 +85,11 @@ function rpDefaultMilestoneRows(): array
         ['id' => null, 'milestone_name' => 'Chapter 1', 'milestone_order' => 1, 'description' => 'Introduction and Background', 'status' => 'Not Started', 'progress_percentage' => 0, 'pending_count' => 0, 'update_count' => 0, 'last_update_at' => null, 'start_date' => null, 'target_date' => null, 'completed_at' => null, 'researcher_notes' => '', 'adviser_remarks' => ''],
         ['id' => null, 'milestone_name' => 'Chapter 2', 'milestone_order' => 2, 'description' => 'Review of Related Literature', 'status' => 'Not Started', 'progress_percentage' => 0, 'pending_count' => 0, 'update_count' => 0, 'last_update_at' => null, 'start_date' => null, 'target_date' => null, 'completed_at' => null, 'researcher_notes' => '', 'adviser_remarks' => ''],
         ['id' => null, 'milestone_name' => 'Chapter 3', 'milestone_order' => 3, 'description' => 'Methodology', 'status' => 'Not Started', 'progress_percentage' => 0, 'pending_count' => 0, 'update_count' => 0, 'last_update_at' => null, 'start_date' => null, 'target_date' => null, 'completed_at' => null, 'researcher_notes' => '', 'adviser_remarks' => ''],
-        ['id' => null, 'milestone_name' => 'System Development', 'milestone_order' => 4, 'description' => 'System Implementation', 'status' => 'Not Started', 'progress_percentage' => 0, 'pending_count' => 0, 'update_count' => 0, 'last_update_at' => null, 'start_date' => null, 'target_date' => null, 'completed_at' => null, 'researcher_notes' => '', 'adviser_remarks' => ''],
-        ['id' => null, 'milestone_name' => 'Testing', 'milestone_order' => 5, 'description' => 'Testing and Quality Assurance', 'status' => 'Not Started', 'progress_percentage' => 0, 'pending_count' => 0, 'update_count' => 0, 'last_update_at' => null, 'start_date' => null, 'target_date' => null, 'completed_at' => null, 'researcher_notes' => '', 'adviser_remarks' => ''],
-        ['id' => null, 'milestone_name' => 'Documentation', 'milestone_order' => 6, 'description' => 'Final Documentation and Report', 'status' => 'Not Started', 'progress_percentage' => 0, 'pending_count' => 0, 'update_count' => 0, 'last_update_at' => null, 'start_date' => null, 'target_date' => null, 'completed_at' => null, 'researcher_notes' => '', 'adviser_remarks' => ''],
+        ['id' => null, 'milestone_name' => 'Chapter 4', 'milestone_order' => 4, 'description' => 'Results / System Design and Development', 'status' => 'Not Started', 'progress_percentage' => 0, 'pending_count' => 0, 'update_count' => 0, 'last_update_at' => null, 'start_date' => null, 'target_date' => null, 'completed_at' => null, 'researcher_notes' => '', 'adviser_remarks' => ''],
+        ['id' => null, 'milestone_name' => 'Chapter 5', 'milestone_order' => 5, 'description' => 'Summary, Conclusions and Recommendations', 'status' => 'Not Started', 'progress_percentage' => 0, 'pending_count' => 0, 'update_count' => 0, 'last_update_at' => null, 'start_date' => null, 'target_date' => null, 'completed_at' => null, 'researcher_notes' => '', 'adviser_remarks' => ''],
+        ['id' => null, 'milestone_name' => 'System Development', 'milestone_order' => 6, 'description' => 'System Implementation', 'status' => 'Not Started', 'progress_percentage' => 0, 'pending_count' => 0, 'update_count' => 0, 'last_update_at' => null, 'start_date' => null, 'target_date' => null, 'completed_at' => null, 'researcher_notes' => '', 'adviser_remarks' => ''],
+        ['id' => null, 'milestone_name' => 'Testing', 'milestone_order' => 7, 'description' => 'Testing and Quality Assurance', 'status' => 'Not Started', 'progress_percentage' => 0, 'pending_count' => 0, 'update_count' => 0, 'last_update_at' => null, 'start_date' => null, 'target_date' => null, 'completed_at' => null, 'researcher_notes' => '', 'adviser_remarks' => ''],
+        ['id' => null, 'milestone_name' => 'Documentation', 'milestone_order' => 8, 'description' => 'Final Documentation and Report', 'status' => 'Not Started', 'progress_percentage' => 0, 'pending_count' => 0, 'update_count' => 0, 'last_update_at' => null, 'start_date' => null, 'target_date' => null, 'completed_at' => null, 'researcher_notes' => '', 'adviser_remarks' => ''],
     ];
 }
 
@@ -203,11 +205,36 @@ function rpChapterSubmissionProgressState(PDO $crad, int $groupId, int $chapter)
 
 function rpApplyChapterMilestoneOverrides(PDO $crad, int $groupId, array $milestones): array
 {
+    // Ensure the panel_remarks column exists (idempotent, runs once per request).
+    rpEnsurePanelRemarksColumn($crad);
+
+    // Fetch the group's official Pre-Oral panel result once for the whole milestone list.
+    $panelRecord   = rpGetGroupPanelApproval($crad, $groupId);
+    $panelApproved = ($panelRecord !== null && ($panelRecord['final_result'] ?? '') === 'APPROVED');
+
+    // If the panel has officially approved, write the final state to Chapter 1-3 DB rows
+    // before we read them back into the milestone array. This is the idempotent sync point
+    // that fires on every milestone read — real-time, no separate cron/webhook needed.
+    if ($panelApproved) {
+        rpSyncChapterMilestonesFromPanelApproval($crad, $groupId, $panelRecord);
+    }
+
     foreach ($milestones as &$milestone) {
         $chapter = rpMilestoneChapterNumber($milestone);
         $milestone['is_chapter_synced'] = false;
+        $milestone['panel_approved']    = false;
+        $milestone['panel_remarks']     = null;
+
         if ($chapter) {
             $milestone['chapter_number'] = $chapter;
+
+            // Annotate Chapter 1-3 milestones with the live panel approval state
+            // so both the PHP templates and the JS polling response carry this data.
+            if ($panelApproved && in_array($chapter, [1, 2, 3], true)) {
+                $milestone['panel_approved']    = true;
+                $milestone['panel_remarks']     = $panelRecord['panel_remarks'];
+                $milestone['is_chapter_synced'] = true;
+            }
         }
 
         if ((string) ($milestone['status'] ?? '') === 'Approved') {
@@ -246,6 +273,10 @@ function rpGetMilestonesForPlan(PDO $crad, ?int $planId, ?int $groupId = null): 
         return $groupId ? rpApplyChapterMilestoneOverrides($crad, $groupId, $milestones) : $milestones;
     }
 
+    // Backfill Chapter 4 & 5 for existing plans that were created before they were added.
+    // INSERT IGNORE means this is a no-op once the rows already exist.
+    rpEnsureChapter4And5Milestones($crad, $planId);
+
     $stmt = $crad->prepare("
         SELECT *
         FROM research_milestones
@@ -266,6 +297,10 @@ function rpGetMilestonesWithUpdateStats(PDO $crad, ?int $planId, ?int $groupId =
         $milestones = rpDefaultMilestoneRows();
         return $groupId ? rpApplyChapterMilestoneOverrides($crad, $groupId, $milestones) : $milestones;
     }
+
+    // Backfill Chapter 4 & 5 for existing plans that were created before they were added.
+    // INSERT IGNORE means this is a no-op once the rows already exist.
+    rpEnsureChapter4And5Milestones($crad, $planId);
 
     $stmt = $crad->prepare(
         "SELECT rm.*,
@@ -866,12 +901,14 @@ function rpGetOrCreateResearchPlan(PDO $crad, int $groupId): ?array
 function rpInitializeDefaultMilestones(PDO $crad, int $planId): int
 {
     $defaultMilestones = [
-        ['name' => 'Chapter 1', 'order' => 1, 'desc' => 'Introduction and Background'],
-        ['name' => 'Chapter 2', 'order' => 2, 'desc' => 'Review of Related Literature'],
-        ['name' => 'Chapter 3', 'order' => 3, 'desc' => 'Methodology'],
-        ['name' => 'System Development', 'order' => 4, 'desc' => 'System Implementation'],
-        ['name' => 'Testing', 'order' => 5, 'desc' => 'Testing and Quality Assurance'],
-        ['name' => 'Documentation', 'order' => 6, 'desc' => 'Final Documentation and Report']
+        ['name' => 'Chapter 1',          'order' => 1, 'desc' => 'Introduction and Background'],
+        ['name' => 'Chapter 2',          'order' => 2, 'desc' => 'Review of Related Literature'],
+        ['name' => 'Chapter 3',          'order' => 3, 'desc' => 'Methodology'],
+        ['name' => 'Chapter 4',          'order' => 4, 'desc' => 'Results / System Design and Development'],
+        ['name' => 'Chapter 5',          'order' => 5, 'desc' => 'Summary, Conclusions and Recommendations'],
+        ['name' => 'System Development', 'order' => 6, 'desc' => 'System Implementation'],
+        ['name' => 'Testing',            'order' => 7, 'desc' => 'Testing and Quality Assurance'],
+        ['name' => 'Documentation',      'order' => 8, 'desc' => 'Final Documentation and Report'],
     ];
     
     // Use INSERT IGNORE to prevent duplicate milestones
@@ -900,6 +937,66 @@ function rpInitializeDefaultMilestones(PDO $crad, int $planId): int
     }
     
     return $count;
+}
+
+/**
+ * Ensure Chapter 4 and Chapter 5 milestone records exist for a plan (idempotent backfill).
+ *
+ * Safe to call on every page load — uses INSERT IGNORE so existing rows, including
+ * all their progress/status data, are never touched. Also corrects the milestone_order
+ * of System Development, Testing, and Documentation from the old 4/5/6 numbering to
+ * the new 6/7/8 numbering if those rows were created before Chapter 4 & 5 were added.
+ *
+ * @param PDO $crad CRAD database connection
+ * @param int $planId Research plan ID
+ * @return void
+ */
+function rpEnsureChapter4And5Milestones(PDO $crad, int $planId): void
+{
+    if ($planId <= 0) {
+        return;
+    }
+
+    // Chapters to backfill — only inserted when genuinely absent.
+    // We do an explicit SELECT check rather than relying on INSERT IGNORE,
+    // because the UNIQUE KEY may not exist on all installations.
+    $missing = [
+        ['Chapter 4', 4, 'Results / System Design and Development'],
+        ['Chapter 5', 5, 'Summary, Conclusions and Recommendations'],
+    ];
+
+    $checkStmt = $crad->prepare(
+        "SELECT COUNT(*) FROM research_milestones
+         WHERE research_plan_id = ? AND milestone_name = ? LIMIT 1"
+    );
+    $insertStmt = $crad->prepare(
+        "INSERT INTO research_milestones
+             (research_plan_id, milestone_name, milestone_order, description, status)
+         VALUES (?, ?, ?, ?, 'Not Started')"
+    );
+
+    foreach ($missing as [$name, $order, $desc]) {
+        $checkStmt->execute([$planId, $name]);
+        if ((int) $checkStmt->fetchColumn() === 0) {
+            $insertStmt->execute([$planId, $name, $order, $desc]);
+        }
+    }
+
+    // Fix milestone_order for development milestones that were created with the
+    // old 6-milestone numbering (order 4/5/6) before Chapter 4 & 5 were added.
+    // Only updates rows whose order still holds the old value — no-op otherwise.
+    $reorder = $crad->prepare(
+        "UPDATE research_milestones
+         SET milestone_order = CASE milestone_name
+             WHEN 'System Development' THEN 6
+             WHEN 'Testing'            THEN 7
+             WHEN 'Documentation'      THEN 8
+         END
+         WHERE research_plan_id = ?
+           AND milestone_name IN ('System Development', 'Testing', 'Documentation')
+           AND milestone_order IN (4, 5, 6)"
+    );
+    $reorder->execute([$planId]);
 }
 
 /**
@@ -1240,4 +1337,675 @@ function rpCreateNotification(PDO $crad, array $data): bool
         error_log('Notification creation failed: ' . $e->getMessage());
         return false;
     }
+}
+
+/**
+ * Revision Monitoring — Eligible research groups for the Adviser.
+ *
+ * A research group appears ONLY when:
+ *   - the Adviser officially owns it (research_adviser_assignments),
+ *   - it has a finalized Pre-Oral Defense schedule,
+ *   - exactly N DISTINCT assigned Panel Members (Pre-Oral Defense phase) exist,
+ *   - and ALL N of those assigned panel members submitted an evaluation whose
+ *     result is APPROVED WITH REVISION.
+ *
+ * One case per research group. Real-time: reads only — no writes.
+ *
+ * @return array<int, array>
+ */
+function rpGetRevisionMonitoringGroups(PDO $crad, int $adviserUserId, string $adviserEmail): array
+{
+    if ($adviserUserId <= 0 && rpNormalizeEmail($adviserEmail) === '') {
+        return [];
+    }
+
+    $identitySql  = rpAdviserIdentitySql('raa2');
+    $statusSql    = rpActiveAdviserAssignmentStatusSql('raa2');
+    $assignSql    = rpAdviserAssignmentMatchSql('raa2', 'rg');
+    $params       = rpAdviserIdentityParams($adviserUserId, $adviserEmail);
+
+    $sql = "
+        SELECT
+            rg.id                                  AS research_group_id,
+            rg.group_number,
+            rg.group_name,
+            rg.research_title,
+            rg.academic_year,
+            rg.date_assigned,
+            rds.id                                 AS defense_schedule_id,
+            rds.defense_datetime,
+            COALESCE(NULLIF(rds.venue, ''), '')   AS venue,
+            rds.adviser_name                       AS defense_adviser_name,
+            rds.updated_at                         AS defense_updated_at,
+            a.adviser_name,
+            a.adviser_email,
+            a.adviser_user_id,
+            a.assignment_status                    AS adviser_assignment_status,
+            COUNT(DISTINCT rpa.panel_user_id)                                                       AS assigned_panel_count,
+            COUNT(DISTINCT CASE WHEN ev.status = 'Submitted' THEN rpa.panel_user_id END)             AS submitted_eval_count,
+            COUNT(DISTINCT CASE WHEN ev.result = 'APPROVED WITH REVISION' AND ev.status = 'Submitted' THEN rpa.panel_user_id END) AS awr_count,
+            MAX(CASE WHEN ev.result = 'APPROVED WITH REVISION' AND ev.status = 'Submitted' THEN ev.submitted_at END) AS last_awr_at
+        FROM research_groups rg
+        JOIN research_defense_schedules rds
+            ON rds.id = (
+                SELECT rds2.id
+                FROM research_defense_schedules rds2
+                WHERE (rds2.research_group_id = rg.id
+                       OR (rds2.research_group_id IS NULL AND rds2.group_number = rg.group_number))
+                  AND LOWER(rds2.status) IN ('finalized', 'final', 'completed', 'passed', 'failed')
+                  AND rds2.defense_datetime IS NOT NULL
+                ORDER BY COALESCE(rds2.defense_datetime, rds2.updated_at) DESC, rds2.id DESC
+                LIMIT 1
+            )
+        JOIN research_adviser_assignments a ON a.id = (
+            SELECT raa2.id
+            FROM research_adviser_assignments raa2
+            WHERE {$assignSql}
+              AND {$identitySql}
+              AND {$statusSql}
+            ORDER BY (raa2.assignment_status = 'Confirmed') DESC,
+                     (raa2.assignment_status = 'Assigned') DESC,
+                     raa2.updated_at DESC, raa2.id DESC
+            LIMIT 1
+        )
+        LEFT JOIN research_panel_assignments rpa
+            ON rpa.research_group_id = rg.id
+           AND rpa.defense_phase = 'Pre-Oral Defense'
+           AND rpa.assignment_status = 'Assigned'
+        LEFT JOIN preoral_defense_evaluations ev
+            ON ev.defense_schedule_id = rds.id
+           AND ev.panel_user_id = rpa.panel_user_id
+           AND ev.status = 'Submitted'
+         WHERE 1=1
+         GROUP BY rg.id, rds.id, a.id
+         HAVING assigned_panel_count > 0
+            AND submitted_eval_count = assigned_panel_count
+            AND awr_count = assigned_panel_count
+        ORDER BY COALESCE(rds.defense_datetime, rds.updated_at) DESC, rg.id DESC
+    ";
+
+    try {
+        $stmt = $crad->prepare($sql);
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable $e) {
+        error_log('Revision monitoring groups load failed: ' . $e->getMessage());
+        return [];
+    }
+
+    foreach ($rows as &$row) {
+        $revision               = rpComputeRevisionStatus($crad, (int) $row['research_group_id'], (string) $row['last_awr_at']);
+        $row['revision_status']              = $revision['status'];
+        $row['revision_last_activity_at']    = $revision['last_activity_at'];
+        $row['panel_decision']               = 'APPROVED WITH REVISION';
+        $row['panel_evaluations_summary']    = ((int) $row['submitted_eval_count']) . '/' . ((int) $row['assigned_panel_count']) . ' Completed';
+        $row['assigned_panel_count']         = (int) $row['assigned_panel_count'];
+        $row['awr_count']                    = (int) $row['awr_count'];
+    }
+    unset($row);
+
+    return $rows;
+}
+
+/**
+ * Compute the Adviser-side revision monitoring status for a group,
+ * anchored to when the 3/3 APPROVED WITH REVISION consensus was reached
+ * (the latest AWR evaluation timestamp). Reuses the existing
+ * research_progress_updates / research_progress_feedback status fields —
+ * NO new status table is introduced.
+ */
+function rpComputeRevisionStatus(PDO $crad, int $groupId, string $activationTs): array
+{
+    $activation  = $activationTs !== '' ? $activationTs : '1970-01-01 00:00:01';
+    $latest      = null;
+    $latestFb    = null;
+
+    try {
+        $stmt = $crad->prepare(
+            "SELECT rpu.milestone_status, rpu.submitted_at, rpu.update_title, rpu.id
+             FROM research_progress_updates rpu
+             WHERE rpu.research_group_id = :gid
+               AND rpu.submitted_at >= :act
+             ORDER BY rpu.submitted_at DESC, rpu.id DESC
+             LIMIT 1"
+        );
+        $stmt->execute([':gid' => $groupId, ':act' => $activation]);
+        $latest = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+
+        $stmt = $crad->prepare(
+            "SELECT rpf.feedback_type, rpf.created_at
+             FROM research_progress_feedback rpf
+             INNER JOIN research_progress_updates rpu ON rpu.id = rpf.progress_update_id
+             WHERE rpu.research_group_id = :gid
+               AND rpf.created_at >= :act
+             ORDER BY rpf.created_at DESC, rpf.id DESC
+             LIMIT 1"
+        );
+        $stmt->execute([':gid' => $groupId, ':act' => $activation]);
+        $latestFb = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    } catch (Throwable $e) {
+        error_log('Revision status compute failed: ' . $e->getMessage());
+    }
+
+    $status        = 'For Revision';
+    $lastActivity  = $activation;
+
+    if ($latest) {
+        $submittedAt = (string) ($latest['submitted_at'] ?? $activation);
+        if (strtotime($submittedAt) !== false) {
+            $lastActivity = $submittedAt;
+        }
+        $ms = (string) ($latest['milestone_status'] ?? '');
+        if (in_array($ms, ['Approved', 'Completed'], true)) {
+            $status = 'Completed';
+        } elseif ($ms === 'Submitted for Review') {
+            $status = $latestFb ? 'Under Adviser Review' : 'Revision Submitted';
+        } else {
+            $status = 'For Revision';
+        }
+    }
+
+    if ($latestFb) {
+        $fbCreated = (string) ($latestFb['created_at'] ?? '');
+        if (strtotime($fbCreated) !== false && strtotime($fbCreated) >= strtotime($activation) && strtotime($fbCreated) > strtotime($lastActivity)) {
+            $lastActivity = $fbCreated;
+        }
+    }
+
+    return [
+        'status'            => $status,
+        'latest_update'     => $latest,
+        'feedback'          => $latestFb,
+        'last_activity_at'  => $lastActivity,
+    ];
+}
+
+/**
+ * Revision Monitoring — Detail (3 panels + remarks) for an Adviser-owned, eligible group.
+ */
+function rpGetRevisionDetail(PDO $crad, int $adviserUserId, string $adviserEmail, string $groupNumber): ?array
+{
+    $groupNumber = trim((string) $groupNumber);
+    if ($groupNumber === '') {
+        return null;
+    }
+
+    $groups = rpGetRevisionMonitoringGroups($crad, $adviserUserId, $adviserEmail);
+    $group  = null;
+    foreach ($groups as $g) {
+        if ((string) ($g['group_number'] ?? '') === $groupNumber) {
+            $group = $g;
+            break;
+        }
+    }
+
+    if (!$group) {
+        return null; // Not eligible or not owned by this Adviser.
+    }
+
+    $groupId    = (int) $group['research_group_id'];
+    $scheduleId = (int) $group['defense_schedule_id'];
+
+    $panels = [];
+    $updates = [];
+    try {
+        $stmt = $crad->prepare(
+            "SELECT
+                 COALESCE(NULLIF(u.full_name, ''), NULLIF(rpa.panel_name, ''), 'Panel Member') AS panel_name,
+                 COALESCE(NULLIF(rpa.panel_email, ''), '') AS panel_email,
+                 ev.result        AS panel_result,
+                 ev.overall_score,
+                 ev.content_score,
+                 ev.methodology_score,
+                 ev.references_score,
+                 ev.format_score,
+                 ev.remarks,
+                 ev.submitted_at  AS evaluated_at,
+                 ev.status        AS eval_status
+             FROM research_panel_assignments rpa
+             LEFT JOIN preoral_defense_evaluations ev
+                 ON ev.defense_schedule_id = :sched
+                AND ev.panel_user_id = rpa.panel_user_id
+                AND ev.status = 'Submitted'
+             LEFT JOIN sms2_db.users u ON u.id = rpa.panel_user_id
+             WHERE rpa.research_group_id = :gid
+               AND rpa.defense_phase = 'Pre-Oral Defense'
+               AND rpa.assignment_status = 'Assigned'
+             ORDER BY COALESCE(u.full_name, rpa.panel_name, 'Panel Member') ASC"
+        );
+        $stmt->execute([':gid' => $groupId, ':sched' => $scheduleId]);
+        $panels = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        $stmt = $crad->prepare(
+            "SELECT rpu.*,
+                    rm.milestone_name
+             FROM research_progress_updates rpu
+             LEFT JOIN research_milestones rm ON rm.id = rpu.milestone_id
+             WHERE rpu.research_group_id = :gid
+             ORDER BY rpu.submitted_at DESC, rpu.id DESC
+             LIMIT 8"
+        );
+        $stmt->execute([':gid' => $groupId]);
+        $updates = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable $e) {
+        error_log('Revision detail load failed: ' . $e->getMessage());
+    }
+
+    return [
+        'group'        => $group,
+        'panels'       => $panels,
+        'updates'      => $updates,
+    ];
+}
+
+/**
+ * Summary counts for the Revision Monitoring dashboard (read-only).
+ */
+function rpRevisionMonitoringCounts(array $groups): array
+{
+    $active = 0;
+    $pending = 0;
+    $completed = 0;
+    foreach ($groups as $g) {
+        $status = (string) ($g['revision_status'] ?? '');
+        if ($status === 'Completed') {
+            $completed++;
+        } elseif ($status === 'Revision Submitted') {
+            $pending++;
+        } else {
+            // 'For Revision' and 'Under Adviser Review' are active cases.
+            $active++;
+        }
+    }
+    return ['active' => $active, 'pending' => $pending, 'completed' => $completed];
+}
+
+/**
+ * Check whether a milestone already has an active "Submitted for Review" submission
+ * that has not yet been acted on by the adviser.
+ *
+ * "Active / pending" means:
+ *   — The research_milestones row status is 'Submitted for Review'
+ *   — AND the most-recent research_progress_updates row for this milestone+group
+ *     also carries milestone_status = 'Submitted for Review'
+ *   — AND no adviser feedback exists for that update yet
+ *     (i.e. the adviser hasn't approved or requested revision).
+ *
+ * This is the authoritative database-level gate used by both the API and the page load.
+ *
+ * @param PDO $crad       CRAD database connection
+ * @param int $groupId    Research group ID
+ * @param int $milestoneId Milestone ID (research_milestones.id)
+ * @return array|null     The pending update row if one exists, null otherwise
+ */
+function rpHasPendingSubmission(PDO $crad, int $groupId, int $milestoneId): ?array
+{
+    if ($groupId <= 0 || $milestoneId <= 0) {
+        return null;
+    }
+
+    // Fetch the latest progress update for this milestone+group.
+    $stmt = $crad->prepare("
+        SELECT rpu.*
+        FROM research_progress_updates rpu
+        WHERE rpu.research_group_id = ?
+          AND rpu.milestone_id      = ?
+          AND rpu.milestone_status  = 'Submitted for Review'
+        ORDER BY rpu.submitted_at DESC, rpu.id DESC
+        LIMIT 1
+    ");
+    $stmt->execute([$groupId, $milestoneId]);
+    $latestUpdate = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+
+    if (!$latestUpdate) {
+        return null;
+    }
+
+    // Confirm no adviser feedback exists for this update yet.
+    // If the adviser has already acted (approved or requested revision),
+    // the submission is no longer "pending" and the student may resubmit
+    // according to the existing workflow.
+    $fbStmt = $crad->prepare("
+        SELECT id
+        FROM research_progress_feedback
+        WHERE progress_update_id = ?
+        LIMIT 1
+    ");
+    $fbStmt->execute([$latestUpdate['id']]);
+    $hasFeedback = (bool) $fbStmt->fetch();
+
+    if ($hasFeedback) {
+        // Adviser already responded — not pending any more.
+        return null;
+    }
+
+    return $latestUpdate;
+}
+
+/**
+ * Return milestones for a plan, each annotated with:
+ *   has_pending_submission  (bool)  — true when the milestone is locked for new submissions
+ *   pending_submitted_at    (string|null) — timestamp of the pending update, if any
+ *   pending_update_id       (int|null)    — ID of the pending update row, if any
+ *
+ * This is a thin wrapper around rpGetMilestonesForPlan — all existing data is preserved.
+ *
+ * @param PDO      $crad
+ * @param int|null $planId
+ * @param int|null $groupId
+ * @return array
+ */
+function rpGetMilestonesWithPendingFlags(PDO $crad, ?int $planId, ?int $groupId = null): array
+{
+    $milestones = rpGetMilestonesForPlan($crad, $planId, $groupId);
+
+    if (!$groupId || !$milestones) {
+        // Annotate with safe defaults and return early.
+        foreach ($milestones as &$m) {
+            $m['has_pending_submission'] = false;
+            $m['pending_submitted_at']   = null;
+            $m['pending_update_id']      = null;
+        }
+        unset($m);
+        return $milestones;
+    }
+
+    // Fetch all currently-pending updates for this group in one query to avoid N+1.
+    // "Pending" = Submitted for Review AND no adviser feedback yet.
+    $stmt = $crad->prepare("
+        SELECT rpu.id, rpu.milestone_id, rpu.submitted_at
+        FROM research_progress_updates rpu
+        WHERE rpu.research_group_id  = ?
+          AND rpu.milestone_status   = 'Submitted for Review'
+          AND NOT EXISTS (
+              SELECT 1
+              FROM research_progress_feedback rpf
+              WHERE rpf.progress_update_id = rpu.id
+          )
+        ORDER BY rpu.submitted_at DESC, rpu.id DESC
+    ");
+    $stmt->execute([$groupId]);
+    $pendingRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Index by milestone_id — keep only the most-recent pending row per milestone.
+    $pendingByMilestone = [];
+    foreach ($pendingRows as $row) {
+        $mid = (int) $row['milestone_id'];
+        if (!isset($pendingByMilestone[$mid])) {
+            $pendingByMilestone[$mid] = $row;
+        }
+    }
+
+    foreach ($milestones as &$m) {
+        $mid = (int) ($m['id'] ?? 0);
+        if (isset($pendingByMilestone[$mid])) {
+            $m['has_pending_submission'] = true;
+            $m['pending_submitted_at']   = $pendingByMilestone[$mid]['submitted_at'];
+            $m['pending_update_id']      = (int) $pendingByMilestone[$mid]['id'];
+        } else {
+            $m['has_pending_submission'] = false;
+            $m['pending_submitted_at']   = null;
+            $m['pending_update_id']      = null;
+        }
+    }
+    unset($m);
+
+    return $milestones;
+}
+
+/**
+ * Ensure the panel_remarks column exists on research_milestones.
+ * Safe to call repeatedly — uses CREATE TABLE … IF NOT EXISTS pattern via ALTER IGNORE.
+ * Called once per page load that reads milestones; silently no-ops after first run.
+ */
+function rpEnsurePanelRemarksColumn(PDO $crad): void
+{
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+    $checked = true;
+
+    try {
+        // Check if column already exists before issuing ALTER.
+        $stmt = $crad->prepare(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME   = 'research_milestones'
+               AND COLUMN_NAME  = 'panel_remarks'"
+        );
+        $stmt->execute();
+        if ((int) $stmt->fetchColumn() === 0) {
+            $crad->exec(
+                "ALTER TABLE research_milestones
+                 ADD COLUMN panel_remarks TEXT DEFAULT NULL
+                 AFTER adviser_remarks"
+            );
+        }
+    } catch (Throwable $e) {
+        // Column may already exist in a race; never break milestone reads.
+        error_log('rpEnsurePanelRemarksColumn: ' . $e->getMessage());
+    }
+}
+
+/**
+ * Determine the official Pre-Oral Defense result for a research group.
+ *
+ * Uses the same precedence rules as panelFinalResultFromResults() in
+ * panel-defense-page.php:
+ *   FAILED beats everything → APPROVED WITH REVISION beats APPROVED → else APPROVED.
+ *
+ * Requires ALL assigned panel members to have submitted before producing a result
+ * (same logic already enforced by panelHydrateDefenseRow / panelDefenseById).
+ *
+ * @param PDO $crad
+ * @param int $groupId  research_groups.id
+ * @return array|null  null = no final result yet; otherwise:
+ *   [
+ *     'final_result'       => 'APPROVED'|'APPROVED WITH REVISION'|'FAILED',
+ *     'defense_schedule_id'=> int,
+ *     'total_assigned'     => int,
+ *     'total_submitted'    => int,
+ *     'panel_remarks'      => string,   // concatenated non-empty remarks
+ *     'approved_at'        => string,   // latest submitted_at among evaluations
+ *   ]
+ */
+function rpGetGroupPanelApproval(PDO $crad, int $groupId): ?array
+{
+    if ($groupId <= 0) {
+        return null;
+    }
+
+    try {
+        // Find the most-recent finalized defense schedule for this group.
+        $schedStmt = $crad->prepare(
+            "SELECT id
+             FROM research_defense_schedules
+             WHERE research_group_id = ?
+               AND defense_datetime IS NOT NULL
+               AND LOWER(status) IN ('scheduled','finalized','final','completed','passed','failed')
+             ORDER BY defense_datetime DESC, id DESC
+             LIMIT 1"
+        );
+        $schedStmt->execute([$groupId]);
+        $scheduleId = (int) ($schedStmt->fetchColumn() ?: 0);
+
+        if ($scheduleId <= 0) {
+            return null;
+        }
+
+        // Count how many panel members are formally assigned.
+        $assignedStmt = $crad->prepare(
+            "SELECT COUNT(DISTINCT panel_user_id)
+             FROM research_panel_assignments
+             WHERE research_group_id = ?
+               AND defense_phase     = 'Pre-Oral Defense'
+               AND assignment_status = 'Assigned'"
+        );
+        $assignedStmt->execute([$groupId]);
+        $totalAssigned = (int) $assignedStmt->fetchColumn();
+
+        if ($totalAssigned <= 0) {
+            // No formally assigned panel members — cannot determine official result.
+            return null;
+        }
+
+        // Fetch all submitted evaluations for this schedule+group.
+        $evalStmt = $crad->prepare(
+            "SELECT result, remarks, submitted_at
+             FROM preoral_defense_evaluations
+             WHERE defense_schedule_id = ?
+               AND status = 'Submitted'
+             ORDER BY submitted_at ASC"
+        );
+        $evalStmt->execute([$scheduleId]);
+        $evals = $evalStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $totalSubmitted = count($evals);
+
+        // All required evaluations must be in before we publish a result.
+        if ($totalSubmitted < $totalAssigned) {
+            return null;
+        }
+
+        // Apply the same precedence logic as panelFinalResultFromResults().
+        $results = array_column($evals, 'result');
+        if (in_array('FAILED', $results, true)) {
+            $finalResult = 'FAILED';
+        } elseif (in_array('APPROVED WITH REVISION', $results, true)) {
+            $finalResult = 'APPROVED WITH REVISION';
+        } else {
+            $finalResult = 'APPROVED';
+        }
+
+        // Concatenate non-empty panel remarks (preserve individual voices).
+        $remarksLines = [];
+        foreach ($evals as $eval) {
+            $r = trim((string) ($eval['remarks'] ?? ''));
+            if ($r !== '') {
+                $remarksLines[] = $r;
+            }
+        }
+        $panelRemarks = implode("\n", $remarksLines);
+        if ($panelRemarks === '') {
+            $panelRemarks = 'Approved by Panel.';
+        }
+
+        $latestAt = '';
+        foreach ($evals as $eval) {
+            if ((string) ($eval['submitted_at'] ?? '') > $latestAt) {
+                $latestAt = (string) $eval['submitted_at'];
+            }
+        }
+
+        return [
+            'final_result'        => $finalResult,
+            'defense_schedule_id' => $scheduleId,
+            'total_assigned'      => $totalAssigned,
+            'total_submitted'     => $totalSubmitted,
+            'panel_remarks'       => $panelRemarks,
+            'approved_at'         => $latestAt,
+        ];
+
+    } catch (Throwable $e) {
+        error_log('rpGetGroupPanelApproval failed: ' . $e->getMessage());
+        return null;
+    }
+}
+
+/**
+ * Synchronise Chapter 1-3 milestone rows to reflect a confirmed APPROVED
+ * Pre-Oral Defense result.
+ *
+ * Rules:
+ *  - Only touches milestones whose milestone_order is 1, 2, or 3 AND whose
+ *    milestone_name matches 'chapter N' (case-insensitive).
+ *  - Idempotent: skips rows already at progress_percentage=100 AND
+ *    status=Approved AND panel_remarks IS NOT NULL.
+ *  - Writes: progress_percentage=100, status=Approved, panel_remarks=<text>,
+ *    completed_at=COALESCE(completed_at, NOW()).
+ *  - Never touches Chapter 4, 5, System Development, Testing, Documentation,
+ *    or any other milestone.
+ *  - Never deletes adviser_remarks or any other column.
+ *  - Recalculates overall plan progress after writing.
+ *
+ * @param PDO    $crad
+ * @param int    $groupId      research_groups.id
+ * @param array  $panelRecord  Return value of rpGetGroupPanelApproval() — must have final_result=APPROVED
+ * @return int   Number of milestone rows actually updated (0 = already in sync)
+ */
+function rpSyncChapterMilestonesFromPanelApproval(PDO $crad, int $groupId, array $panelRecord): int
+{
+    if (($panelRecord['final_result'] ?? '') !== 'APPROVED') {
+        return 0;
+    }
+
+    // Find the research_plan for this group.
+    $planStmt = $crad->prepare(
+        "SELECT id FROM research_plans WHERE research_group_id = ? LIMIT 1"
+    );
+    $planStmt->execute([$groupId]);
+    $planId = (int) ($planStmt->fetchColumn() ?: 0);
+
+    if ($planId <= 0) {
+        return 0;
+    }
+
+    // Fetch Chapter 1-3 milestones for this plan that are not yet fully synced.
+    $milestonesStmt = $crad->prepare(
+        "SELECT id
+         FROM research_milestones
+         WHERE research_plan_id  = ?
+           AND milestone_order   IN (1, 2, 3)
+           AND LOWER(TRIM(milestone_name)) IN ('chapter 1','chapter 2','chapter 3')
+           AND NOT (
+                 progress_percentage = 100
+             AND status              = 'Approved'
+             AND panel_remarks       IS NOT NULL
+           )"
+    );
+    $milestonesStmt->execute([$planId]);
+    $rows = $milestonesStmt->fetchAll(PDO::FETCH_COLUMN);
+
+    if (!$rows) {
+        return 0; // Already fully synced — nothing to do.
+    }
+
+    $panelRemarks = $panelRecord['panel_remarks'];
+    $updated      = 0;
+
+    try {
+        $crad->beginTransaction();
+
+        $updateStmt = $crad->prepare(
+            "UPDATE research_milestones
+             SET progress_percentage = 100,
+                 status              = 'Approved',
+                 panel_remarks       = ?,
+                 completed_at        = COALESCE(completed_at, NOW()),
+                 updated_at          = NOW()
+             WHERE id = ?
+               AND research_plan_id  = ?"
+        );
+
+        foreach ($rows as $milestoneId) {
+            $updateStmt->execute([$panelRemarks, (int) $milestoneId, $planId]);
+            $updated += $updateStmt->rowCount();
+        }
+
+        $crad->commit();
+
+        if ($updated > 0) {
+            rpRecalculateOverallProgress($crad, $planId);
+        }
+
+    } catch (Throwable $e) {
+        if ($crad->inTransaction()) {
+            $crad->rollBack();
+        }
+        error_log('rpSyncChapterMilestonesFromPanelApproval failed: ' . $e->getMessage());
+        return 0;
+    }
+
+    return $updated;
 }

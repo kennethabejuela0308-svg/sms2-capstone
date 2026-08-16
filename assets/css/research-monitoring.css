@@ -1151,6 +1151,67 @@
     background: rgba(255, 255, 255, 0.04);
 }
 
+/* ── Section blocks (accomplishments / problems / next activity / attachment) ── */
+[data-theme="dark"] .rm-section-block {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-left-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+[data-theme="dark"] .rm-section-block-label {
+    color: var(--sms-text-muted) !important;
+}
+
+[data-theme="dark"] .rm-section-block-body {
+    color: var(--sms-text) !important;
+}
+
+/* Keep the left-border accent colour visible — let only the bg go dark */
+[data-theme="dark"] .rm-section-block[style*="border-left:3px solid #10b981"] {
+    border-left-color: #10b981 !important;
+}
+[data-theme="dark"] .rm-section-block[style*="border-left:3px solid #f59e0b"] {
+    border-left-color: #f59e0b !important;
+}
+[data-theme="dark"] .rm-section-block[style*="border-left:3px solid #3b82f6"] {
+    border-left-color: #3b82f6 !important;
+}
+[data-theme="dark"] .rm-section-block[style*="border-left:3px solid #64748b"] {
+    border-left-color: rgba(148, 163, 184, 0.45) !important;
+}
+
+/* ── Feedback items ── */
+[data-theme="dark"] .rm-feedback-item {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-left-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+/* ── Status pills (submitted-updates & revision monitoring) ── */
+[data-theme="dark"] .rm-status-pill {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: var(--sms-text-muted) !important;
+}
+/* Per-status dark tints */
+[data-theme="dark"] .rm-status-pill[data-status="In Progress"] {
+    background: rgba(251, 191, 36, 0.16) !important;
+    color: #fde68a !important;
+}
+[data-theme="dark"] .rm-status-pill[data-status="Submitted for Review"] {
+    background: rgba(59, 130, 246, 0.18) !important;
+    color: #93c5fd !important;
+}
+[data-theme="dark"] .rm-status-pill[data-status="Revision Requested"] {
+    background: rgba(248, 113, 113, 0.18) !important;
+    color: #fca5a5 !important;
+}
+[data-theme="dark"] .rm-status-pill[data-status="Approved"] {
+    background: rgba(52, 211, 153, 0.16) !important;
+    color: #6ee7b7 !important;
+}
+[data-theme="dark"] .rm-status-pill[data-status="Completed"] {
+    background: rgba(5, 150, 105, 0.20) !important;
+    color: #6ee7b7 !important;
+}
+
 /* ══════════════════════════════════════════════════
    RESPONSIVE
 ══════════════════════════════════════════════════ */
