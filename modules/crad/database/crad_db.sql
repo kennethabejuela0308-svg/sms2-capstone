@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Aug 16, 2026 at 05:05 PM
+-- Generation Time: Aug 16, 2026 at 06:16 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -348,6 +348,47 @@ INSERT INTO `chapter_submission_history` (`id`, `submission_id`, `research_group
 (75, 27, 57, 2, 1, 'Accepted', 'evaluated', 475, 'Grammarian', 'grammarian', 'APPROVED', '2026-08-16 21:43:15'),
 (76, 28, 57, 3, 1, 'Under Review', 'review_started', 475, 'Grammarian', 'grammarian', 'Grammarian started review.', '2026-08-16 21:43:22'),
 (77, 28, 57, 3, 1, 'Accepted', 'evaluated', 475, 'Grammarian', 'grammarian', 'APPROVED', '2026-08-16 21:43:25');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `grant_applications`
+--
+
+CREATE TABLE `grant_applications` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `grant_opportunity_id` int(10) UNSIGNED NOT NULL COMMENT 'FK → grant_opportunities.id',
+  `research_group_id` int(10) UNSIGNED DEFAULT NULL COMMENT 'FK → research_groups.id (nullable for non-capstone applicants)',
+  `group_number` varchar(30) DEFAULT NULL,
+  `research_title` varchar(500) DEFAULT NULL,
+  `applicant_name` varchar(200) NOT NULL DEFAULT '',
+  `applicant_user_id` int(10) UNSIGNED DEFAULT NULL,
+  `application_notes` text DEFAULT NULL,
+  `status` enum('Submitted','Under Review','Approved','Denied','Withdrawn') NOT NULL DEFAULT 'Submitted',
+  `submission_token` varchar(64) DEFAULT NULL COMMENT 'One-time token for duplicate-submission prevention',
+  `submitted_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `grant_opportunities`
+--
+
+CREATE TABLE `grant_opportunities` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `funding_title` varchar(300) NOT NULL,
+  `max_funding_cap` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `application_deadline` date NOT NULL,
+  `eligibility` varchar(100) NOT NULL DEFAULT 'Open',
+  `college_program` varchar(200) DEFAULT NULL COMMENT 'Populated when eligibility = Specific College/Program',
+  `status` enum('Open for Application','Closed','Expired') NOT NULL DEFAULT 'Open for Application',
+  `created_by_user_id` int(10) UNSIGNED DEFAULT NULL,
+  `created_by_name` varchar(150) NOT NULL DEFAULT '',
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -1318,6 +1359,26 @@ ALTER TABLE `chapter_submission_history`
   ADD KEY `idx_chapter_history_created` (`created_at`);
 
 --
+-- Indexes for table `grant_applications`
+--
+ALTER TABLE `grant_applications`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uniq_ga_token` (`submission_token`),
+  ADD KEY `idx_ga_opportunity` (`grant_opportunity_id`),
+  ADD KEY `idx_ga_group` (`research_group_id`),
+  ADD KEY `idx_ga_status` (`status`),
+  ADD KEY `idx_ga_submitted` (`submitted_at`);
+
+--
+-- Indexes for table `grant_opportunities`
+--
+ALTER TABLE `grant_opportunities`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_go_status` (`status`),
+  ADD KEY `idx_go_deadline` (`application_deadline`),
+  ADD KEY `idx_go_created_by` (`created_by_user_id`);
+
+--
 -- Indexes for table `panel_assignment_notifications`
 --
 ALTER TABLE `panel_assignment_notifications`
@@ -1573,6 +1634,18 @@ ALTER TABLE `chapter_submissions`
 --
 ALTER TABLE `chapter_submission_history`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=78;
+
+--
+-- AUTO_INCREMENT for table `grant_applications`
+--
+ALTER TABLE `grant_applications`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `grant_opportunities`
+--
+ALTER TABLE `grant_opportunities`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `panel_assignment_notifications`

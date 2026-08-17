@@ -415,8 +415,10 @@ $MODULES = [
                 'research-defense-scheduling',
                 'capstone-group-student-registry',
             ],
-            'Research Funding' => [
-                'research-grants-funding-assistance',
+            'Core System' => [
+                'dashboard-analytics',
+                'grant-opportunities',
+                'proposals-applications',
             ],
             'Research Documents' => [
                 'documentation-publication-management',
@@ -431,8 +433,10 @@ $MODULES = [
             ['slug' => 'adviser-panel-assignment', 'title' => 'Record Adviser/Panel Assignment'],
             ['slug' => 'research-coordinator-management', 'title' => 'Research Coordinator Management'],
             ['slug' => 'capstone-group-student-registry', 'title' => 'Capstone Group/Student Registry'],
-            ['slug' => 'research-grants-funding-assistance', 'title' => 'Research Grants & Funding Assistance'],
             ['slug' => 'research-defense-scheduling', 'title' => 'Research Defense Scheduling'],
+            ['slug' => 'dashboard-analytics', 'title' => 'Dashboard & Analytics'],
+            ['slug' => 'grant-opportunities', 'title' => 'Grant Opportunities'],
+            ['slug' => 'proposals-applications', 'title' => 'Proposals & Applications'],
             ['slug' => 'documentation-publication-management', 'title' => 'Documentation & Publication Management'],
             ['slug' => 'research-analytics-reporting', 'title' => 'Research Analytics & Reporting'],
         ],

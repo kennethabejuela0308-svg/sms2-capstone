@@ -228,12 +228,37 @@ function rpApplyChapterMilestoneOverrides(PDO $crad, int $groupId, array $milest
         if ($chapter) {
             $milestone['chapter_number'] = $chapter;
 
+            // ── Final panel-approved path ────────────────────────────────
             // Annotate Chapter 1-3 milestones with the live panel approval state
             // so both the PHP templates and the JS polling response carry this data.
             if ($panelApproved && in_array($chapter, [1, 2, 3], true)) {
                 $milestone['panel_approved']    = true;
                 $milestone['panel_remarks']     = $panelRecord['panel_remarks'];
                 $milestone['is_chapter_synced'] = true;
+                // progress_percentage will be forced to 100 by rpNormalizeApprovedMilestoneProgress
+                // via the DB sync above — no further override needed here.
+
+            // ── Intermediate progress path (no panel approval yet) ───────
+            // Combine two independent tracks and use the higher of the two:
+            //   Track A — chapter_submissions / Grammarian review
+            //             (rpChapterSubmissionProgressState: 0 / 33 / 66 / 100)
+            //   Track B — research_milestones.status / Adviser review
+            //             (rpMilestoneStatusToProgress: 0 / 25 / 50 / 75)
+            //
+            // Taking the max means whichever track is more advanced wins,
+            // so neither track can regress the displayed progress.
+            // This override is IN-MEMORY ONLY — no DB writes here.
+            } elseif (in_array($chapter, [1, 2, 3], true)) {
+                $trackA = rpChapterSubmissionProgressState($crad, $groupId, $chapter);
+                $trackB = rpMilestoneStatusToProgress((string) ($milestone['status'] ?? 'Not Started'));
+
+                $intermediate = max((float) $trackA['progress_percentage'], $trackB);
+
+                // Clamp: never exceed 90% without official panel approval so 100%
+                // remains exclusively the panel-APPROVED signal.
+                if ($intermediate > 0.0) {
+                    $milestone['progress_percentage'] = min(90.0, $intermediate);
+                }
             }
         }
 
@@ -244,6 +269,35 @@ function rpApplyChapterMilestoneOverrides(PDO $crad, int $groupId, array $milest
     unset($milestone);
 
     return $milestones;
+}
+
+/**
+ * Map a research_milestones.status value to an intermediate progress percentage
+ * for Chapter 1-3 milestones when the Pre-Oral Panel has not yet approved.
+ *
+ * Deterministic — same input always produces the same output.
+ * Returns a float in [0, 75]:
+ *   Not Started          →  0%
+ *   In Progress          → 25%
+ *   Submitted for Review → 50%   (adviser received the submission)
+ *   Revision Requested   → 50%   (adviser is engaged; progress acknowledged)
+ *   Approved             → 75%   (adviser approved; waiting for panel)
+ *
+ * 100% is exclusively reserved for the final Panel APPROVED result and is
+ * enforced by rpSyncChapterMilestonesFromPanelApproval / rpNormalizeApprovedMilestoneProgress.
+ *
+ * @param string $status  Value of research_milestones.status
+ * @return float
+ */
+function rpMilestoneStatusToProgress(string $status): float
+{
+    return match ($status) {
+        'In Progress'          => 25.0,
+        'Submitted for Review' => 50.0,
+        'Revision Requested'   => 50.0,
+        'Approved', 'Completed'=> 75.0,
+        default                => 0.0,   // 'Not Started' and any unknown value
+    };
 }
 
 function rpMilestonesOverallProgress(array $milestones): float

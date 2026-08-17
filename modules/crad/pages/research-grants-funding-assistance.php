@@ -2,8 +2,43 @@
 /**
  * SMS 2 - Research Grants & Funding Assistance
  * Module: CRAD
+ *
+ * NOTE: This page has been removed from the CRAD Officer navigation.
+ * The direct-access guard below redirects CRAD Officers to the CRAD overview.
  */
 require_once __DIR__ . '/../../../config/config.php';
+require_once ROOT_PATH . '/includes/authentication.php';
+
+// Direct-access protection: redirect to CRAD overview if this page is no longer
+// listed in the visible module pages for the current user's role.
+// Uses the same $MODULES / getVisibleModules mechanism that drives the sidebar,
+// dashboard, and search index — no new auth system introduced.
+(function () {
+    $slug        = 'research-grants-funding-assistance';
+    $moduleKey   = 'crad';
+    $visibleMods = function_exists('getVisibleModules') ? getVisibleModules($GLOBALS['MODULES'] ?? []) : [];
+    $cradMod     = $visibleMods[$moduleKey] ?? null;
+
+    if ($cradMod === null) {
+        // CRAD module not visible at all for this role — go to dashboard.
+        header('Location: ' . BASE_URL . '/dashboard/index.php');
+        exit;
+    }
+
+    $pageInModule = false;
+    foreach (($cradMod['pages'] ?? []) as $page) {
+        if (($page['slug'] ?? '') === $slug) {
+            $pageInModule = true;
+            break;
+        }
+    }
+
+    if (!$pageInModule) {
+        // Page removed from this role's module definition — redirect to CRAD overview.
+        header('Location: ' . BASE_URL . '/modules/' . $moduleKey . '/index.php');
+        exit;
+    }
+})();
 
 $pageTitle    = 'Research Grants & Funding Assistance';
 $activeModule = 'crad';

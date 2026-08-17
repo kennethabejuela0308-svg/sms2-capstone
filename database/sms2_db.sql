@@ -1815,7 +1815,8 @@ INSERT INTO `roles` (`id`, `role_key`, `label`, `description`, `is_system`, `cre
 (213, 'research_director', 'Research Director', 'Research defense scheduling director account', 1, '2026-08-09 19:31:14'),
 (384, 'research_grant', 'CRAD Officer', 'Research grant management access', 1, '2026-08-10 20:01:49'),
 (770, 'grammarian', 'Grammarian', 'Research grammar and manuscript evaluation account', 1, '2026-08-14 11:06:49'),
-(788, 'panel', 'Panel Member', 'Research defense panel account', 1, '2026-08-15 17:07:16');
+(788, 'panel', 'Panel Member', 'Research defense panel account', 1, '2026-08-15 17:07:16'),
+(800, 'sms_admin', 'Admin', 'General administrator account', 1, '2026-08-18 00:38:50');
 
 -- --------------------------------------------------------
 
@@ -1854,7 +1855,17 @@ INSERT INTO `role_permissions` (`id`, `role_key`, `module_key`, `granted`, `upda
 (247, 'research_director', 'faculty', 1, '2026-08-09 19:31:14'),
 (353, 'research_grant', 'crad_grant', 1, '2026-08-10 20:01:49'),
 (602, 'grammarian', 'faculty', 1, '2026-08-14 11:06:49'),
-(618, 'panel', 'faculty', 1, '2026-08-15 17:07:16');
+(618, 'panel', 'faculty', 1, '2026-08-15 17:07:16'),
+(619, 'sms_admin', 'enrollment', 1, '2026-08-18 00:38:50'),
+(620, 'sms_admin', 'registrar', 1, '2026-08-18 00:38:50'),
+(621, 'sms_admin', 'curriculum', 1, '2026-08-18 00:38:50'),
+(622, 'sms_admin', 'accreditation', 1, '2026-08-18 00:38:50'),
+(623, 'sms_admin', 'payment', 1, '2026-08-18 00:38:50'),
+(624, 'sms_admin', 'faculty', 1, '2026-08-18 00:38:50'),
+(625, 'sms_admin', 'scheduling', 1, '2026-08-18 00:38:50'),
+(626, 'sms_admin', 'cocurricular', 1, '2026-08-18 00:38:50'),
+(627, 'sms_admin', 'lms', 1, '2026-08-18 00:38:50'),
+(628, 'sms_admin', 'crad', 1, '2026-08-18 00:38:50');
 
 -- --------------------------------------------------------
 
@@ -2000,7 +2011,8 @@ INSERT INTO `users` (`id`, `username`, `email`, `password_hash`, `full_name`, `r
 (475, 'grammarian', 'grammarian@bestlink.edu.ph', '$2y$10$fOWrKtM88k6moYiEZ71Bw.LV3FKzyuJocg7Ml5iW0G26hf8CkpebK', 'Grammarian', 'grammarian', NULL, 'active', 0, 0, NULL, '2026-08-14 11:08:15', '2026-08-16 21:42:38', NULL, '::1', NULL, '2026-08-14 11:06:49', '2026-08-16 21:43:30'),
 (491, 'jobert.valentino', 'jobertvalentino@bestlink.edu.ph', '$2y$10$1r/4Wf8PoTZ.OcKHzzPCA.UK8B6cNZ8l9VDXCeIjiE/iWklRjl...', 'Dr. Jobert Valentino', 'panel', NULL, 'active', 0, 0, NULL, '2026-08-15 17:12:05', '2026-08-16 22:31:42', NULL, '::1', NULL, '2026-08-15 17:07:16', '2026-08-16 22:52:16'),
 (492, 'jonathan.estrada', 'jonathanestrada@bestlink.edu.ph', '$2y$10$W6tscCbx8atD4zerWYFc4evBkQcVQH.TF1jcXTfdpHX11u8F.6hu.', 'Dr. Jonathan Estrada', 'panel', NULL, 'active', 0, 0, NULL, '2026-08-15 17:12:09', '2026-08-16 21:48:27', NULL, '::1', NULL, '2026-08-15 17:07:16', '2026-08-16 22:05:04'),
-(493, 'michelle.guevarra', 'michelleguevarra@bestlink.edu.ph', '$2y$10$BtapXdVV4SKsd7b.RZtYOeyHh0IcShf6FSHYdYtHEN47yFywXxLR.', 'Dr. Michelle Guevarra', 'panel', NULL, 'active', 0, 0, NULL, '2026-08-15 17:12:15', '2026-08-16 22:05:45', NULL, '::1', NULL, '2026-08-15 17:07:16', '2026-08-16 22:07:39');
+(493, 'michelle.guevarra', 'michelleguevarra@bestlink.edu.ph', '$2y$10$BtapXdVV4SKsd7b.RZtYOeyHh0IcShf6FSHYdYtHEN47yFywXxLR.', 'Dr. Michelle Guevarra', 'panel', NULL, 'active', 0, 0, NULL, '2026-08-15 17:12:15', '2026-08-16 22:05:45', NULL, '::1', NULL, '2026-08-15 17:07:16', '2026-08-16 22:07:39'),
+(758, 'admin', 'admin@bestlink.edu.ph', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Admin', 'sms_admin', NULL, 'active', 0, 0, NULL, '2026-08-18 00:38:50', NULL, NULL, NULL, NULL, '2026-08-18 00:38:50', '2026-08-18 00:38:50');
 
 -- --------------------------------------------------------
 

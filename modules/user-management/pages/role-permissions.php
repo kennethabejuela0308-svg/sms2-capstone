@@ -21,12 +21,12 @@ requireSuperAdmin();
 /* ── Role definitions ──────────────────────────────────────── */
 $roles = [
     'superadmin' => ['label' => 'Super Admin', 'icon' => 'fa-user-shield',      'color' => 'superadmin'],
+    'sms_admin'  => ['label' => 'Admin',        'icon' => 'fa-user-cog',         'color' => 'sms_admin'],
     'admission'  => ['label' => 'Admission',   'icon' => 'fa-user-check',       'color' => 'admission'],
     'registrar'  => ['label' => 'Registrar',   'icon' => 'fa-folder-open',      'color' => 'registrar'],
     'finance'    => ['label' => 'Finance',      'icon' => 'fa-credit-card',      'color' => 'finance'],
     'hr'         => ['label' => 'Dean',         'icon' => 'fa-user-tie',         'color' => 'hr'],
     'adviser'    => ['label' => 'Adviser',      'icon' => 'fa-user-graduate',    'color' => 'adviser'],
-    'grammarian' => ['label' => 'Grammarian',   'icon' => 'fa-spell-check',      'color' => 'grammarian'],
     'it_office'  => ['label' => 'IT Office',    'icon' => 'fa-laptop',           'color' => 'it_office'],
     'osa'        => ['label' => 'OSA',          'icon' => 'fa-users',            'color' => 'osa'],
     'qa'         => ['label' => 'QA',           'icon' => 'fa-award',            'color' => 'qa'],
@@ -50,8 +50,8 @@ $defaultMatrix = [
 foreach ($defaultMatrix as $modKey => &$modDefaults) {
     // superadmin has no editable modules (all controlled at system level)
     $modDefaults['superadmin'] = false;
-    $modDefaults['admission'] = ($modKey === 'enrollment');
-    $modDefaults['grammarian'] = ($modKey === 'faculty');
+    $modDefaults['sms_admin']  = true;
+    $modDefaults['admission']  = ($modKey === 'enrollment');
     unset($modDefaults['admin']);
     unset($modDefaults['panel']);
 }

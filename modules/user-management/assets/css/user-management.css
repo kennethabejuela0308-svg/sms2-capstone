@@ -16,6 +16,7 @@
 }
 .role-badge.superadmin,
 .role-badge.super-admin { background: rgba(99,102,241,0.14); color: #818cf8; border: 1px solid rgba(99,102,241,0.25); }
+.role-badge.sms_admin   { background: rgba(239,68,68,0.13);  color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
 .role-badge.admin,
 .role-badge.admission,
 .role-badge.admission_office,
@@ -46,6 +47,7 @@
 
 [data-theme="light"] .role-badge.superadmin,
 [data-theme="light"] .role-badge.super-admin { background: rgba(99,102,241,0.10); color: #4f46e5; }
+[data-theme="light"] .role-badge.sms_admin   { background: rgba(239,68,68,0.10);  color: #dc2626; }
 [data-theme="light"] .role-badge.admin,
 [data-theme="light"] .role-badge.admission,
 [data-theme="light"] .role-badge.admission_office,

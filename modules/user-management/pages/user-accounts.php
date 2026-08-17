@@ -32,7 +32,7 @@ if ($pdo) {
              VALUES
                 ('superadmin', 'Super Admin', 'Full system access', 1),
                 ('admin', 'Super Admin', 'Legacy super admin access', 1),
-                ('admission', 'Admission', 'Admission office access', 1),
+                ('sms_admin', 'Admin', 'General administrator account', 1),
                 ('research_coordinator', 'Research Coordinator', 'Research coordination access', 1),
                 ('adviser', 'Adviser', 'Research adviser faculty account', 1),
                 ('research_director', 'Research Director', 'Research defense scheduling director account', 1),
@@ -46,11 +46,6 @@ if ($pdo) {
              WHERE role_key = 'admin'"
         )->execute();
         $pdo->prepare(
-            "UPDATE roles
-             SET label = 'Admission', description = 'Admission office access'
-             WHERE role_key IN ('admission', 'admission_office')"
-        )->execute();
-        $pdo->prepare(
             "UPDATE users
              SET role_key = 'superadmin'
              WHERE username = 'superadmin'
@@ -62,38 +57,20 @@ if ($pdo) {
              WHERE role_key = 'hr'
                AND username IN ('hr', 'faculty', 'dean')"
         )->execute();
-
-        $pdo->prepare(
-            "UPDATE users
-             SET full_name = 'Admission',
-                 username = 'admission',
-                 email = 'admission@bestlink.edu.ph',
-                 role_key = 'admission',
-                 status = 'active'
-             WHERE username IN ('admission', 'admissionoffice')
-                OR role_key IN ('admission', 'admission_office')
-                OR (
-                    username = 'admin'
-                    AND NOT EXISTS (
-                        SELECT 1
-                        FROM (SELECT id FROM users WHERE username = 'admission' LIMIT 1) AS existing_admission
-                    )
-                )"
-        )->execute();
-        $admissionHash = password_hash('@admission123', PASSWORD_DEFAULT);
+        $adminHash = password_hash('@admin123', PASSWORD_DEFAULT);
         $pdo->prepare(
             "INSERT IGNORE INTO users
                 (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
              VALUES
-                ('admission', 'admission@bestlink.edu.ph', ?, 'Admission', 'admission', NULL, 'active', NOW(), 0, 0, NULL)"
-        )->execute([$admissionHash]);
-        $insAdmissionPerm = $pdo->prepare(
+                ('admin', 'admin@bestlink.edu.ph', ?, 'Admin', 'sms_admin', NULL, 'active', NOW(), 0, 0, NULL)"
+        )->execute([$adminHash]);
+        $insAdminPerm = $pdo->prepare(
             "INSERT INTO role_permissions (role_key, module_key, granted)
-             VALUES ('admission', ?, 1)
+             VALUES ('sms_admin', ?, 1)
              ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
         );
-        foreach (['enrollment'] as $moduleKey) {
-            $insAdmissionPerm->execute([$moduleKey]);
+        foreach (['enrollment','registrar','curriculum','accreditation','payment','faculty','scheduling','cocurricular','lms','crad'] as $m) {
+            $insAdminPerm->execute([$m]);
         }
         $facultyHash = password_hash('@faculty123', PASSWORD_DEFAULT);
         $seedFaculty = $pdo->prepare(
@@ -175,6 +152,9 @@ foreach ($users as &$u) {
     if ($u['role'] === 'superadmin') {
         $u['roleLabel'] = 'Super Admin';
     }
+    if ($u['role'] === 'sms_admin') {
+        $u['roleLabel'] = 'Admin';
+    }
     if (
         ($u['role'] === 'admin' && strtolower((string) $u['username']) !== 'superadmin')
         || $u['role'] === 'admission'
@@ -215,6 +195,7 @@ function umRoleBadgeClass(string $role, string $label = ''): string
     $aliases = [
         'admin' => 'superadmin',
         'super_admin' => 'superadmin',
+        'sms_admin' => 'sms_admin',
         'admissionoffice' => 'admission',
         'admission_office' => 'admission',
         'crad_officer' => 'crad',
@@ -327,13 +308,13 @@ renderBreadcrumbs($breadcrumbs);
             <select id="umRoleFilter" class="form-select form-select-sm">
                 <option value="">All Roles</option>
                 <option value="superadmin">Super Admin</option>
+                <option value="sms_admin">Admin</option>
                 <option value="admission">Admission</option>
                 <option value="registrar">Registrar</option>
                 <option value="finance">Finance</option>
                 <option value="hr">Dean</option>
                 <option value="adviser">Adviser</option>
                 <option value="research_director">Research Director</option>
-                <option value="grammarian">Grammarian</option>
                 <option value="panel">Panel Member</option>
                 <option value="it_office">IT Office</option>
                 <option value="osa">OSA</option>
@@ -539,6 +520,7 @@ renderBreadcrumbs($breadcrumbs);
                             <select class="form-select" name="role" required>
                                 <option value="">Select role…</option>
                                 <option value="superadmin">Super Admin</option>
+                                <option value="sms_admin">Admin</option>
                                 <option value="admission">Admission</option>
                                 <option value="registrar">Registrar</option>
                                 <option value="finance">Finance</option>
