@@ -1,0 +1,136 @@
+/**
+ * SMS 2 – Soft page transition (spinner only on first visit)
+ */
+
+html:not(.sms-app-ready) body.sms-app {
+    overflow: hidden;
+}
+
+.sms-page-loader {
+    position: fixed;
+    inset: 0;
+    z-index: 20000;
+    display: grid;
+    place-items: center;
+    transition: opacity 0.32s ease, visibility 0.32s ease;
+}
+
+.sms-page-loader.is-leaving {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.sms-page-loader.is-done {
+    display: none !important;
+}
+
+.sms-loader-backdrop {
+    position: absolute;
+    inset: 0;
+    background: #0b1220;
+    transition: opacity 0.32s ease;
+}
+
+[data-theme="light"] .sms-loader-backdrop {
+    background: #f5f7fb;
+}
+
+.sms-loader-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.85rem;
+    transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.sms-loader-spinner {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2.5px solid rgba(148, 163, 184, 0.22);
+    border-top-color: #3b82f6;
+    animation: smsSpin 0.75s linear infinite;
+}
+
+[data-theme="light"] .sms-loader-spinner {
+    border-color: rgba(148, 163, 184, 0.35);
+    border-top-color: #2563eb;
+}
+
+@keyframes smsSpin {
+    to { transform: rotate(360deg); }
+}
+
+.sms-loader-label {
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    color: rgba(226, 232, 240, 0.55);
+    min-height: 1em;
+}
+
+[data-theme="light"] .sms-loader-label {
+    color: #64748b;
+}
+
+/* In-app navigations: fade only — no spinner wait */
+html.sms-soft-nav .sms-loader-spinner,
+html.sms-soft-nav .sms-loader-label {
+    opacity: 0;
+    visibility: hidden;
+    animation: none;
+}
+html.sms-soft-nav .sms-loader-backdrop {
+    opacity: 0.72;
+}
+html.sms-soft-nav .sms-page-loader {
+    transition: opacity 0.24s ease, visibility 0.24s ease;
+}
+
+body.sms-app .sms-wrapper {
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.34s ease, transform 0.34s ease;
+}
+
+body.sms-app.sms-loaded .sms-wrapper {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+html.sms-soft-nav body.sms-app .sms-wrapper {
+    transform: none;
+    transition: opacity 0.26s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sms-loader-spinner,
+    body.sms-app .sms-wrapper,
+    .sms-page-loader {
+        animation: none !important;
+        transition-duration: 0.01ms !important;
+    }
+    .sms-loader-spinner {
+        border-top-color: #3b82f6;
+        opacity: 0.85;
+    }
+    body.sms-app .sms-wrapper {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@media print {
+    .sms-page-loader {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    body.sms-app .sms-wrapper {
+        opacity: 1 !important;
+        visibility: visible !important;
+        transform: none !important;
+    }
+}

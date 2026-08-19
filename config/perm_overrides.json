@@ -1,0 +1,16 @@
+{
+    "superadmin": {
+        "student_portal": false
+    },
+    "sms_admin": {
+        "enrollment": false,
+        "registrar": false,
+        "curriculum": false,
+        "accreditation": false,
+        "faculty": false,
+        "scheduling": false,
+        "cocurricular": false,
+        "lms": false,
+        "crad": false
+    }
+}
