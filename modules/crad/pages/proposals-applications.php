@@ -70,11 +70,12 @@ function paStatusBadge(string $status): string
 {
     $label = paStatusLabel($status);
     $map   = [
-        'Pending Evaluation' => 'mpl-status pending',
-        'Under Review'       => 'mpl-status pending',
-        'Approved'           => 'mpl-status completed',
-        'Denied'             => 'mpl-status cancelled',
-        'Withdrawn'          => 'mpl-status cancelled',
+        'Pending Evaluation'  => 'mpl-status pending',
+        'Assigned for Review' => 'mpl-status assigned',
+        'Under Review'        => 'mpl-status pending',
+        'Approved'            => 'mpl-status completed',
+        'Denied'              => 'mpl-status cancelled',
+        'Withdrawn'           => 'mpl-status cancelled',
     ];
     $css = $map[$label] ?? ($map[$status] ?? 'mpl-status processing');
     return '<span class="' . htmlspecialchars($css) . '">' . htmlspecialchars($label) . '</span>';
@@ -122,7 +123,7 @@ function paStatusBadge(string $status): string
         </article>
         <article class="mpl-stat">
             <div class="mpl-stat-icon amber"><i class="fas fa-hourglass-half"></i></div>
-            <div><span>Pending Evaluation</span><strong><?= $pendingEval ?></strong></div>
+            <div><span>Pending Evaluation</span><strong id="paStatPending"><?= $pendingEval ?></strong></div>
         </article>
         <article class="mpl-stat">
             <div class="mpl-stat-icon blue"><i class="fas fa-search"></i></div>
@@ -145,6 +146,7 @@ function paStatusBadge(string $status): string
         <select id="paStatusFilter" aria-label="Filter by status">
             <option value="">All Status</option>
             <option value="pending evaluation">Pending Evaluation</option>
+            <option value="assigned for review">Assigned for Review</option>
             <option value="under review">Under Review</option>
             <option value="approved">Approved</option>
             <option value="denied">Denied</option>
@@ -262,7 +264,14 @@ function paStatusBadge(string $status): string
                             <td style="font-size:.83rem;white-space:nowrap;">
                                 <?= htmlspecialchars($submittedFmt) ?>
                             </td>
-                            <td><?= paStatusBadge((string) $app['status']) ?></td>
+                            <td class="pa-status-cell">
+                                <?= paStatusBadge((string) $app['status']) ?>
+                                <?php if (!empty($app['assigned_evaluator_name'])): ?>
+                                    <div class="pa-reviewer-name" style="font-size:.72rem;color:var(--sms-text-muted);margin-top:.25rem;white-space:nowrap;">
+                                        <i class="fas fa-user-check me-1" style="color:#047857;" aria-hidden="true"></i>Reviewer: <?= htmlspecialchars((string) $app['assigned_evaluator_name']) ?>
+                                    </div>
+                                <?php endif; ?>
+                            </td>
                             <td style="text-align:center;">
                                 <button type="button"
                                         class="btn btn-outline-secondary btn-sm pa-detail-btn"
@@ -400,6 +409,71 @@ function paStatusBadge(string $status): string
     if (searchInput)  searchInput.addEventListener('input',  filterTable);
     if (statusFilter) statusFilter.addEventListener('change', filterTable);
     if (oppFilter)    oppFilter.addEventListener('change',    filterTable);
+
+    /* ── Live status sync (reviewer assignment happens on another page) ──
+       Polls the same database-backed API used across the CRAD grant pages
+       so status changes (e.g. Pending Evaluation → Assigned for Review)
+       appear here without a manual reload. ────────────────────────── */
+    var apiBase = <?= json_encode(BASE_URL . '/modules/crad/api/grant-management.php') ?>;
+
+    function escHtml(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function statusLabel(status) {
+        return status === 'Submitted' ? 'Pending Evaluation' : status;
+    }
+
+    function statusBadgeHtml(status) {
+        var label = statusLabel(status);
+        var map = {
+            'Pending Evaluation':  'mpl-status pending',
+            'Assigned for Review': 'mpl-status assigned',
+            'Under Review':        'mpl-status pending',
+            'Approved':            'mpl-status completed',
+            'Denied':              'mpl-status cancelled',
+            'Withdrawn':           'mpl-status cancelled'
+        };
+        return '<span class="' + (map[label] || 'mpl-status processing') + '">' + escHtml(label) + '</span>';
+    }
+
+    function syncStatuses() {
+        fetch(apiBase + '?action=get_applications',
+              {credentials:'same-origin', cache:'no-store', headers:{'Accept':'application/json'}})
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+            if (!d || !d.success || !Array.isArray(d.applications)) return;
+            var pending = 0;
+            var byId = {};
+            d.applications.forEach(function (app) {
+                byId[String(app.id)] = app;
+                if (app.status === 'Submitted') pending++;
+            });
+            var pendingEl = document.getElementById('paStatPending');
+            if (pendingEl) pendingEl.textContent = String(pending);
+
+            tableBody.querySelectorAll('tr.pa-row').forEach(function (row) {
+                var app  = byId[row.dataset.id || ''];
+                var cell = row.querySelector('.pa-status-cell');
+                if (!app || !cell) return;
+                var label = statusLabel(app.status);
+                row.dataset.status = label.toLowerCase();
+                var html = statusBadgeHtml(app.status);
+                if (app.assigned_evaluator_name) {
+                    html += '<div class="pa-reviewer-name" style="font-size:.72rem;color:var(--sms-text-muted);margin-top:.25rem;white-space:nowrap;">' +
+                            '<i class="fas fa-user-check me-1" style="color:#047857;" aria-hidden="true"></i>Reviewer: ' +
+                            escHtml(app.assigned_evaluator_name) + '</div>';
+                }
+                cell.innerHTML = html;
+            });
+            filterTable();
+        })
+        .catch(function () {});
+    }
+
+    if (tableBody) setInterval(syncStatuses, 15000);
 })();
 </script>
 

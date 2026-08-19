@@ -420,6 +420,12 @@ $MODULES = [
                 'grant-opportunities',
                 'proposals-applications',
             ],
+            'Review & Workflow' => [
+                'reviewer-assignment',
+                'reviewer-evaluation-monitoring',
+                'approval-workflows',
+                'ethics-compliance',
+            ],
             'Research Documents' => [
                 'documentation-publication-management',
             ],
@@ -437,6 +443,10 @@ $MODULES = [
             ['slug' => 'dashboard-analytics', 'title' => 'Dashboard & Analytics'],
             ['slug' => 'grant-opportunities', 'title' => 'Grant Opportunities'],
             ['slug' => 'proposals-applications', 'title' => 'Proposals & Applications'],
+            ['slug' => 'reviewer-assignment', 'title' => 'Reviewer Assignment'],
+            ['slug' => 'reviewer-evaluation-monitoring', 'title' => 'Reviewer Evaluation Monitoring'],
+            ['slug' => 'approval-workflows', 'title' => 'Approval Workflows'],
+            ['slug' => 'ethics-compliance', 'title' => 'Ethics & Compliance'],
             ['slug' => 'documentation-publication-management', 'title' => 'Documentation & Publication Management'],
             ['slug' => 'research-analytics-reporting', 'title' => 'Research Analytics & Reporting'],
         ],

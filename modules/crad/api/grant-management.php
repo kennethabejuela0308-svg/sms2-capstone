@@ -7,15 +7,20 @@
  * Actions (GET):
  *   generate_token         → fresh one-time publish token (officer)
  *   generate_apply_token   → fresh one-time proposal-submit token
+ *   generate_assign_token  → fresh one-time reviewer-assignment token
  *   get_dashboard_stats    → aggregated counts
  *   get_opportunities      → full opportunities list
  *   get_applications       → full applications/proposals list
  *                            (optional: &opportunity_id=N)
+ *   get_reviewer_assignment_data → stats + applications + eligible evaluators
+ *                            for the Reviewer Assignment page
  *
  * Actions (POST):
  *   publish_opportunity    → create a new grant call (officer)
  *   submit_proposal        → submit a full BRGFAMS Form 1 proposal
  *                            (multipart/form-data with file uploads)
+ *   assign_evaluator       → assign an evaluator/reviewer to a submitted
+ *                            proposal (transactional, duplicate-safe)
  *
  * DUPLICATE PREVENTION
  *   Every mutating request must carry a unique one-time token stored
@@ -30,6 +35,7 @@ declare(strict_types=1);
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../../../config/config.php';
+require_once __DIR__ . '/../../../config/database.php';
 require_once __DIR__ . '/../../../includes/authentication.php';
 require_once __DIR__ . '/../../../includes/uploads.php';
 require_once __DIR__ . '/../config/config.php';
@@ -99,6 +105,10 @@ switch ($action) {
         echo json_encode(['success' => true, 'token' => _mintSessionToken('crad_apply_tokens')]);
         break;
 
+    case 'generate_assign_token':
+        echo json_encode(['success' => true, 'token' => _mintSessionToken('crad_assign_tokens')]);
+        break;
+
     // ── Read actions ──────────────────────────────────────────────────────────
 
     case 'get_dashboard_stats':
@@ -114,6 +124,85 @@ switch ($action) {
         $oppId = isset($_GET['opportunity_id']) ? (int) $_GET['opportunity_id'] : null;
         $apps  = grantGetApplications($crad, $oppId);
         echo json_encode(['success' => true, 'applications' => $apps, 'count' => count($apps)]);
+        break;
+
+    case 'get_reviewer_assignment_data':
+        $main = db();
+        echo json_encode([
+            'success'      => true,
+            'stats'        => grantReviewerAssignmentStats($crad),
+            'applications' => grantGetApplications($crad),
+            'evaluators'   => $main ? grantGetEligibleEvaluators($main) : [],
+        ]);
+        break;
+
+    // ── Assign an evaluator/reviewer to a submitted proposal ──────────────────
+
+    case 'assign_evaluator':
+        if ($method !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['success' => false, 'message' => 'Method not allowed.']);
+            exit;
+        }
+
+        $input = $_POST;
+        if (empty($input)) {
+            $raw     = file_get_contents('php://input');
+            $decoded = json_decode((string) $raw, true);
+            if (is_array($decoded)) {
+                $input = $decoded;
+            }
+        }
+
+        // One-time token — blocks duplicate/replayed confirmation clicks
+        $token       = trim((string) ($input['token'] ?? ''));
+        $validTokens = $_SESSION['crad_assign_tokens'] ?? [];
+        if ($token === '' || !isset($validTokens[$token])) {
+            $code = ($token === '') ? 400 : 409;
+            http_response_code($code);
+            echo json_encode([
+                'success' => false,
+                'message' => $token === ''
+                    ? 'Assignment token is required.'
+                    : 'This assignment was already submitted or the token expired. Please refresh and try again.',
+            ]);
+            exit;
+        }
+        unset($_SESSION['crad_assign_tokens'][$token]);
+
+        $main = db();
+        if (!$main) {
+            http_response_code(503);
+            echo json_encode(['success' => false, 'message' => 'Main database unavailable.']);
+            exit;
+        }
+
+        $officerId   = (int) ($_SESSION['user_id'] ?? 0);
+        $officerName = trim((string) ($_SESSION['full_name'] ?? $_SESSION['user_name'] ?? $_SESSION['username'] ?? ''));
+
+        $result = grantAssignEvaluator(
+            $crad,
+            $main,
+            (int) ($input['application_id'] ?? 0),
+            (int) ($input['evaluator_user_id'] ?? 0),
+            $officerId,
+            $officerName
+        );
+
+        if ($result['ok']) {
+            echo json_encode([
+                'success'        => true,
+                'message'        => 'Evaluator assigned successfully. The proposal is now Assigned for Review.',
+                'id'             => $result['id'],
+                'evaluator_name' => $result['evaluator_name'],
+                'status'         => 'Assigned for Review',
+                'stats'          => grantReviewerAssignmentStats($crad),
+                'applications'   => grantGetApplications($crad),
+            ]);
+        } else {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => $result['error'] ?? 'Failed to assign evaluator.']);
+        }
         break;
 
     // ── Publish a new grant call (officer only) ───────────────────────────────
