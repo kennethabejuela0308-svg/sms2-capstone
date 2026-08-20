@@ -149,6 +149,10 @@ $studentNavGroups = [
     'Research' => [
         ['slug' => 'research-proposal-submission', 'href' => $studentResearchProposalHref, 'icon' => 'fa-flask',            'label' => 'Research Proposal', 'locked' => false],
     ],
+    'Core System' => [
+        ['slug' => 'grant-opportunities',    'href' => BASE_URL . '/modules/crad/pages/researcher-grant-opportunities.php',   'icon' => 'fa-hand-holding-usd', 'label' => 'Grant Opportunities',        'locked' => false],
+        ['slug' => 'proposals-applications', 'href' => BASE_URL . '/modules/crad/pages/researcher-proposals-applications.php', 'icon' => 'fa-file-alt',          'label' => 'Proposals & Applications', 'locked' => false],
+    ],
     'Research Development' => $studentResearchDevelopmentItems,
     'Document Submission' => [
         ['slug' => 'submit-chapters', 'href' => BASE_URL . '/modules/student-portal/pages/submit-chapters.php', 'icon' => 'fa-file-upload', 'label' => 'Submit Chapter 1-3', 'locked' => false],
@@ -217,6 +221,15 @@ if (!isset($facultyAccountNavGroups['Research Monitoring'])) {
         ['slug' => 'adviser-feedback-history', 'href' => BASE_URL . '/modules/faculty/pages/adviser-feedback-history.php', 'icon' => 'fa-comments', 'label' => 'Adviser Feedback'],
     ];
 }
+
+// ── Core System (research grant workflow) — Research Adviser portal only ────
+// Added ONLY to the Adviser account sidebar. Does not appear for
+// research_director / grammarian / panel (they use their own nav groups),
+// and it is NOT injected into the Reviewer/Evaluator or CRAD Officer sidebars.
+$facultyAccountNavGroups['Core System'] = [
+    ['slug' => 'grant-opportunities',    'href' => BASE_URL . '/modules/crad/pages/researcher-grant-opportunities.php',   'icon' => 'fa-hand-holding-usd', 'label' => 'Grant Opportunities'],
+    ['slug' => 'proposals-applications', 'href' => BASE_URL . '/modules/crad/pages/researcher-proposals-applications.php', 'icon' => 'fa-file-alt',          'label' => 'Proposals & Applications'],
+];
 
 // Continue with existing sections
 $facultyAccountNavGroups += [

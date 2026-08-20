@@ -329,6 +329,14 @@
     color: var(--sms-heading);
 }
 .go-card-meta-value.deadline-past { color: #dc2626; font-weight: 700; }
+.go-card-meta-value.requirements {
+    white-space: pre-wrap;
+    font-weight: 500;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
 
 /* ── Status pill ─────────────────────────────────────────── */
 .go-card-status {

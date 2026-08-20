@@ -6,7 +6,7 @@
  *
  * Actions (GET):
  *   generate_token         → fresh one-time publish token (officer)
- *   generate_apply_token   → fresh one-time proposal-submit token
+ *   generate_apply_token   → fresh one-time proposal-submit token (researchers)
  *   get_dashboard_stats    → aggregated counts
  *   get_opportunities      → full opportunities list
  *   get_applications       → full applications/proposals list
@@ -14,15 +14,25 @@
  *
  * Actions (POST):
  *   publish_opportunity    → create a new grant call (officer)
- *   submit_proposal        → submit a full BRGFAMS Form 1 proposal
+ *   submit_proposal        → submit a full BRGFAMS Form 1 proposal (researchers)
  *                            (multipart/form-data with file uploads)
+ *
+ * ROLE SEPARATION
+ *   CRAD Officers publish and manage grant calls. The researcher Apply Now
+ *   workflow (generate_apply_token / submit_proposal) is enforced server-side
+ *   and rejected for crad_officer / superadmin / admin accounts — those roles
+ *   are grant administrators, not applicants. Eligible researcher accounts
+ *   (student / adviser) may only reach generate_apply_token + submit_proposal;
+ *   all admin-only actions are denied for them.
  *
  * DUPLICATE PREVENTION
  *   Every mutating request must carry a unique one-time token stored
  *   server-side in the session (crad_grant_tokens / crad_apply_tokens).
  *   Tokens expire after 10 minutes. Each token is consumed on first use.
  *
- * ACCESS: crad_officer, superadmin, admin only.
+ * ACCESS:
+ *   - crad_officer, superadmin, admin → all actions.
+ *   - student, adviser               → generate_apply_token, submit_proposal only.
  */
 
 declare(strict_types=1);
@@ -38,13 +48,7 @@ require_once __DIR__ . '/../includes/grant-helpers.php';
 requireAuth();
 
 $roleKey = getCurrentUserRoleKey();
-if (!in_array($roleKey, ['crad_officer', 'superadmin', 'admin'], true)) {
-    http_response_code(403);
-    echo json_encode(['success' => false, 'message' => 'Access denied.']);
-    exit;
-}
-
-$method = $_SERVER['REQUEST_METHOD'];
+$method  = $_SERVER['REQUEST_METHOD'];
 
 // Action may arrive in GET params, POST body (form-data), or JSON body.
 $action = trim((string) ($_GET['action'] ?? ($_POST['action'] ?? '')));
@@ -54,6 +58,25 @@ if ($action === '' && $method === 'POST') {
     if (is_array($decoded)) {
         $action = trim((string) ($decoded['action'] ?? ''));
     }
+}
+
+// ── Role gating ──────────────────────────────────────────────────────────────
+// CRAD Officer / superadmin / admin → grant administrators: full access.
+// Student / Adviser (faculty researcher) → researcher Apply Now workflow only
+// (generate_apply_token + submit_proposal). Every other role is denied.
+$isCradAdmin   = in_array($roleKey, ['crad_officer', 'superadmin', 'admin'], true);
+$isResearcher  = in_array($roleKey, ['student', 'adviser'], true);
+$researcherOnlyActions = ['generate_apply_token', 'submit_proposal'];
+
+if (!$isCradAdmin && !$isResearcher) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Access denied.']);
+    exit;
+}
+if ($isResearcher && !in_array($action, $researcherOnlyActions, true)) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Access denied.']);
+    exit;
 }
 
 try {
@@ -96,6 +119,16 @@ switch ($action) {
         break;
 
     case 'generate_apply_token':
+        // Researcher-facing only. CRAD Officers publish and manage grant calls;
+        // they never apply to their own published grants.
+        if (in_array($roleKey, ['crad_officer', 'superadmin', 'admin'], true)) {
+            http_response_code(403);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Grant applications are only opened for eligible faculty and student researchers.',
+            ]);
+            exit;
+        }
         echo json_encode(['success' => true, 'token' => _mintSessionToken('crad_apply_tokens')]);
         break;
 
@@ -181,6 +214,18 @@ switch ($action) {
         if ($method !== 'POST') {
             http_response_code(405);
             echo json_encode(['success' => false, 'message' => 'Method not allowed.']);
+            exit;
+        }
+
+        // CRAD Officers are grant administrators/publishers. They must NOT be
+        // able to execute the researcher Apply Now workflow against their own
+        // published grant calls (enforced server-side, not just hidden in UI).
+        if (in_array($roleKey, ['crad_officer', 'superadmin', 'admin'], true)) {
+            http_response_code(403);
+            echo json_encode([
+                'success' => false,
+                'message' => 'CRAD Officers cannot submit grant proposals. Only eligible faculty and student researchers may apply.',
+            ]);
             exit;
         }
 

@@ -72,6 +72,11 @@ function grantEnsureTables(PDO $crad): void
             eligibility      VARCHAR(100)    NOT NULL DEFAULT 'Open',
             college_program  VARCHAR(200)    DEFAULT NULL
                 COMMENT 'Populated when eligibility = Specific College/Program',
+            requirements     TEXT            DEFAULT NULL
+                COMMENT 'Grant call requirements defined by the CRAD Officer',
+            researcher_type  ENUM('Faculty','Student','Both')
+                                               NOT NULL DEFAULT 'Both'
+                COMMENT 'Target researcher type: Faculty / Student / Both',
             status           ENUM(
                                  'Open for Application',
                                  'Closed',
@@ -88,6 +93,13 @@ function grantEnsureTables(PDO $crad): void
             KEY idx_go_created_by      (created_by_user_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ");
+
+    // Requirements + researcher type are already present on the live database;
+    // the guarded ALTERs below keep fresh installs in sync (no-ops otherwise).
+    _grantAddColumnIfMissing($crad, 'grant_opportunities', 'requirements',
+        "TEXT DEFAULT NULL COMMENT 'Grant call requirements defined by the CRAD Officer' AFTER college_program");
+    _grantAddColumnIfMissing($crad, 'grant_opportunities', 'researcher_type',
+        "ENUM('Faculty','Student','Both') NOT NULL DEFAULT 'Both' COMMENT 'Target researcher type: Faculty / Student / Both' AFTER requirements");
 
     // ── grant_applications (core columns — original schema) ─────────────────
     $crad->exec("
@@ -197,6 +209,8 @@ function grantGetOpportunities(PDO $crad): array
             go.application_deadline,
             go.eligibility,
             go.college_program,
+            go.requirements,
+            go.researcher_type,
             go.status,
             go.created_by_name,
             go.created_at,
@@ -212,22 +226,18 @@ function grantGetOpportunities(PDO $crad): array
 }
 
 /**
- * Fetch all grant applications (proposals) with their linked opportunity title.
- * Includes all proposal-level columns added for the BRGFAMS Form 1 flow.
+ * Build the SELECT fragment for the optional BRGFAMS Form 1 proposal columns.
  *
- * The SELECT is built dynamically: each new proposal column is only included
- * when it actually exists in the table, so the query never fails on a database
- * that was created before the new columns were added.  grantEnsureTables() must
- * be called before this function to attempt the ALTERs; but if an ALTER did not
- * apply (e.g. insufficient privileges) the SELECT still works.
+ * Each optional column is only included when it actually exists in the table;
+ * otherwise it is aliased as NULL so callers always receive the key. Used by
+ * both grantGetApplications() and grantGetUserApplications() so the two
+ * queries never drift apart.
  *
- * @param  PDO        $crad
- * @param  int|null   $opportunityId  Optional filter by opportunity.
- * @return array<int, array<string, mixed>>
+ * @param  PDO    $crad
+ * @return string Comma-prefixed SELECT fragment (safe to splice into a query).
  */
-function grantGetApplications(PDO $crad, ?int $opportunityId = null): array
+function _grantApplicationColumnsFragment(PDO $crad): string
 {
-    // ── Detect which optional proposal columns are actually present ──────────
     $proposalColumns = [
         'college_dept',
         'requested_budget',
@@ -253,11 +263,9 @@ function grantGetApplications(PDO $crad, ?int $opportunityId = null): array
             $existingColumns[strtolower((string) $colName)] = true;
         }
     } catch (Throwable $e) {
-        error_log('grantGetApplications (INFORMATION_SCHEMA): ' . $e->getMessage());
+        error_log('_grantApplicationColumnsFragment (INFORMATION_SCHEMA): ' . $e->getMessage());
     }
 
-    // Build the optional SELECT fragments — NULL alias when column absent so
-    // callers always get the key in the result array (just null-valued).
     $optionalSelects = '';
     foreach ($proposalColumns as $col) {
         if (!empty($existingColumns[$col])) {
@@ -266,6 +274,26 @@ function grantGetApplications(PDO $crad, ?int $opportunityId = null): array
             $optionalSelects .= ",\n            NULL AS `{$col}`";
         }
     }
+    return $optionalSelects;
+}
+
+/**
+ * Fetch all grant applications (proposals) with their linked opportunity title.
+ * Includes all proposal-level columns added for the BRGFAMS Form 1 flow.
+ *
+ * The SELECT is built dynamically: each new proposal column is only included
+ * when it actually exists in the table, so the query never fails on a database
+ * that was created before the new columns were added.  grantEnsureTables() must
+ * be called before this function to attempt the ALTERs; but if an ALTER did not
+ * apply (e.g. insufficient privileges) the SELECT still works.
+ *
+ * @param  PDO        $crad
+ * @param  int|null   $opportunityId  Optional filter by opportunity.
+ * @return array<int, array<string, mixed>>
+ */
+function grantGetApplications(PDO $crad, ?int $opportunityId = null): array
+{
+    $optionalSelects = _grantApplicationColumnsFragment($crad);
 
     $sql = "
         SELECT
@@ -291,6 +319,58 @@ function grantGetApplications(PDO $crad, ?int $opportunityId = null): array
         $stmt->execute([$opportunityId]);
     } else {
         $stmt = $crad->query($sql . ' ORDER BY ga.submitted_at DESC, ga.id DESC');
+    }
+
+    return $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+}
+
+/**
+ * Fetch only the grant applications (proposals) submitted by one specific user.
+ *
+ * Used by the researcher "Proposals & Applications" pages so each account only
+ * ever sees its own grant proposals — never other researchers' applications.
+ * Mirrors grantGetApplications() (same columns/statuses), just scoped by
+ * applicant_user_id.
+ *
+ * @param  PDO        $crad
+ * @param  int        $userId         applicant_user_id to scope to.
+ * @param  int|null   $opportunityId  Optional filter by opportunity.
+ * @return array<int, array<string, mixed>>
+ */
+function grantGetUserApplications(PDO $crad, int $userId, ?int $opportunityId = null): array
+{
+    if ($userId <= 0) {
+        return [];
+    }
+
+    $optionalSelects = _grantApplicationColumnsFragment($crad);
+
+    $sql = "
+        SELECT
+            ga.id,
+            ga.grant_opportunity_id,
+            go.funding_title,
+            go.max_funding_cap,
+            ga.research_group_id,
+            ga.group_number,
+            ga.research_title,
+            ga.applicant_name" . $optionalSelects . ",
+            ga.applicant_user_id,
+            ga.status,
+            ga.application_notes,
+            ga.submitted_at,
+            ga.updated_at
+        FROM grant_applications ga
+        INNER JOIN grant_opportunities go ON go.id = ga.grant_opportunity_id
+        WHERE ga.applicant_user_id = ?
+    ";
+
+    if ($opportunityId !== null && $opportunityId > 0) {
+        $stmt = $crad->prepare($sql . ' AND ga.grant_opportunity_id = ? ORDER BY ga.submitted_at DESC, ga.id DESC');
+        $stmt->execute([$userId, $opportunityId]);
+    } else {
+        $stmt = $crad->prepare($sql . ' ORDER BY ga.submitted_at DESC, ga.id DESC');
+        $stmt->execute([$userId]);
     }
 
     return $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
@@ -365,12 +445,33 @@ function grantDashboardStats(PDO $crad): array
 }
 
 /**
+ * Map a grant opportunity's eligibility value to the researcher_type column.
+ *
+ * The grant_opportunities.researcher_type column (ENUM Faculty/Student/Both)
+ * represents the target researcher group of a grant call. When the CRAD Officer
+ * does not supply it explicitly it is derived from the existing eligibility
+ * business logic so the two fields never conflict.
+ *
+ * @param  string $eligibility
+ * @return string 'Faculty' | 'Student' | 'Both'
+ */
+function grantResearcherTypeFromEligibility(string $eligibility): string
+{
+    return match (strtolower(trim($eligibility))) {
+        'faculty researchers' => 'Faculty',
+        'student researchers' => 'Student',
+        default               => 'Both',
+    };
+}
+
+/**
  * Publish a new grant opportunity.
  * Returns ['ok' => true, 'id' => int] on success or ['ok' => false, 'error' => string] on failure.
  *
  * @param  PDO    $crad
  * @param  array  $data  Validated input (funding_title, max_funding_cap, application_deadline,
- *                        eligibility, college_program, created_by_user_id, created_by_name).
+ *                        eligibility, college_program, requirements, researcher_type,
+ *                        created_by_user_id, created_by_name).
  * @return array{ok: bool, id?: int, error?: string}
  */
 function grantPublishOpportunity(PDO $crad, array $data): array
@@ -380,6 +481,8 @@ function grantPublishOpportunity(PDO $crad, array $data): array
     $deadline       = trim((string) ($data['application_deadline'] ?? ''));
     $eligibility    = trim((string) ($data['eligibility'] ?? 'Open'));
     $collegeProgram = trim((string) ($data['college_program'] ?? '')) ?: null;
+    $requirements   = trim((string) ($data['requirements'] ?? ''));
+    $researcherType = trim((string) ($data['researcher_type'] ?? ''));
     $createdById    = (int) ($data['created_by_user_id'] ?? 0) ?: null;
     $createdByName  = trim((string) ($data['created_by_name'] ?? ''));
 
@@ -394,6 +497,9 @@ function grantPublishOpportunity(PDO $crad, array $data): array
     }
     if (strtotime($deadline) <= time()) {
         return ['ok' => false, 'error' => 'Application deadline must be a future date.'];
+    }
+    if ($requirements === '') {
+        return ['ok' => false, 'error' => 'Grant requirements are required.'];
     }
 
     $allowedEligibility = [
@@ -410,15 +516,20 @@ function grantPublishOpportunity(PDO $crad, array $data): array
         $collegeProgram = null;
     }
 
+    if (!in_array($researcherType, ['Faculty', 'Student', 'Both'], true)) {
+        $researcherType = grantResearcherTypeFromEligibility($eligibility);
+    }
+
     try {
         $stmt = $crad->prepare("
             INSERT INTO grant_opportunities
                 (funding_title, max_funding_cap, application_deadline,
                  eligibility, college_program,
+                 requirements, researcher_type,
                  status, created_by_user_id, created_by_name,
                  created_at, updated_at)
             VALUES
-                (?, ?, ?, ?, ?,
+                (?, ?, ?, ?, ?, ?, ?,
                  'Open for Application', ?, ?,
                  NOW(), NOW())
         ");
@@ -428,6 +539,8 @@ function grantPublishOpportunity(PDO $crad, array $data): array
             $deadline,
             $eligibility,
             $collegeProgram,
+            $requirements,
+            $researcherType,
             $createdById,
             $createdByName,
         ]);
