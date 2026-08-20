@@ -192,6 +192,7 @@ switch ($action) {
             'application_deadline' => $input['application_deadline']  ?? '',
             'eligibility'          => $input['eligibility']           ?? 'Open',
             'college_program'      => $input['college_program']       ?? '',
+            'requirements'         => $input['requirements']          ?? '',
             'created_by_user_id'   => $userId,
             'created_by_name'      => $userName,
         ]);
