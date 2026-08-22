@@ -23,28 +23,6 @@ $pageBannerDescription = 'Approved proposals appear here first. Click Register t
 
 require_once __DIR__ . '/../../../includes/breadcrumbs.php';
 
-function rpEnsureRegistrationColumns(PDO $pdo): void
-{
-    $columns = [
-        'proposal_number' => "ALTER TABLE research_proposals ADD proposal_number VARCHAR(30) NULL AFTER ref_code",
-        'approved_at' => "ALTER TABLE research_proposals ADD approved_at DATETIME NULL AFTER progress",
-        'registered_at' => "ALTER TABLE research_proposals ADD registered_at DATETIME NULL AFTER approved_at",
-        'registration_status' => "ALTER TABLE research_proposals ADD registration_status ENUM('Pending','Registered') NOT NULL DEFAULT 'Pending' AFTER registered_at",
-    ];
-
-    foreach ($columns as $column => $sql) {
-        $exists = $pdo->query("SHOW COLUMNS FROM research_proposals LIKE " . $pdo->quote($column))->fetch();
-        if (!$exists) {
-            $pdo->exec($sql);
-        }
-    }
-
-    $proposalNumberIndex = $pdo->query("SHOW INDEX FROM research_proposals WHERE Key_name = 'proposal_number'")->fetch();
-    if (!$proposalNumberIndex) {
-        $pdo->exec("ALTER TABLE research_proposals ADD UNIQUE KEY proposal_number (proposal_number)");
-    }
-}
-
 function rpEnsureTitleApprovalColumns(PDO $pdo): void
 {
     $columns = [
@@ -134,17 +112,11 @@ function rpTitleApprovalApprove(int $id, string $signature): bool
     return $stmt->rowCount() > 0;
 }
 
-function rpBuildProposalNumber(int $proposalId): string
-{
-    return 'CRD-' . date('Y') . '-' . str_pad((string) $proposalId, 5, '0', STR_PAD_LEFT);
-}
-
 $formError = '';
 $formSuccess = '';
 
 try {
     $cradPdo = getCradDatabaseConnection();
-    rpEnsureRegistrationColumns($cradPdo);
     rpEnsureTitleApprovalColumns($cradPdo);
 } catch (Throwable $e) {
     error_log('CRAD register setup error: ' . $e->getMessage());
@@ -174,111 +146,31 @@ if (($_GET['ajax'] ?? '') === 'title-approval-approve' && $_SERVER['REQUEST_METH
     exit;
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['process'] ?? '') === 'register-approved-proposal')) {
-    if (!csrfVerify()) {
-        $formError = 'Security check failed. Please try again.';
-    } else {
-        $proposalId = (int) ($_POST['proposal_id'] ?? 0);
-
-        try {
-            $cradPdo = getCradDatabaseConnection();
-            rpEnsureRegistrationColumns($cradPdo);
-            $cradPdo->beginTransaction();
-
-            $stmt = $cradPdo->prepare(
-                "SELECT id, research_title, status, progress, proposal_number, registration_status
-                 FROM research_proposals
-                 WHERE id = :id
-                 LIMIT 1
-                 FOR UPDATE"
-            );
-            $stmt->execute([':id' => $proposalId]);
-            $proposal = $stmt->fetch();
-
-            if (!$proposal) {
-                throw new RuntimeException('Proposal not found.');
-            }
-            if ($proposal['status'] !== 'Approved' || (int) $proposal['progress'] < 100) {
-                throw new RuntimeException('Only approved tracking proposals can be registered.');
-            }
-
-            $proposalNumber = $proposal['proposal_number'] ?: rpBuildProposalNumber((int) $proposal['id']);
-            $upd = $cradPdo->prepare(
-                "UPDATE research_proposals
-                 SET proposal_number = :proposal_number,
-                     registration_status = 'Registered',
-                     registered_at = COALESCE(registered_at, NOW()),
-                     updated_at = NOW()
-                 WHERE id = :id
-                 LIMIT 1"
-            );
-            $upd->execute([
-                ':proposal_number' => $proposalNumber,
-                ':id'              => $proposalId,
-            ]);
-
-            if (($proposal['registration_status'] ?? 'Pending') !== 'Registered') {
-                $log = $cradPdo->prepare(
-                    "INSERT INTO proposal_status_logs
-                        (proposal_id, old_status, new_status, changed_by, remarks)
-                     VALUES
-                        (:proposal_id, 'Approved', 'Approved', :changed_by, :remarks)"
-                );
-                $log->execute([
-                    ':proposal_id' => $proposalId,
-                    ':changed_by'  => (int) ($_SESSION['user_id'] ?? 0) ?: null,
-                    ':remarks'     => 'Registered approved proposal as ' . $proposalNumber,
-                ]);
-            }
-
-            $cradPdo->commit();
-
-            if (function_exists('logActivity')) {
-                logActivity('update', 'Registered approved proposal number:' . $proposalNumber, 'crad');
-            }
-
-            $formSuccess = 'Proposal <strong>' . htmlspecialchars($proposalNumber) . '</strong> has been registered and saved to the database.';
-        } catch (Throwable $e) {
-            if (isset($cradPdo) && $cradPdo instanceof PDO && $cradPdo->inTransaction()) {
-                $cradPdo->rollBack();
-            }
-            error_log('CRAD approved proposal registration error: ' . $e->getMessage());
-            $formError = 'Failed to register proposal. ' . htmlspecialchars($e->getMessage());
-        }
-    }
-}
-
+$titleApprovalPayload = rpTitleApprovalPayload();
+$titleApprovalRows = $titleApprovalPayload['rows'];
 $approvedProposals = [];
 $totalRegistered = 0;
 $totalPendingRegistration = 0;
-$titleApprovalPayload = rpTitleApprovalPayload();
-$titleApprovalRows = $titleApprovalPayload['rows'];
-$rpListView = strtolower(trim((string) ($_GET['view'] ?? 'title'))) === 'approved' ? 'approved' : 'title';
-try {
-    $cradPdo = getCradDatabaseConnection();
-    rpEnsureRegistrationColumns($cradPdo);
-
-    $stmt = $cradPdo->query(
-        "SELECT id, ref_code, proposal_number, research_title, rep_name,
-                college_department, COALESCE(approved_at, updated_at) AS approved_on,
-                registered_at, registration_status
-         FROM research_proposals
-         WHERE status = 'Approved'
-           AND progress >= 100
-         ORDER BY
-           CASE registration_status WHEN 'Pending' THEN 0 ELSE 1 END,
-           COALESCE(approved_at, updated_at) DESC,
-           id DESC"
-    );
-    $approvedProposals = $stmt->fetchAll();
-    $totalRegistered = count(array_filter($approvedProposals, static fn($p) => ($p['registration_status'] ?? 'Pending') === 'Registered'));
-    $totalPendingRegistration = count($approvedProposals) - $totalRegistered;
-} catch (Throwable $e) {
-    error_log('CRAD approved proposal list error: ' . $e->getMessage());
-    if ($formError === '') {
-        $formError = 'Failed to load approved proposals. (' . htmlspecialchars($e->getMessage()) . ')';
+if ($cradPdo instanceof PDO) {
+    try {
+        $proposalStmt = $cradPdo->query(
+            "SELECT id, proposal_number, research_title, rep_name, college_department,
+                    registered_at, approved_at AS approved_on, registration_status, ref_code
+             FROM research_proposals
+             WHERE status = 'Approved'
+             ORDER BY approved_on DESC, id DESC"
+        );
+        $approvedProposals = $proposalStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $totalRegistered = count(array_filter(
+            $approvedProposals,
+            static fn(array $proposal): bool => (string) ($proposal['registration_status'] ?? '') === 'Registered'
+        ));
+        $totalPendingRegistration = count($approvedProposals) - $totalRegistered;
+    } catch (Throwable $e) {
+        error_log('CRAD approved proposal load failed: ' . $e->getMessage());
     }
 }
+$rpListView = 'title';
 
 require_once __DIR__ . '/../../../includes/layout-start.php';
 ?>

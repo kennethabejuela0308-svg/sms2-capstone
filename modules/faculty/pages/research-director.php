@@ -3,6 +3,7 @@ require_once __DIR__ . '/../../../config/config.php';
 require_once ROOT_PATH . '/includes/authentication.php';
 require_once ROOT_PATH . '/includes/breadcrumbs.php';
 require_once ROOT_PATH . '/modules/crad/config/config.php';
+require_once ROOT_PATH . '/modules/crad/includes/research-progress-helpers.php';
 require_once ROOT_PATH . '/modules/faculty/includes/research-director-panel-assignment.php';
 
 requireAuth();
@@ -1008,6 +1009,12 @@ if ($crad) {
                  WHERE research_group_id = ?
                    AND " . rdPanelActiveAssignmentSql('research_panel_assignments')
             )->execute([$scheduleId, $groupId]);
+            $planStmt = $crad->prepare("SELECT id FROM research_plans WHERE research_group_id = ? LIMIT 1");
+            $planStmt->execute([$groupId]);
+            $planId = (int) ($planStmt->fetchColumn() ?: 0);
+            if ($planId > 0) {
+                rpSetCurrentStageIfFirstSemesterComplete($crad, $planId, $groupId);
+            }
             $notify = $crad->prepare(
                 "INSERT IGNORE INTO panel_assignment_notifications
                     (event_key, recipient_user_id, recipient_role, recipient_email, panel_assignment_id,

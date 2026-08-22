@@ -1952,6 +1952,7 @@ INSERT INTO `system_settings` (`setting_key`, `setting_value`, `updated_at`) VAL
 ('min_password_length', '8', '2026-07-22 22:24:44'),
 ('module_kick_epoch_crad', '1784849304', '2026-07-23 15:28:24'),
 ('module_maintenance_crad', '0', '2026-07-23 15:29:22'),
+('crad_active_term', '', CURRENT_TIMESTAMP),
 ('module_maintenance_msg_crad', 'The system is currently under maintenance. Some services may be temporarily unavailable.\r\n\r\nThank you for your patience and understanding.', '2026-07-23 15:05:14'),
 ('password_expiry_days', '0', '2026-07-22 22:24:44'),
 ('require_password_change_first_login', '0', '2026-07-22 22:24:44'),

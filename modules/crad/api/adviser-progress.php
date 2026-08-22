@@ -168,8 +168,9 @@ function handleGetGroupProgress(PDO $crad, int $adviserUserId, string $adviserEm
     // Read only: polling must not create research plans or milestones.
     $plan = rpGetResearchPlan($crad, $groupId);
     
-    // Get milestones with progress
-    $milestones = rpGetMilestonesForPlan($crad, !empty($plan['id']) ? (int) $plan['id'] : null, $groupId);
+    // Get milestones with progress + per-milestone pending/update stats
+    // (same source the Research Progress page renders, so polling stays in sync).
+    $milestones = rpGetMilestonesWithUpdateStats($crad, !empty($plan['id']) ? (int) $plan['id'] : null, $groupId);
     if ($plan) {
         $plan = rpApplySyncedPlanProgress($plan, $milestones);
     }
@@ -364,7 +365,7 @@ function handleSubmitFeedback(PDO $crad, int $adviserUserId, string $adviserEmai
             'body' => 'Your adviser commented on your progress update',
             'related_entity_type' => 'feedback',
             'related_entity_id' => $feedbackId,
-            'action_url' => BASE_URL . '/modules/student-portal/pages/research-progress.php'
+            'action_url' => BASE_URL . '/modules/student-portal/pages/progress-updates.php'
         ]);
         
         $crad->commit();
@@ -658,6 +659,11 @@ function handleApproveProgress(PDO $crad, int $adviserUserId, string $adviserEma
             }
 
             rpRecalculateOverallProgress($crad, (int) $update['research_plan_id']);
+            rpSetCurrentStageIfFirstSemesterComplete(
+                $crad,
+                (int) $update['research_plan_id'],
+                (int) $update['research_group_id']
+            );
         }
         
         rpLogActivity($crad, [

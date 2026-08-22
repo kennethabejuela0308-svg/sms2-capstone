@@ -23,6 +23,24 @@ if (!defined('CRAD_DB_PASS')) {
 if (!defined('CRAD_DB_CHARSET')) {
     define('CRAD_DB_CHARSET', sms2_env('CRAD_DB_CHARSET', sms2_env('SMS2_DB_CHARSET', 'utf8mb4')));
 }
+if (!defined('CRAD_PHASE_1ST_SEM')) {
+    define('CRAD_PHASE_1ST_SEM', '1st Semester');
+}
+if (!defined('CRAD_PHASE_2ND_SEM')) {
+    define('CRAD_PHASE_2ND_SEM', '2nd Semester');
+}
+if (!defined('CRAD_DEFENSE_TYPE_PRE_ORAL')) {
+    define('CRAD_DEFENSE_TYPE_PRE_ORAL', 'Pre-Oral');
+}
+if (!defined('CRAD_DEFENSE_TYPE_FINAL')) {
+    define('CRAD_DEFENSE_TYPE_FINAL', 'Final Defense');
+}
+if (!defined('CRAD_DEFENSE_PHASE_PRE_ORAL')) {
+    define('CRAD_DEFENSE_PHASE_PRE_ORAL', 'Pre-Oral Defense');
+}
+if (!defined('CRAD_DEFENSE_PHASE_FINAL')) {
+    define('CRAD_DEFENSE_PHASE_FINAL', 'Final Defense');
+}
 
 /**
  * Get CRAD database connection (singleton).

@@ -16,6 +16,7 @@ require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../../../includes/breadcrumbs.php';
 require_once __DIR__ . '/../../../modules/crad/config/config.php';
 require_once __DIR__ . '/../../../modules/crad/includes/research-progress-helpers.php';
+require_once __DIR__ . '/../../../modules/crad/includes/final-phase-helpers.php';
 
 $breadcrumbs = [
     ['label' => 'Faculty',                      'url' => BASE_URL . '/modules/faculty/index.php'],
@@ -61,6 +62,37 @@ $researchGroup = $groupContext['group'];
 $groupNumber = (string) $researchGroup['group_number'];
 $groupId = (int) $researchGroup['id'];
 $plan    = rpGetResearchPlan($crad, $groupId);
+$academicPhase = rpGroupAcademicPhase($crad, $groupId);
+$recommendationMessage = null;
+$recommendationMessageType = 'success';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fdr_action'])) {
+    if (!csrfVerify()) {
+        http_response_code(403);
+        $recommendationMessage = 'Security validation failed. Please refresh the page and try again.';
+        $recommendationMessageType = 'danger';
+    } else {
+        $action = (string) $_POST['fdr_action'];
+        if ($action === 'recommend') {
+            $remarks = trim((string) ($_POST['fdr_remarks'] ?? ''));
+            $adviserName = trim((string) ($_SESSION['full_name'] ?? $_SESSION['username'] ?? ''));
+            $saved = fpSaveFinalDefenseRecommendation($crad, $groupId, $groupNumber, $adviserUserId, $adviserName, $remarks);
+            $recommendationMessage = $saved
+                ? 'Final Defense recommendation saved.'
+                : 'The Final Defense recommendation could not be saved.';
+            $recommendationMessageType = $saved ? 'success' : 'danger';
+        } elseif ($action === 'revoke') {
+            $saved = fpClearFinalDefenseRecommendation($crad, $groupId);
+            $recommendationMessage = $saved
+                ? 'Final Defense recommendation revoked.'
+                : 'The Final Defense recommendation could not be revoked.';
+            $recommendationMessageType = $saved ? 'success' : 'danger';
+        }
+    }
+}
+
+finalPhaseEnsureSchema($crad);
+$finalDefenseRecommendation = fpGetFinalDefenseRecommendation($crad, $groupId);
 
 // Milestones
 try {
@@ -145,11 +177,11 @@ $progressColor = $overallProgress >= 80 ? '#10b981' : ($overallProgress >= 40 ? 
                         <span class="rm-hero-stat-label">Total Milestones</span>
                     </div>
                     <div class="rm-hero-stat">
-                        <span class="rm-hero-stat-value"><?= $doneMilestones ?></span>
+                        <span class="rm-hero-stat-value" data-hero-done-total><?= $doneMilestones ?></span>
                         <span class="rm-hero-stat-label">Completed</span>
                     </div>
                     <div class="rm-hero-stat">
-                        <span class="rm-hero-stat-value"><?= $pendingTotal ?></span>
+                        <span class="rm-hero-stat-value" data-hero-pending-total><?= $pendingTotal ?></span>
                         <span class="rm-hero-stat-label">Pending Reviews</span>
                     </div>
                     <?php if (!empty($plan['current_stage'])): ?>
@@ -157,7 +189,7 @@ $progressColor = $overallProgress >= 80 ? '#10b981' : ($overallProgress >= 40 ? 
                         <span class="rm-hero-stat-value" style="font-size:1rem;font-weight:700;">
                             <?= htmlspecialchars($plan['current_stage']) ?>
                         </span>
-                        <span class="rm-hero-stat-label">Current Stage</span>
+                        <span class="rm-hero-stat-label">Current Stage · <?= htmlspecialchars($academicPhase) ?></span>
                     </div>
                     <?php endif; ?>
                 </div>
@@ -233,7 +265,7 @@ $progressColor = $overallProgress >= 80 ? '#10b981' : ($overallProgress >= 40 ? 
                                                 <?= htmlspecialchars($m['status']) ?>
                                             </span>
                                         </td>
-                                        <td>
+                                        <td data-pending-cell>
                                             <?php if ($pend > 0): ?>
                                                 <a href="<?= BASE_URL ?>/modules/faculty/pages/submitted-updates.php?group=<?= urlencode($groupNumber) ?>&milestone_id=<?= $m['id'] ?>"
                                                    class="badge bg-warning text-dark text-decoration-none"
@@ -263,6 +295,56 @@ $progressColor = $overallProgress >= 80 ? '#10b981' : ($overallProgress >= 40 ? 
             <!-- Right column: quick stats + recent activity -->
             <div class="col-lg-4 d-flex flex-column gap-4">
 
+                <!-- Final Defense Recommendation -->
+                <div class="glass-panel">
+                    <div class="glass-panel-body">
+                        <div class="glass-panel-head">
+                            <div>
+                                <h5 class="glass-panel-title">Final Defense Recommendation</h5>
+                                <p class="glass-panel-sub">Record your readiness assessment for this group.</p>
+                            </div>
+                        </div>
+
+                        <?php if ($recommendationMessage): ?>
+                            <div class="alert alert-<?= htmlspecialchars($recommendationMessageType) ?> py-2" role="status">
+                                <?= htmlspecialchars($recommendationMessage) ?>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (($finalDefenseRecommendation['status'] ?? '') === 'Recommended'): ?>
+                            <div class="alert alert-success py-2 mb-3">
+                                <strong><i class="fas fa-check-circle me-1"></i>Recommended</strong>
+                                <div class="small mt-1">
+                                    <?= htmlspecialchars((string) ($finalDefenseRecommendation['final_defense_recommended_by_name'] ?? '')) ?>
+                                    <?php if (!empty($finalDefenseRecommendation['final_defense_recommended_at'])): ?>
+                                        <br><?= date('M d, Y g:i A', strtotime($finalDefenseRecommendation['final_defense_recommended_at'])) ?>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            <?php if (trim((string) ($finalDefenseRecommendation['final_defense_recommendation_remarks'] ?? '')) !== ''): ?>
+                                <p class="small text-muted mb-3"><?= nl2br(htmlspecialchars((string) $finalDefenseRecommendation['final_defense_recommendation_remarks'])) ?></p>
+                            <?php endif; ?>
+                            <form method="post">
+                                <?= csrfField() ?>
+                                <input type="hidden" name="fdr_action" value="revoke">
+                                <button type="submit" class="btn btn-outline-danger btn-sm">
+                                    <i class="fas fa-undo me-1"></i>Revoke Recommendation
+                                </button>
+                            </form>
+                        <?php else: ?>
+                            <form method="post">
+                                <?= csrfField() ?>
+                                <input type="hidden" name="fdr_action" value="recommend">
+                                <label class="form-label small fw-bold" for="fdr_remarks">Remarks (optional)</label>
+                                <textarea class="form-control form-control-sm mb-3" id="fdr_remarks" name="fdr_remarks" rows="3" maxlength="5000" placeholder="Add readiness remarks for the research group."></textarea>
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-flag-checkered me-1"></i>Recommend for Final Defense
+                                </button>
+                            </form>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
                 <!-- Quick Action Cards -->
                 <div class="glass-panel">
                     <div class="glass-panel-body">
@@ -272,9 +354,7 @@ $progressColor = $overallProgress >= 80 ? '#10b981' : ($overallProgress >= 40 ? 
                                class="rm-primary-action" style="justify-content:flex-start;">
                                 <i class="fas fa-inbox"></i>
                                 Review Updates
-                                <?php if ($pendingTotal > 0): ?>
-                                    <span class="badge bg-warning text-dark ms-auto"><?= $pendingTotal ?></span>
-                                <?php endif; ?>
+                                <span class="badge bg-warning text-dark ms-auto<?= $pendingTotal > 0 ? '' : ' d-none' ?>" data-review-updates-badge><?= $pendingTotal ?></span>
                             </a>
                             <a href="<?= BASE_URL ?>/modules/faculty/pages/milestones-overview.php?group=<?= urlencode($groupNumber) ?>"
                                class="rm-sec-action" style="justify-content:flex-start;padding:0.6rem 0.85rem;">

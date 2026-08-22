@@ -414,6 +414,7 @@ $MODULES = [
                 'research-coordinator-management',
                 'research-defense-scheduling',
                 'capstone-group-student-registry',
+                'research-collaboration-portal',
             ],
             'Core System' => [
                 'dashboard-analytics',
@@ -422,6 +423,11 @@ $MODULES = [
             ],
             'Research Documents' => [
                 'documentation-publication-management',
+                'final-manuscript-review',
+                'revision-compliance',
+                'final-manuscript-approval',
+                'publication-create',
+                'research-repository',
             ],
             'Reports' => [
                 'research-analytics-reporting',
@@ -438,6 +444,12 @@ $MODULES = [
             ['slug' => 'grant-opportunities', 'title' => 'Grant Opportunities'],
             ['slug' => 'proposals-applications', 'title' => 'Proposals & Applications'],
             ['slug' => 'documentation-publication-management', 'title' => 'Documentation & Publication Management'],
+            ['slug' => 'final-manuscript-review', 'title' => 'Final Manuscript Review'],
+            ['slug' => 'revision-compliance', 'title' => 'Revision & Compliance'],
+            ['slug' => 'final-manuscript-approval', 'title' => 'Final Manuscript Approval'],
+            ['slug' => 'publication-create', 'title' => 'Create Publication Record'],
+            ['slug' => 'research-repository', 'title' => 'Research Repository'],
+            ['slug' => 'research-collaboration-portal', 'title' => 'Research Collaboration Portal'],
             ['slug' => 'research-analytics-reporting', 'title' => 'Research Analytics & Reporting'],
         ],
     ],

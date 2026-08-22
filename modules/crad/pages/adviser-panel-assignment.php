@@ -6,6 +6,14 @@
 require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../config/config.php';
 require_once ROOT_PATH . '/includes/authentication.php';
+require_once ROOT_PATH . '/modules/crad/includes/chapter-evaluation-workflow.php';
+
+requireAuth();
+$roleKey = getCurrentUserRoleKey();
+if (!in_array($roleKey, ['crad_officer', 'research_coordinator', 'research_director', 'superadmin', 'admin'], true)) {
+    http_response_code(403);
+    exit('Forbidden');
+}
 
 function cradEnsureDefenseScheduleTable(PDO $pdo): void
 {
@@ -21,6 +29,7 @@ function cradEnsureDefenseScheduleTable(PDO $pdo): void
             adviser_name VARCHAR(160) DEFAULT NULL,
             panel_members TEXT DEFAULT NULL,
             panel_chair VARCHAR(160) DEFAULT NULL,
+            defense_type VARCHAR(40) NOT NULL DEFAULT 'Pre-Oral',
             venue VARCHAR(120) DEFAULT NULL,
             defense_datetime DATETIME DEFAULT NULL,
             status VARCHAR(40) NOT NULL DEFAULT 'Ready for Scheduling',
@@ -45,6 +54,7 @@ function cradEnsureDefenseScheduleTable(PDO $pdo): void
         'adviser_name' => "ALTER TABLE research_defense_schedules ADD adviser_name VARCHAR(160) DEFAULT NULL AFTER research_title",
         'panel_members' => "ALTER TABLE research_defense_schedules ADD panel_members TEXT DEFAULT NULL AFTER adviser_name",
         'panel_chair' => "ALTER TABLE research_defense_schedules ADD panel_chair VARCHAR(160) DEFAULT NULL AFTER panel_members",
+        'defense_type' => "ALTER TABLE research_defense_schedules ADD defense_type VARCHAR(40) NOT NULL DEFAULT 'Pre-Oral' AFTER panel_chair",
         'venue' => "ALTER TABLE research_defense_schedules ADD venue VARCHAR(120) DEFAULT NULL AFTER panel_chair",
         'defense_datetime' => "ALTER TABLE research_defense_schedules ADD defense_datetime DATETIME DEFAULT NULL AFTER venue",
         'status' => "ALTER TABLE research_defense_schedules ADD status VARCHAR(40) NOT NULL DEFAULT 'Ready for Scheduling' AFTER defense_datetime",
@@ -143,10 +153,10 @@ function cradRecordDefenseSchedule(PDO $pdo, string $groupNumber, string $propos
     $insert = $pdo->prepare("
         INSERT INTO research_defense_schedules
             (research_group_id, proposal_id, proposal_number, group_number, research_group, research_title,
-             adviser_name, panel_members, panel_chair, status, recorded_by, recorded_at, updated_at)
+             adviser_name, panel_members, panel_chair, defense_type, status, recorded_by, recorded_at, updated_at)
         VALUES
             (:research_group_id, :proposal_id, :proposal_number, :group_number, :research_group, :research_title,
-             :adviser_name, :panel_members, :panel_chair, 'Ready for Scheduling', :recorded_by, NOW(), NOW())
+            :adviser_name, :panel_members, :panel_chair, 'Pre-Oral', 'Ready for Scheduling', :recorded_by, NOW(), NOW())
         ON DUPLICATE KEY UPDATE
             research_group_id = VALUES(research_group_id),
             proposal_id = VALUES(proposal_id),
@@ -156,6 +166,7 @@ function cradRecordDefenseSchedule(PDO $pdo, string $groupNumber, string $propos
             adviser_name = VALUES(adviser_name),
             panel_members = VALUES(panel_members),
             panel_chair = VALUES(panel_chair),
+            defense_type = 'Pre-Oral',
             status = 'Ready for Scheduling',
             recorded_by = VALUES(recorded_by),
             updated_at = NOW()

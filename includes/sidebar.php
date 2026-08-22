@@ -106,6 +106,7 @@ $studentResearchDevelopmentItems = [
     ['slug' => 'milestones',        'href' => BASE_URL . '/modules/student-portal/pages/milestones.php',        'icon' => 'fa-tasks',           'label' => 'Milestones',        'locked' => false],
     ['slug' => 'progress-updates',  'href' => BASE_URL . '/modules/student-portal/pages/progress-updates.php',  'icon' => 'fa-chart-line',      'label' => 'Progress Updates',  'locked' => false],
     ['slug' => 'adviser-feedback',  'href' => BASE_URL . '/modules/student-portal/pages/adviser-feedback.php',  'icon' => 'fa-comments',        'label' => 'Adviser Feedback',  'locked' => false],
+    ['slug' => 'final-manuscript',  'href' => BASE_URL . '/modules/student-portal/pages/final-manuscript.php',  'icon' => 'fa-file-signature',  'label' => 'Final Manuscript',  'locked' => false],
 ];
 
 // ── Check if student has an approved research group ──────────────────────────
@@ -149,10 +150,6 @@ $studentNavGroups = [
     'Research' => [
         ['slug' => 'research-proposal-submission', 'href' => $studentResearchProposalHref, 'icon' => 'fa-flask',            'label' => 'Research Proposal', 'locked' => false],
     ],
-    'Core System' => [
-        ['slug' => 'grant-opportunities',    'href' => BASE_URL . '/modules/crad/pages/researcher-grant-opportunities.php',   'icon' => 'fa-hand-holding-usd', 'label' => 'Grant Opportunities',        'locked' => false],
-        ['slug' => 'proposals-applications', 'href' => BASE_URL . '/modules/crad/pages/researcher-proposals-applications.php', 'icon' => 'fa-file-alt',          'label' => 'Proposals & Applications', 'locked' => false],
-    ],
     'Research Development' => $studentResearchDevelopmentItems,
     'Document Submission' => [
         ['slug' => 'submit-chapters', 'href' => BASE_URL . '/modules/student-portal/pages/submit-chapters.php', 'icon' => 'fa-file-upload', 'label' => 'Submit Chapter 1-3', 'locked' => false],
@@ -174,6 +171,7 @@ if ($studentHasResearchGroup && !isset($studentNavGroups['Research Development']
         ['slug' => 'milestones',        'href' => BASE_URL . '/modules/student-portal/pages/milestones.php',        'icon' => 'fa-tasks',       'label' => 'Milestones',        'locked' => false],
         ['slug' => 'progress-updates',  'href' => BASE_URL . '/modules/student-portal/pages/progress-updates.php',  'icon' => 'fa-chart-line',  'label' => 'Progress Updates',  'locked' => false],
         ['slug' => 'adviser-feedback',  'href' => BASE_URL . '/modules/student-portal/pages/adviser-feedback.php',  'icon' => 'fa-comments',    'label' => 'Adviser Feedback',  'locked' => false],
+        ['slug' => 'final-manuscript',  'href' => BASE_URL . '/modules/student-portal/pages/final-manuscript.php',  'icon' => 'fa-file-signature',  'label' => 'Final Manuscript',  'locked' => false],
     ];
     
     // Insert after 'Research' section, before 'System'
@@ -204,6 +202,7 @@ $facultyAccountNavGroups = [
     ],
     'My Research' => [
         ['slug' => 'assigned-research', 'href' => BASE_URL . '/modules/faculty/pages/assigned-research.php', 'icon' => 'fa-flask', 'label' => 'Assigned Research'],
+        ['slug' => 'final-manuscript-review', 'href' => BASE_URL . '/modules/crad/pages/final-manuscript-review.php', 'icon' => 'fa-file-signature', 'label' => 'Final Manuscript Review'],
         ['slug' => 'research-details', 'href' => BASE_URL . '/modules/faculty/pages/research-details.php', 'icon' => 'fa-file-alt', 'label' => 'Research Details'],
         ['slug' => 'research-progress', 'href' => BASE_URL . '/modules/faculty/pages/research-progress.php', 'icon' => 'fa-tasks', 'label' => 'Research Progress'],
         ['slug' => 'research-documents', 'href' => BASE_URL . '/modules/faculty/pages/research-documents.php', 'icon' => 'fa-folder-open', 'label' => 'Research Documents'],
@@ -214,6 +213,7 @@ $facultyAccountNavGroups = [
 if (!isset($facultyAccountNavGroups['Research Monitoring'])) {
     $facultyAccountNavGroups['Research Monitoring'] = [
         ['slug' => 'my-research-groups', 'href' => BASE_URL . '/modules/faculty/pages/my-research-groups.php', 'icon' => 'fa-users', 'label' => 'My Research Groups'],
+        ['slug' => 'final-defense-revision-monitoring', 'href' => BASE_URL . '/modules/faculty/pages/final-defense-revision-monitoring.php', 'icon' => 'fa-redo', 'label' => 'Final Defense Revisions'],
         ['slug' => 'research-progress-monitoring', 'href' => BASE_URL . '/modules/faculty/pages/research-progress-monitoring.php', 'icon' => 'fa-chart-line', 'label' => 'Research Progress'],
         ['slug' => 'milestones-overview', 'href' => BASE_URL . '/modules/faculty/pages/milestones-overview.php', 'icon' => 'fa-tasks', 'label' => 'Milestones'],
         ['slug' => 'revision-monitoring', 'href' => BASE_URL . '/modules/faculty/pages/revision-monitoring.php', 'icon' => 'fa-redo', 'label' => 'Revision Monitoring'],
@@ -221,15 +221,6 @@ if (!isset($facultyAccountNavGroups['Research Monitoring'])) {
         ['slug' => 'adviser-feedback-history', 'href' => BASE_URL . '/modules/faculty/pages/adviser-feedback-history.php', 'icon' => 'fa-comments', 'label' => 'Adviser Feedback'],
     ];
 }
-
-// ── Core System (research grant workflow) — Research Adviser portal only ────
-// Added ONLY to the Adviser account sidebar. Does not appear for
-// research_director / grammarian / panel (they use their own nav groups),
-// and it is NOT injected into the Reviewer/Evaluator or CRAD Officer sidebars.
-$facultyAccountNavGroups['Core System'] = [
-    ['slug' => 'grant-opportunities',    'href' => BASE_URL . '/modules/crad/pages/researcher-grant-opportunities.php',   'icon' => 'fa-hand-holding-usd', 'label' => 'Grant Opportunities'],
-    ['slug' => 'proposals-applications', 'href' => BASE_URL . '/modules/crad/pages/researcher-proposals-applications.php', 'icon' => 'fa-file-alt',          'label' => 'Proposals & Applications'],
-];
 
 // Continue with existing sections
 $facultyAccountNavGroups += [
@@ -276,6 +267,7 @@ $panelNavGroups = [
         ['slug' => 'defense-details', 'href' => BASE_URL . '/modules/faculty/pages/defense-details.php', 'icon' => 'fa-file-alt', 'label' => 'Defense Details'],
         ['slug' => 'panel-evaluation-scoring', 'href' => BASE_URL . '/modules/faculty/pages/panel-evaluation-scoring.php', 'icon' => 'fa-star-half-alt', 'label' => 'Evaluation & Scoring'],
         ['slug' => 'panel-evaluation-history', 'href' => BASE_URL . '/modules/faculty/pages/panel-evaluation-history.php', 'icon' => 'fa-history', 'label' => 'Evaluation History'],
+        ['slug' => 'panel-final-defense-evaluation', 'href' => BASE_URL . '/modules/faculty/pages/panel-final-defense-evaluation.php', 'icon' => 'fa-clipboard-check', 'label' => 'Final Defense Evaluation'],
     ],
     'PROFILE' => [
         ['slug' => 'my-profile', 'href' => BASE_URL . '/modules/faculty/pages/my-profile.php', 'icon' => 'fa-user', 'label' => 'My Profile'],

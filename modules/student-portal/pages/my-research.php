@@ -23,6 +23,7 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
 renderBreadcrumbs($breadcrumbs);
 require_once __DIR__ . '/../../../modules/crad/config/config.php';
 require_once __DIR__ . '/../../../modules/crad/includes/research-progress-helpers.php';
+require_once __DIR__ . '/../../../modules/crad/includes/final-phase-helpers.php';
 
 // Check if module is properly installed
 try {
@@ -68,10 +69,13 @@ $groupId = (int) $researchGroup['id'];
 
 // Get or create research plan (idempotent)
 $plan = rpGetOrCreateResearchPlan($crad, $groupId);
+finalPhaseEnsureSchema($crad);
+$finalDefenseRecommendation = fpGetFinalDefenseRecommendation($crad, $groupId);
 
 // Get milestones with Chapter 1-3 synced from document submissions
 $milestones = rpGetMilestonesForPlan($crad, (int) $plan['id'], $groupId);
 $plan = rpApplySyncedPlanProgress($plan, $milestones);
+$academicPhase = rpGroupAcademicPhase($crad, $groupId);
 
 // Get latest progress update
 $latestUpdateStmt = $crad->prepare("
@@ -149,6 +153,42 @@ $overallProgress = (float) $plan['overall_progress'];
             </div>
         </div>
 
+        <!-- Final Defense Recommendation -->
+        <div class="glass-panel mb-4">
+            <div class="glass-panel-body">
+                <div class="glass-panel-head">
+                    <div>
+                        <h5 class="glass-panel-title">Final Defense Recommendation</h5>
+                        <p class="glass-panel-sub">Your adviser's current readiness assessment</p>
+                    </div>
+                    <?php if (($finalDefenseRecommendation['status'] ?? '') === 'Recommended'): ?>
+                        <span class="glass-chip" style="color:#047857;background:#d1fae5;">
+                            <i class="fas fa-check-circle"></i> Recommended
+                        </span>
+                    <?php else: ?>
+                        <span class="glass-chip">
+                            <i class="fas fa-clock"></i> Not Yet Recommended
+                        </span>
+                    <?php endif; ?>
+                </div>
+                <?php if (($finalDefenseRecommendation['status'] ?? '') === 'Recommended'): ?>
+                    <div class="small text-muted">
+                        Recommended by <strong><?= htmlspecialchars((string) ($finalDefenseRecommendation['final_defense_recommended_by_name'] ?? '')) ?></strong>
+                        <?php if (!empty($finalDefenseRecommendation['final_defense_recommended_at'])): ?>
+                            on <?= date('M d, Y g:i A', strtotime($finalDefenseRecommendation['final_defense_recommended_at'])) ?>
+                        <?php endif; ?>
+                    </div>
+                    <?php if (trim((string) ($finalDefenseRecommendation['final_defense_recommendation_remarks'] ?? '')) !== ''): ?>
+                        <div class="mt-2" style="white-space:pre-line;color:var(--sms-text);">
+                            <?= htmlspecialchars((string) $finalDefenseRecommendation['final_defense_recommendation_remarks']) ?>
+                        </div>
+                    <?php endif; ?>
+                <?php else: ?>
+                    <p class="text-muted mb-0">Your adviser has not recommended the group for Final Defense yet.</p>
+                <?php endif; ?>
+            </div>
+        </div>
+
         <!-- Overall Progress -->
         <div class="glass-panel mb-4">
             <div class="glass-panel-body">
@@ -174,6 +214,7 @@ $overallProgress = (float) $plan['overall_progress'];
                 <div class="mt-3 text-muted" style="font-size:0.85rem;">
                     <i class="fas fa-info-circle me-1"></i>
                     Current Stage: <strong><?= htmlspecialchars($plan['current_stage']) ?></strong>
+                    <span class="ms-2">Academic Phase: <strong><?= htmlspecialchars($academicPhase) ?></strong></span>
                 </div>
             </div>
         </div>

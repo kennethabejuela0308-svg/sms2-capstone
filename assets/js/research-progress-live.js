@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Research Progress Live Updates
  * Read-only polling for real-time updates
  * 
@@ -20,6 +20,22 @@
             apiBaseUrl: '/modules/crad/api',
             maxRetries: 3,
             retryDelay: 5000
+        },
+
+        /**
+         * Resolve the app's base URL from the current page path so polling
+         * works both at the domain root and inside a subdirectory install
+         * (e.g. /SMS2_system). The legacy hardcoded config.apiBaseUrl broke
+         * every poll request on subdirectory installs.
+         */
+        resolveBaseUrl: function() {
+            const match = window.location.pathname.match(/^(.*\/)modules\//);
+            return match ? match[1] : '/';
+        },
+
+        /** Build an absolute API URL for the given endpoint file. */
+        apiUrl: function(endpoint) {
+            return this.resolveBaseUrl() + 'modules/crad/api/' + endpoint;
         },
 
         state: {
@@ -126,7 +142,7 @@
         pollStudentDashboard: async function() {
             try {
                 const response = await fetch(
-                    `${this.config.apiBaseUrl}/research-progress.php?action=get_research_plan&_=${Date.now()}`,
+                    `${this.apiUrl('research-progress.php')}?action=get_research_plan&_=${Date.now()}`,
                     {
                         method: 'GET',
                         headers: { 'Accept': 'application/json' },
@@ -157,7 +173,7 @@
         pollStudentMilestones: async function() {
             try {
                 const response = await fetch(
-                    `${this.config.apiBaseUrl}/research-progress.php?action=get_milestones&_=${Date.now()}`,
+                    `${this.apiUrl('research-progress.php')}?action=get_milestones&_=${Date.now()}`,
                     {
                         method: 'GET',
                         headers: { 'Accept': 'application/json' },
@@ -189,7 +205,7 @@
         pollStudentFeedback: async function() {
             try {
                 const response = await fetch(
-                    `${this.config.apiBaseUrl}/research-progress.php?action=get_adviser_feedback&_=${Date.now()}`,
+                    `${this.apiUrl('research-progress.php')}?action=get_adviser_feedback&_=${Date.now()}`,
                     {
                         method: 'GET',
                         headers: { 'Accept': 'application/json' },
@@ -222,7 +238,7 @@
         pollAdviserGroups: async function() {
             try {
                 const response = await fetch(
-                    `${this.config.apiBaseUrl}/adviser-progress.php?action=get_assigned_groups&_=${Date.now()}`,
+                    `${this.apiUrl('adviser-progress.php')}?action=get_assigned_groups&_=${Date.now()}`,
                     {
                         method: 'GET',
                         headers: { 'Accept': 'application/json' },
@@ -254,7 +270,7 @@
         pollAdviserUpdates: async function() {
             try {
                 const response = await fetch(
-                    `${this.config.apiBaseUrl}/adviser-progress.php?action=get_progress_updates&_=${Date.now()}`,
+                    `${this.apiUrl('adviser-progress.php')}?action=get_progress_updates&_=${Date.now()}`,
                     {
                         method: 'GET',
                         headers: { 'Accept': 'application/json' },
@@ -293,7 +309,7 @@
 
             try {
                 const response = await fetch(
-                    `${this.config.apiBaseUrl}/adviser-progress.php?action=get_group_progress&group_number=${encodeURIComponent(groupNumber)}&_=${Date.now()}`,
+                    `${this.apiUrl('adviser-progress.php')}?action=get_group_progress&group_number=${encodeURIComponent(groupNumber)}&_=${Date.now()}`,
                     {
                         method: 'GET',
                         headers: { 'Accept': 'application/json' },
@@ -399,7 +415,7 @@
                         }
                     }
 
-                    // Update Panel Remarks block — show when panel_remarks is non-empty,
+                    // Update Panel Remarks block - show when panel_remarks is non-empty,
                     // hide when null/empty. Works on both student and adviser milestone cards.
                     const panelRemarksWrapper = card.querySelector('[data-milestone-panel-remarks]');
                     if (panelRemarksWrapper) {
@@ -419,10 +435,113 @@
                             panelRemarksWrapper.style.display = 'none';
                         }
                     }
+
+                    // Update the adviser Milestone Progress "Pending" cell so a new
+                    // submission shows its Pending badge without a manual reload.
+                    const pendingCell = card.querySelector('[data-pending-cell]');
+                    if (pendingCell && typeof milestone.pending_count !== 'undefined') {
+                        const pend = parseInt(milestone.pending_count || 0, 10);
+                        if (pend > 0) {
+                            const existingLink = pendingCell.querySelector('a');
+                            let href = existingLink ? existingLink.getAttribute('href') : null;
+                            if (!href) {
+                                href = this.resolveBaseUrl() + 'modules/faculty/pages/submitted-updates.php?group=' +
+                                       encodeURIComponent(this.currentGroupNumber()) +
+                                       '&milestone_id=' + encodeURIComponent(milestone.id);
+                            }
+                            pendingCell.innerHTML =
+                                '<a class="badge bg-warning text-dark text-decoration-none" ' +
+                                'style="font-size:0.75rem;padding:0.3rem 0.6rem;" href="' + href + '">' +
+                                '<i class="fas fa-clock me-1"></i>' + pend + '</a>';
+                        } else {
+                            pendingCell.innerHTML = '<span class="text-muted" style="font-size:0.85rem;">-</span>';
+                        }
+                    }
                 }
             });
 
             this.updateLastRefreshTime();
+        },
+
+        /**
+         * Current adviser group number from the page root marker (used to build
+         * Submitted Updates links during live refreshes).
+         */
+        currentGroupNumber: function() {
+            const el = document.querySelector('[data-group-number]');
+            return el ? (el.getAttribute('data-group-number') || '') : '';
+        },
+
+        /**
+         * Mirror of the PHP $statusColors map used by the monitoring pages so
+         * live-rendered rows keep the exact same look.
+         */
+        statusPillStyle: function(status) {
+            const styles = {
+                'Not Started':          { color: '#94a3b8', bg: '#f1f5f9', icon: 'circle' },
+                'In Progress':          { color: '#f59e0b', bg: '#fef3c7', icon: 'spinner' },
+                'Submitted for Review': { color: '#3b82f6', bg: '#dbeafe', icon: 'clock' },
+                'Revision Requested':   { color: '#ef4444', bg: '#fee2e2', icon: 'exclamation-triangle' },
+                'Approved':             { color: '#10b981', bg: '#d1fae5', icon: 'check-circle' },
+                'Completed':            { color: '#059669', bg: '#d1fae5', icon: 'check-double' }
+            };
+            return styles[status] || styles['Not Started'];
+        },
+
+        /** Format 'YYYY-MM-DD HH:MM:SS' as 'M d, g:i A' (same as the PHP templates). */
+        formatRpDate: function(value) {
+            try {
+                const d = new Date(String(value).replace(' ', 'T'));
+                if (isNaN(d.getTime())) { return String(value); }
+                const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                let h = d.getHours();
+                const ap = h >= 12 ? 'PM' : 'AM';
+                h = h % 12 || 12;
+                return months[d.getMonth()] + ' ' + String(d.getDate()).padStart(2, '0') + ', ' +
+                       h + ':' + String(d.getMinutes()).padStart(2, '0') + ' ' + ap;
+            } catch (e) {
+                return String(value);
+            }
+        },
+
+        /**
+         * Re-render the Adviser Recent Activity feed from polled updates,
+         * using the same markup as the server-rendered template.
+         */
+        renderRecentUpdates: function(updates) {
+            const container = document.querySelector('[data-recent-updates-container]');
+            if (!container) { return; }
+            const gnum = encodeURIComponent(this.currentGroupNumber());
+            const self = this;
+            const items = (updates || []).slice(0, 5).map(function(u) {
+                const st = String(u.milestone_status || 'In Progress');
+                const sc = self.statusPillStyle(st);
+                const pct = parseFloat(u.new_progress || 0).toFixed(0);
+                const esc = self.escapeHtml;
+                const milestoneRow = u.milestone_name
+                    ? '<div style="font-size:0.75rem;color:var(--sms-text-muted);font-weight:600;margin-bottom:0.3rem;">' +
+                      '<i class="fas fa-bookmark me-1"></i>' + esc(u.milestone_name) + '</div>'
+                    : '';
+                return '<div style="padding-bottom:0.85rem;border-bottom:1px solid var(--sms-border-soft);">' +
+                    '<div class="d-flex align-items-start justify-content-between gap-2 mb-1">' +
+                    '<div style="font-weight:700;font-size:0.88rem;color:var(--sms-heading);flex:1;min-width:0;' +
+                    '-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;display:-webkit-box;">' + esc(u.update_title) + '</div>' +
+                    '<div style="font-size:1.1rem;font-weight:800;color:' + sc.color + ';flex-shrink:0;">' + pct + '%</div>' +
+                    '</div>' + milestoneRow +
+                    '<div class="d-flex align-items-center justify-content-between gap-2">' +
+                    '<div style="font-size:0.7rem;color:var(--sms-text-muted);"><i class="fas fa-clock me-1"></i>' +
+                    esc(self.formatRpDate(u.submitted_at)) + '</div>' +
+                    '<span class="rm-status-pill" style="background:' + sc.bg + ';color:' + sc.color +
+                    ';font-size:0.65rem;padding:0.18rem 0.55rem;">' + esc(st) + '</span>' +
+                    '</div>' +
+                    '<div class="mt-2"><a href="' + self.resolveBaseUrl() + 'modules/faculty/pages/submitted-updates.php?group=' +
+                    gnum + '&update_id=' + encodeURIComponent(u.id) +
+                    '" style="font-size:0.78rem;font-weight:700;color:var(--sms-primary);text-decoration:none;">' +
+                    '<i class="fas fa-eye me-1"></i>Review →</a></div>' +
+                    '</div>';
+            });
+            if (!items.length) { return; }
+            container.innerHTML = items.join('');
         },
 
         /**
@@ -560,6 +679,32 @@
 
             if (Array.isArray(data.milestones)) {
                 this.updateMilestonesUI(data.milestones);
+
+                // Keep the hero stat cards and the Review Updates quick-action
+                // badge in sync with the live milestone data.
+                let pendingTotal = 0;
+                let doneTotal = 0;
+                data.milestones.forEach(function (m) {
+                    pendingTotal += parseInt(m.pending_count || 0, 10);
+                    if (['Approved', 'Completed'].indexOf(String(m.status || '')) !== -1) {
+                        doneTotal++;
+                    }
+                });
+                const heroPending = document.querySelector('[data-hero-pending-total]');
+                if (heroPending) { heroPending.textContent = String(pendingTotal); }
+                const heroDone = document.querySelector('[data-hero-done-total]');
+                if (heroDone) { heroDone.textContent = String(doneTotal); }
+                const qaBadge = document.querySelector('[data-review-updates-badge]');
+                if (qaBadge) {
+                    qaBadge.textContent = String(pendingTotal);
+                    qaBadge.classList.toggle('d-none', pendingTotal === 0);
+                }
+            }
+
+            // Refresh the Recent Activity feed so the latest submission appears
+            // without a manual reload.
+            if (Array.isArray(data.updates)) {
+                this.renderRecentUpdates(data.updates);
             }
 
             document.dispatchEvent(new CustomEvent('research:group-progress-updated', { 
@@ -592,7 +737,7 @@
             const now = new Date();
             const timeStr = now.toLocaleTimeString();
 
-            // ── New rm-refresh-bar (all redesigned pages) ──────────
+            // â”€â”€ New rm-refresh-bar (all redesigned pages) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             const bar      = document.getElementById('rmRefreshBar');
             const icon     = document.getElementById('rmRefreshIcon');
             const textEl   = document.getElementById('rmRefreshText');
@@ -608,7 +753,7 @@
                 setTimeout(() => bar.classList.remove('rm-just-updated'), 1500);
             }
 
-            // ── Legacy fallback ─────────────────────────────────────
+            // â”€â”€ Legacy fallback â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             const legacy = document.querySelector('[data-last-refresh]');
             if (legacy) {
                 legacy.innerHTML = `<i class="fas fa-sync-alt me-1"></i>Last updated: ${timeStr}`;
@@ -713,3 +858,4 @@
     });
 
 })();
+

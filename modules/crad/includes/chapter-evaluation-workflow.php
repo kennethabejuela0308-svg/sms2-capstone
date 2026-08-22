@@ -638,6 +638,36 @@ function chapterSubmissionEligibility(PDO $crad, int $groupId): array
     return rpChapterSubmissionEligibility($crad, $groupId);
 }
 
+function chapterIsReadyForPreOral(PDO $crad, int $groupId): bool
+{
+    if ($groupId <= 0) {
+        return false;
+    }
+
+    $stmt = $crad->prepare(
+        "SELECT COUNT(*)
+         FROM chapter_submissions latest
+         INNER JOIN (
+             SELECT chapter_number, MAX(version_number) AS version_number
+             FROM chapter_submissions
+             WHERE research_group_id = :group_id
+               AND chapter_number IN (1, 2, 3)
+             GROUP BY chapter_number
+         ) versions
+           ON versions.chapter_number = latest.chapter_number
+          AND versions.version_number = latest.version_number
+         WHERE latest.research_group_id = :latest_group_id
+           AND latest.status = 'Accepted'
+           AND latest.chapter_number IN (1, 2, 3)"
+    );
+    $stmt->execute([
+        ':group_id' => $groupId,
+        ':latest_group_id' => $groupId,
+    ]);
+
+    return (int) $stmt->fetchColumn() === 3;
+}
+
 function chapterSubmitDocument(PDO $crad, array $group, int $chapter, array $file, string $notes, string $token): array
 {
     $registeredGroup = chapterRegisteredStudentGroup($crad);

@@ -909,8 +909,7 @@ function smsNotificationPayloadForCurrentUser(): array
         smsCurrentUserAssignmentNotifications(8),
         $items,
         smsStudentResearchStatusNotifications(),
-        smsStudentReturnedTitleApprovalNotifications(),
-        smsStudentReturnedProposalNotifications()
+        smsStudentReturnedTitleApprovalNotifications()
     ));
 }
 
@@ -1028,76 +1027,7 @@ function smsStudentResearchStatusNotifications(): array
 
 function smsStudentReturnedProposalNotifications(): array
 {
-    if (($_SESSION['user_role_key'] ?? '') !== 'student') {
-        return [];
-    }
-
-    $crad = cradDb();
-    if (!$crad) {
-        return [];
-    }
-
-    $studentId = trim((string) ($_SESSION['student_id'] ?? ''));
-    $studentEmail = strtolower(trim((string) ($_SESSION['user_email'] ?? '')));
-    $studentName = strtolower(trim((string) ($_SESSION['user_name'] ?? '')));
-    $studentUserId = (int) ($_SESSION['user_id'] ?? 0);
-
-    try {
-        $stmt = $crad->prepare(
-            "SELECT ref_code, research_title, notes, updated_at
-             FROM research_proposals
-             WHERE (status = 'Returned' OR (status = 'Approved' AND coordinator_status = 'Returned'))
-               AND (
-                    (:student_id_value <> '' AND rep_id = :student_id_rep)
-                 OR (:student_email_value <> '' AND LOWER(rep_email) = :student_email_rep)
-                 OR (:student_name_value <> '' AND LOWER(TRIM(rep_name)) = :student_name_rep)
-                 OR (:user_id_value > 0 AND submitted_by_user = :user_id_match)
-               )
-             ORDER BY updated_at DESC, id DESC
-             LIMIT 5"
-        );
-        $stmt->execute([
-            ':student_id_value' => $studentId,
-            ':student_id_rep' => $studentId,
-            ':student_email_value' => $studentEmail,
-            ':student_email_rep' => $studentEmail,
-            ':student_name_value' => $studentName,
-            ':student_name_rep' => $studentName,
-            ':user_id_value' => $studentUserId,
-            ':user_id_match' => $studentUserId,
-        ]);
-        $rows = $stmt->fetchAll() ?: [];
-    } catch (Throwable $e) {
-        error_log('Returned proposal notification load failed: ' . $e->getMessage());
-        return [];
-    }
-
-    $readKeys = array_map(
-        static fn($key): string => strtolower(trim((string) $key)),
-        (array) ($_SESSION['read_returned_proposals'] ?? [])
-    );
-
-    return array_map(static function (array $row) use ($readKeys): array {
-        $updated = strtotime((string) ($row['updated_at'] ?? '')) ?: time();
-        $batchKey = 'returned-proposal:' . strtolower(trim((string) ($row['ref_code'] ?? '')));
-        $isUnread = !in_array($batchKey, $readKeys, true);
-        return [
-            'id' => 0,
-            'batch_key' => $batchKey,
-            'icon' => 'fa-undo',
-            'class' => 'text-danger',
-            'label' => 'Proposal returned: ' . (string) ($row['ref_code'] ?? 'Research Proposal'),
-            'body' => (string) ($row['research_title'] ?? ''),
-            'preview' => (string) ($row['research_title'] ?? ''),
-            'status' => $isUnread ? 'unread' : 'read',
-            'is_unread' => $isUnread,
-            'time' => date('M j, Y h:i A', $updated),
-            'url' => smsNotificationViewUrl([
-                'type' => 'returned_proposal',
-                'ref' => (string) ($row['ref_code'] ?? ''),
-            ]),
-        ];
-    }, $rows);
+    return [];
 }
 
 function smsStudentReturnedTitleApprovalNotifications(): array

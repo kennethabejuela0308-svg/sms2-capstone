@@ -317,6 +317,13 @@ function smsResearchCoordinatorCradModule(): array
                 'adviser-availability',
                 'assign-research-adviser',
             ],
+            'Research Documents' => [
+                'final-manuscript-review',
+                'research-repository',
+            ],
+            'Research Collaboration' => [
+                'research-collaboration-portal',
+            ],
             'B. Panel Assignment' => [
                 'retrieve-defense-ready-research',
                 'select-panel-members',
@@ -410,6 +417,10 @@ function requireModuleAccess(string $moduleKey): void
             '/account/security.php',
             '/modules/crad/index.php',
             '/modules/crad/pages/approved-research.php',
+            '/modules/crad/pages/final-manuscript-review.php',
+            '/modules/crad/pages/final-manuscript-approval.php',
+            '/modules/crad/pages/research-repository.php',
+            '/modules/crad/pages/research-collaboration-portal.php',
             '/modules/crad/pages/adviser-panel-assignment.php',
             '/modules/crad/pages/retrieve-approved-research.php',
             '/modules/crad/pages/find-contact-adviser.php',

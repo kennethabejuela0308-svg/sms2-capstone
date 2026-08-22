@@ -119,6 +119,7 @@ $totalPending = array_sum(array_column($assignedGroups, 'pending_reviews'));
                 <?php foreach ($assignedGroups as $group):
                     $progress       = (float) ($group['overall_progress'] ?? 0);
                     $hasPlan        = !empty($group['plan_id']);
+                    $academicPhase  = $hasPlan ? rpGroupAcademicPhase($crad, (int) $group['id']) : '';
                     $pendingReviews = (int)   $group['pending_reviews'];
                     $progressColor  = $progress >= 80 ? '#10b981' : ($progress >= 40 ? '#f59e0b' : '#3b82f6');
                 ?>
@@ -152,6 +153,7 @@ $totalPending = array_sum(array_column($assignedGroups, 'pending_reviews'));
                                     <?php if ($hasPlan && $group['current_stage']): ?>
                                         &nbsp;·&nbsp;<i class="fas fa-map-marker-alt"></i>
                                         <?= htmlspecialchars($group['current_stage']) ?>
+                                        &nbsp;·&nbsp;<?= htmlspecialchars($academicPhase) ?>
                                     <?php endif; ?>
                                 </div>
 

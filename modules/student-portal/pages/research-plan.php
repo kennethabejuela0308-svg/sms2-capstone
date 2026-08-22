@@ -72,6 +72,7 @@ $plan = rpGetOrCreateResearchPlan($crad, $groupId);
 // Get milestones with Chapter 1-3 synced from document submissions
 $milestones = rpGetMilestonesForPlan($crad, (int) $plan['id'], $groupId);
 $plan = rpApplySyncedPlanProgress($plan, $milestones);
+$academicPhase = rpGroupAcademicPhase($crad, $groupId);
 
 $overallProgress = (float) $plan['overall_progress'];
 ?>
@@ -129,6 +130,7 @@ $overallProgress = (float) $plan['overall_progress'];
                             <div style="font-weight:700;color:var(--sms-heading);font-size:1.05rem;">
                                 <i class="fas fa-tasks me-2" style="color:var(--sms-primary);"></i>
                                 <?= htmlspecialchars($plan['current_stage']) ?>
+                                <span class="ms-2"><?= htmlspecialchars($academicPhase) ?></span>
                             </div>
                         </div>
                     </div>

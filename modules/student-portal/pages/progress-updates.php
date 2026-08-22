@@ -485,7 +485,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const selectedOption = milestoneSelect.options[milestoneSelect.selectedIndex];
         const isPending = selectedOption ? selectedOption.getAttribute('data-pending') === '1' : false;
         // If pending, document field is already disabled — no required marker needed.
-        const required = !isPending && selectedChapterNumber() >= 1 && selectedChapterNumber() <= 3 && statusSelect.value === 'Submitted for Review';
+        const required = !isPending && selectedChapterNumber() >= 1 && selectedChapterNumber() <= 5 && statusSelect.value === 'Submitted for Review';
         documentInput.required = required;
         if (documentRequiredMarker) {
             documentRequiredMarker.classList.toggle('d-none', !required);
@@ -692,8 +692,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     isSubmitting = false;
                     setPendingReviewState(result.milestone_name || '', result.submitted_at || '');
                 } else {
-                    // Token-based duplicate (double-click / fast resubmit).
-                    showFormAlert('warning', '<i class="fas fa-copy me-2"></i>Duplicate submission detected. This update was already submitted.');
+                    // Server rejected the submission (duplicate token, approved
+                    // milestone, etc.). Surface the server's actual reason instead
+                    // of assuming every 409 is a duplicate.
+                    const msg    = result.message || 'Duplicate submission detected. This update was already submitted.';
+                    const isDup  = result.is_duplicate || /duplicate/i.test(msg);
+                    showFormAlert(isDup ? 'warning' : 'danger', '<i class="fas fa-copy me-2"></i>' + escapeHtml(msg));
                     restoreSubmitButton();
                 }
                 return;

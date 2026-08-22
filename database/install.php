@@ -167,6 +167,7 @@ $settings = [
     'mail_from_email' => 'noreply@bestlink.edu.ph',
     'mail_from_name' => 'SMS 2',
     'mail_admin_email' => '',
+    'crad_active_term' => '',
     'smtp_host' => '',
     'smtp_port' => '587',
     'smtp_encryption' => 'tls',

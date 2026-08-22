@@ -105,6 +105,116 @@ function rpGetResearchPlan(PDO $crad, int $groupId): ?array
     return $plan ?: null;
 }
 
+function rpGroupAcademicPhase(PDO $crad, int $groupId): string
+{
+    $plan = rpGetResearchPlan($crad, $groupId);
+    if (!$plan || !rpIsFirstSemesterComplete($crad, (int) $plan['id'], $groupId)) {
+        return CRAD_PHASE_1ST_SEM;
+    }
+
+    return CRAD_PHASE_2ND_SEM;
+}
+
+function _rpAddColumnIfMissing(PDO $crad, string $table, string $column, string $definition): void
+{
+    try {
+        $stmt = $crad->prepare(
+            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = ?
+               AND COLUMN_NAME = ?"
+        );
+        $stmt->execute([$table, $column]);
+        if ((int) $stmt->fetchColumn() === 0) {
+            $crad->exec('ALTER TABLE `' . $table . '` ADD COLUMN `' . $column . '` ' . $definition);
+        }
+    } catch (Throwable $e) {
+        error_log("_rpAddColumnIfMissing($table.$column): " . $e->getMessage());
+    }
+}
+
+function rpEnsureFinalDefenseRecommendationSchema(PDO $crad): void
+{
+    _rpAddColumnIfMissing($crad, 'research_plans', 'final_defense_recommended', 'TINYINT(1) NOT NULL DEFAULT 0');
+    _rpAddColumnIfMissing($crad, 'research_plans', 'final_defense_recommended_by', 'INT UNSIGNED DEFAULT NULL');
+    _rpAddColumnIfMissing($crad, 'research_plans', 'final_defense_recommended_by_name', 'VARCHAR(150) DEFAULT NULL');
+    _rpAddColumnIfMissing($crad, 'research_plans', 'final_defense_recommended_at', 'DATETIME DEFAULT NULL');
+    _rpAddColumnIfMissing($crad, 'research_plans', 'final_defense_recommendation_remarks', 'TEXT DEFAULT NULL');
+}
+
+function rpMarkFinalDefenseRecommended(
+    PDO $crad,
+    int $groupId,
+    int $adviserUserId,
+    string $adviserName,
+    string $remarks
+): bool {
+    if ($groupId <= 0 || $adviserUserId <= 0 || trim($adviserName) === '') {
+        return false;
+    }
+
+    rpEnsureFinalDefenseRecommendationSchema($crad);
+    $stmt = $crad->prepare(
+        "UPDATE research_plans
+         SET final_defense_recommended = 1,
+             final_defense_recommended_by = ?,
+             final_defense_recommended_by_name = ?,
+             final_defense_recommended_at = NOW(),
+             final_defense_recommendation_remarks = ?
+         WHERE research_group_id = ?"
+    );
+    $stmt->execute([$adviserUserId, trim($adviserName), trim($remarks), $groupId]);
+    return $stmt->rowCount() >= 0;
+}
+
+function rpRevokeFinalDefenseRecommendation(PDO $crad, int $groupId): bool
+{
+    if ($groupId <= 0) {
+        return false;
+    }
+
+    rpEnsureFinalDefenseRecommendationSchema($crad);
+    $stmt = $crad->prepare(
+        "UPDATE research_plans
+         SET final_defense_recommended = 0,
+             final_defense_recommended_by = NULL,
+             final_defense_recommended_by_name = NULL,
+             final_defense_recommended_at = NULL,
+             final_defense_recommendation_remarks = NULL
+         WHERE research_group_id = ?"
+    );
+    $stmt->execute([$groupId]);
+    return $stmt->rowCount() >= 0;
+}
+
+function rpIsFinalDefenseRecommended(PDO $crad, int $groupId): bool
+{
+    $recommendation = rpGetFinalDefenseRecommendation($crad, $groupId);
+    return !empty($recommendation['final_defense_recommended']);
+}
+
+function rpGetFinalDefenseRecommendation(PDO $crad, int $groupId): ?array
+{
+    if ($groupId <= 0) {
+        return null;
+    }
+
+    rpEnsureFinalDefenseRecommendationSchema($crad);
+    $stmt = $crad->prepare(
+        "SELECT final_defense_recommended,
+                final_defense_recommended_by,
+                final_defense_recommended_by_name,
+                final_defense_recommended_at,
+                final_defense_recommendation_remarks
+         FROM research_plans
+         WHERE research_group_id = ?
+         LIMIT 1"
+    );
+    $stmt->execute([$groupId]);
+    $recommendation = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $recommendation ?: null;
+}
+
 function rpChapterMilestoneNames(): array
 {
     return [
@@ -119,11 +229,11 @@ function rpMilestoneChapterNumber(array $milestone): ?int
     $order = (int) ($milestone['milestone_order'] ?? 0);
     $name = strtolower(trim((string) ($milestone['milestone_name'] ?? '')));
 
-    if ($order >= 1 && $order <= 3 && preg_match('/^chapter\s+' . $order . '\b/i', (string) ($milestone['milestone_name'] ?? ''))) {
+    if ($order >= 1 && $order <= 5 && preg_match('/^chapter\s+' . $order . '\b/i', (string) ($milestone['milestone_name'] ?? ''))) {
         return $order;
     }
 
-    if (preg_match('/^chapter\s+([1-3])\b/i', $name, $matches)) {
+    if (preg_match('/^chapter\s+([1-5])\b/i', $name, $matches)) {
         return (int) $matches[1];
     }
 
@@ -217,6 +327,11 @@ function rpApplyChapterMilestoneOverrides(PDO $crad, int $groupId, array $milest
     // that fires on every milestone read — real-time, no separate cron/webhook needed.
     if ($panelApproved) {
         rpSyncChapterMilestonesFromPanelApproval($crad, $groupId, $panelRecord);
+    }
+
+    $plan = rpGetResearchPlan($crad, $groupId);
+    if ($plan) {
+        rpSetCurrentStageIfFirstSemesterComplete($crad, (int) $plan['id'], $groupId);
     }
 
     foreach ($milestones as &$milestone) {
@@ -491,15 +606,43 @@ function rpAdviserApprovedChapter(PDO $crad, int $groupId, int $chapter): ?array
     return $row ?: null;
 }
 
+function rpPriorMilestonesApproved(PDO $crad, int $planId, int $order): bool
+{
+    if ($order <= 1) {
+        return true;
+    }
+    if ($planId <= 0) {
+        return false;
+    }
+
+    $stmt = $crad->prepare(
+        "SELECT COUNT(*)
+         FROM research_milestones
+         WHERE research_plan_id = ?
+           AND milestone_order < ?
+           AND status NOT IN ('Approved', 'Completed')"
+    );
+    $stmt->execute([$planId, $order]);
+
+    return (int) $stmt->fetchColumn() === 0;
+}
+
 function rpChapterSubmissionEligibility(PDO $crad, int $groupId): array
 {
     $eligibility = [];
     foreach (rpChapterMilestoneNames() as $chapter => $label) {
+        // A chapter becomes submittable in the Submission Form as soon as the
+        // Adviser approves that chapter's latest Progress Update (Research
+        // Development review). Each chapter is independent — real-time from the
+        // database, no sequential/panel-dependent prerequisite.
+        // chapterSubmitDocument() enforces the exact same rule server-side via
+        // rpAdviserApprovedChapter(), so UI and validation always agree.
         $approval = rpAdviserApprovedChapter($crad, $groupId, (int) $chapter);
+        $eligible = (bool) $approval;
         $eligibility[(int) $chapter] = [
             'chapter' => (int) $chapter,
             'label' => $label,
-            'eligible' => (bool) $approval,
+            'eligible' => $eligible,
             'message' => $approval ? 'Ready for Submission' : 'Adviser Approval Required',
             'approval' => $approval,
         ];
@@ -1129,21 +1272,29 @@ function rpSubmitProgressUpdate(PDO $crad, array $data): array
     if ($newProgress < 0 || $newProgress > 100) {
         return ['success' => false, 'message' => 'Progress must be between 0 and 100'];
     }
-    
+
+    // Ensure the attachments table exists BEFORE opening the transaction.
+    // CREATE TABLE is DDL and causes an implicit commit in MySQL/MariaDB,
+    // which used to silently end the transaction mid-submission and crash
+    // on commit(), leaving the client without a success response.
+    if (!empty($data['uploaded_document']) && is_array($data['uploaded_document'])) {
+        rpEnsureProgressAttachmentSchema($crad);
+    }
+
     try {
         $crad->beginTransaction();
-        
+
         // Insert progress update
         $stmt = $crad->prepare("
             INSERT INTO research_progress_updates (
-                research_plan_id, research_group_id, milestone_id, 
+                research_plan_id, research_group_id, milestone_id,
                 submitted_by_user_id, submitted_by_name, update_title,
                 previous_progress, new_progress, milestone_status,
                 accomplishments, problems_blockers, next_planned_activity,
                 attachment_path, attachment_original_name, submission_token
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
-        
+
         $stmt->execute([
             $data['research_plan_id'],
             $data['research_group_id'],
@@ -1161,11 +1312,10 @@ function rpSubmitProgressUpdate(PDO $crad, array $data): array
             $data['attachment_original_name'] ?? null,
             $data['submission_token'] ?? null
         ]);
-        
+
         $updateId = (int) $crad->lastInsertId();
 
         if (!empty($data['uploaded_document']) && is_array($data['uploaded_document'])) {
-            rpEnsureProgressAttachmentSchema($crad);
             $attachment = $data['uploaded_document'];
             $attachStmt = $crad->prepare("
                 INSERT INTO research_progress_attachments (
@@ -1223,7 +1373,9 @@ function rpSubmitProgressUpdate(PDO $crad, array $data): array
         ];
         
     } catch (Throwable $e) {
-        $crad->rollBack();
+        if ($crad->inTransaction()) {
+            $crad->rollBack();
+        }
         error_log('Progress update submission failed: ' . $e->getMessage());
         return [
             'success' => false,
@@ -1464,7 +1616,7 @@ function rpGetRevisionMonitoringGroups(PDO $crad, int $adviserUserId, string $ad
         )
         LEFT JOIN research_panel_assignments rpa
             ON rpa.research_group_id = rg.id
-           AND rpa.defense_phase = 'Pre-Oral Defense'
+           AND rpa.defense_phase = '" . CRAD_DEFENSE_PHASE_PRE_ORAL . "'
            AND rpa.assignment_status = 'Assigned'
         LEFT JOIN preoral_defense_evaluations ev
             ON ev.defense_schedule_id = rds.id
@@ -1623,7 +1775,7 @@ function rpGetRevisionDetail(PDO $crad, int $adviserUserId, string $adviserEmail
                 AND ev.status = 'Submitted'
              LEFT JOIN sms2_db.users u ON u.id = rpa.panel_user_id
              WHERE rpa.research_group_id = :gid
-               AND rpa.defense_phase = 'Pre-Oral Defense'
+               AND rpa.defense_phase = '" . CRAD_DEFENSE_PHASE_PRE_ORAL . "'
                AND rpa.assignment_status = 'Assigned'
              ORDER BY COALESCE(u.full_name, rpa.panel_name, 'Panel Member') ASC"
         );
@@ -1893,7 +2045,7 @@ function rpGetGroupPanelApproval(PDO $crad, int $groupId): ?array
             "SELECT COUNT(DISTINCT panel_user_id)
              FROM research_panel_assignments
              WHERE research_group_id = ?
-               AND defense_phase     = 'Pre-Oral Defense'
+               AND defense_phase     = '" . CRAD_DEFENSE_PHASE_PRE_ORAL . "'
                AND assignment_status = 'Assigned'"
         );
         $assignedStmt->execute([$groupId]);
@@ -1965,6 +2117,78 @@ function rpGetGroupPanelApproval(PDO $crad, int $groupId): ?array
         error_log('rpGetGroupPanelApproval failed: ' . $e->getMessage());
         return null;
     }
+}
+
+function rpIsFirstSemesterComplete(PDO $crad, int $planId, int $groupId): bool
+{
+    if ($planId <= 0 || $groupId <= 0) {
+        return false;
+    }
+
+    $milestoneStmt = $crad->prepare(
+        "SELECT COUNT(*) AS total,
+                SUM(status IN ('Approved', 'Completed')) AS completed
+         FROM research_milestones
+         WHERE research_plan_id = ?"
+    );
+    $milestoneStmt->execute([$planId]);
+    $milestones = $milestoneStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    $totalMilestones = (int) ($milestones['total'] ?? 0);
+    if ($totalMilestones <= 0 || (int) ($milestones['completed'] ?? 0) !== $totalMilestones) {
+        return false;
+    }
+
+    $scheduleStmt = $crad->prepare(
+        "SELECT id
+         FROM research_defense_schedules
+         WHERE research_group_id = ?
+           AND defense_type = '" . CRAD_DEFENSE_TYPE_PRE_ORAL . "'
+           AND LOWER(TRIM(status)) = 'finalized'
+         ORDER BY defense_datetime DESC, id DESC
+         LIMIT 1"
+    );
+    $scheduleStmt->execute([$groupId]);
+    $scheduleId = (int) ($scheduleStmt->fetchColumn() ?: 0);
+    if ($scheduleId <= 0) {
+        return false;
+    }
+
+    $panelStmt = $crad->prepare(
+        "SELECT COUNT(DISTINCT rpa.panel_user_id) AS assigned_count,
+                COUNT(DISTINCT CASE
+                    WHEN ev.status = 'Submitted'
+                     AND ev.result IN ('APPROVED', 'APPROVED WITH REVISION')
+                    THEN rpa.panel_user_id
+                END) AS accepted_count
+         FROM research_panel_assignments rpa
+         LEFT JOIN preoral_defense_evaluations ev
+           ON ev.defense_schedule_id = ?
+          AND ev.panel_user_id = rpa.panel_user_id
+         WHERE rpa.research_group_id = ?
+           AND rpa.defense_phase = '" . CRAD_DEFENSE_PHASE_PRE_ORAL . "'
+           AND rpa.assignment_status = 'Assigned'"
+    );
+    $panelStmt->execute([$scheduleId, $groupId]);
+    $panel = $panelStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    $assignedCount = (int) ($panel['assigned_count'] ?? 0);
+
+    return $assignedCount > 0
+        && (int) ($panel['accepted_count'] ?? 0) === $assignedCount;
+}
+
+function rpSetCurrentStageIfFirstSemesterComplete(PDO $crad, int $planId, int $groupId): bool
+{
+    if (!rpIsFirstSemesterComplete($crad, $planId, $groupId)) {
+        return false;
+    }
+
+    $stmt = $crad->prepare(
+        "UPDATE research_plans
+         SET current_stage = '" . CRAD_DEFENSE_PHASE_PRE_ORAL . "', updated_at = NOW()
+         WHERE id = ? AND research_group_id = ?"
+    );
+    $stmt->execute([$planId, $groupId]);
+    return true;
 }
 
 /**

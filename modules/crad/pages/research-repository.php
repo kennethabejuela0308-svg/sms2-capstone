@@ -4,6 +4,22 @@
  * Module: CRAD
  */
 require_once __DIR__ . '/../../../config/config.php';
+require_once ROOT_PATH . '/includes/authentication.php';
+require_once ROOT_PATH . '/includes/security.php';
+require_once ROOT_PATH . '/modules/crad/config/config.php';
+require_once ROOT_PATH . '/modules/crad/includes/final-phase-helpers.php';
+require_once ROOT_PATH . '/includes/breadcrumbs.php';
+requireAuth();
+if (!in_array(getCurrentUserRoleKey(), ['crad_officer', 'research_coordinator', 'superadmin', 'admin'], true)) { http_response_code(403); exit('Forbidden'); }
+$crad = cradDb(); finalPhaseEnsureSchema($crad);
+$repositoryRows = $crad->query("SELECT p.*, rg.group_number, rg.group_name FROM publications p LEFT JOIN research_groups rg ON rg.id = p.research_group_id WHERE p.status IN ('For Publication','Published','Archived') ORDER BY p.updated_at DESC, p.id DESC")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+$repositoryMetrics = ['total' => count($repositoryRows), 'published' => 0, 'archived' => 0];
+foreach ($repositoryRows as $repositoryRow) { if ($repositoryRow['status'] === 'Published') $repositoryMetrics['published']++; if ($repositoryRow['status'] === 'Archived') $repositoryMetrics['archived']++; }
+$breadcrumbs = [['label' => 'CRAD', 'url' => BASE_URL . '/modules/crad/index.php'], ['label' => 'Research Repository', 'url' => null]];
+require_once ROOT_PATH . '/includes/layout-start.php'; renderBreadcrumbs($breadcrumbs);
+?>
+<div class="glass-dashboard"><div class="glass-board"><div class="row g-3 mb-4"><div class="col-md-4"><div class="glass-panel p-3"><small>Catalogued Records</small><h3><?= $repositoryMetrics['total'] ?></h3></div></div><div class="col-md-4"><div class="glass-panel p-3"><small>Published</small><h3><?= $repositoryMetrics['published'] ?></h3></div></div><div class="col-md-4"><div class="glass-panel p-3"><small>Archived</small><h3><?= $repositoryMetrics['archived'] ?></h3></div></div></div><div class="glass-panel"><div class="glass-panel-body"><h5 class="glass-panel-title">Research Repository</h5><?php if (!$repositoryRows): ?><p class="text-muted">No publication records are ready for the repository.</p><?php else: ?><div class="table-responsive"><table class="table align-middle"><thead><tr><th>Repository Record</th><th>Research Title</th><th>Outlet</th><th>Status</th><th>Updated</th><th>DOI / Link</th></tr></thead><tbody><?php foreach ($repositoryRows as $row): ?><tr><td>REP-<?= (int) $row['id'] ?></td><td><?= e((string) $row['title']) ?><div class="small text-muted"><?= e((string) ($row['group_number'] ?? '')) ?></div></td><td><?= e((string) $row['publication_outlet']) ?></td><td><?= e((string) $row['status']) ?></td><td><?= e((string) $row['updated_at']) ?></td><td><?php if (trim((string) $row['doi_link']) !== ''): ?><a href="<?= e((string) $row['doi_link']) ?>" target="_blank" rel="noopener">Open</a><?php else: ?>Not recorded<?php endif; ?></td></tr><?php endforeach; ?></tbody></table></div><?php endif; ?></div></div></div></div>
+<?php require_once ROOT_PATH . '/includes/layout-end.php'; exit;
 
 $pageTitle    = 'Research Repository';
 $activeModule = 'crad';

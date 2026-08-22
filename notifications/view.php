@@ -20,9 +20,7 @@ $notificationType = trim((string) ($_GET['type'] ?? ''));
 $viewerRole = getCurrentUserRoleKey();
 if ($viewerRole === 'student') {
     $activeModule = 'student_portal';
-    $activePage = $notificationType === 'returned_proposal'
-        ? 'submit-documents'
-        : 'research-proposal-submission';
+    $activePage = 'research-proposal-submission';
     $breadcrumbs = [
         ['label' => 'Student Portal', 'url' => BASE_URL . '/modules/student-portal/pages/dashboard.php'],
         ['label' => 'Notifications', 'url' => null],
@@ -181,86 +179,7 @@ function smsNotificationResearchGroupDetail(): ?array
 
 function smsNotificationReturnedProposalDetail(): ?array
 {
-    if (getCurrentUserRoleKey() !== 'student') {
-        return null;
-    }
-
-    $crad = cradDb();
-    if (!$crad) {
-        return null;
-    }
-
-    $studentId = trim((string) ($_SESSION['student_id'] ?? ''));
-    $studentEmail = strtolower(trim((string) ($_SESSION['user_email'] ?? '')));
-    $studentName = strtolower(trim((string) ($_SESSION['user_name'] ?? '')));
-    $studentUserId = (int) ($_SESSION['user_id'] ?? 0);
-    $ref = trim((string) ($_GET['ref'] ?? ''));
-
-    try {
-        $sql = "SELECT ref_code, research_title, notes, updated_at
-                FROM research_proposals
-                WHERE status = 'Returned'
-                  AND (
-                       (:student_id_value <> '' AND rep_id = :student_id_rep)
-                    OR (:student_email_value <> '' AND LOWER(rep_email) = :student_email_rep)
-                    OR (:student_name_value <> '' AND LOWER(TRIM(rep_name)) = :student_name_rep)
-                    OR (:user_id_value > 0 AND submitted_by_user = :user_id_match)
-                  )";
-        if ($ref !== '') {
-            $sql .= ' AND ref_code = :ref_code';
-        }
-        $sql .= ' ORDER BY updated_at DESC, id DESC LIMIT 1';
-
-        $stmt = $crad->prepare($sql);
-        $params = [
-            ':student_id_value' => $studentId,
-            ':student_id_rep' => $studentId,
-            ':student_email_value' => $studentEmail,
-            ':student_email_rep' => $studentEmail,
-            ':student_name_value' => $studentName,
-            ':student_name_rep' => $studentName,
-            ':user_id_value' => $studentUserId,
-            ':user_id_match' => $studentUserId,
-        ];
-        if ($ref !== '') {
-            $params[':ref_code'] = $ref;
-        }
-        $stmt->execute($params);
-        $row = $stmt->fetch();
-    } catch (Throwable $e) {
-        error_log('Notification returned proposal view failed: ' . $e->getMessage());
-        return null;
-    }
-
-    if (!$row) {
-        return null;
-    }
-
-    $updated = strtotime((string) ($row['updated_at'] ?? '')) ?: time();
-    $philippineNow = smsNotificationPhilippineNow();
-    return [
-        'title' => 'Returned Proposal Status',
-        'badge' => 'Returned',
-        'badge_class' => 'danger',
-        'icon' => 'fa-undo',
-        'time' => $philippineNow['label'],
-        'time_iso' => $philippineNow['iso'],
-        'details' => [
-            ['label' => 'Proposal Reference', 'value' => (string) ($row['ref_code'] ?? '')],
-            ['label' => 'Research Title', 'value' => (string) ($row['research_title'] ?? '')],
-            ['label' => 'Status', 'value' => 'Returned'],
-            ['label' => 'Date Returned', 'value' => date('F j, Y', $updated)],
-        ],
-        'message' => (string) ($row['notes'] ?: 'Returned for revision. Please review the required corrections.'),
-        'actions' => [
-            [
-                'label' => 'Resubmit Documents',
-                'url' => BASE_URL . '/modules/student-portal/pages/submit-documents.php?revision_ref=' . urlencode((string) ($row['ref_code'] ?? '')),
-                'icon' => 'fa-cloud-upload-alt',
-                'class' => 'primary',
-            ],
-        ],
-    ];
+    return smsNotificationReturnedTitleApprovalDetail();
 }
 
 function smsNotificationReturnedTitleApprovalDetail(): ?array
