@@ -65,6 +65,7 @@ $plan    = rpGetResearchPlan($crad, $groupId);
 $academicPhase = rpGroupAcademicPhase($crad, $groupId);
 $recommendationMessage = null;
 $recommendationMessageType = 'success';
+$finalDefenseRecommendationEligible = fpAreAllMilestonesApprovedForFinalDefense($crad, $groupId);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fdr_action'])) {
     if (!csrfVerify()) {
@@ -75,12 +76,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fdr_action'])) {
         $action = (string) $_POST['fdr_action'];
         if ($action === 'recommend') {
             $remarks = trim((string) ($_POST['fdr_remarks'] ?? ''));
-            $adviserName = trim((string) ($_SESSION['full_name'] ?? $_SESSION['username'] ?? ''));
-            $saved = fpSaveFinalDefenseRecommendation($crad, $groupId, $groupNumber, $adviserUserId, $adviserName, $remarks);
-            $recommendationMessage = $saved
-                ? 'Final Defense recommendation saved.'
-                : 'The Final Defense recommendation could not be saved.';
-            $recommendationMessageType = $saved ? 'success' : 'danger';
+            $adviserName = trim((string) ($_SESSION['user_name'] ?? $_SESSION['full_name'] ?? $_SESSION['username'] ?? ''));
+            if (!$finalDefenseRecommendationEligible) {
+                $recommendationMessage = 'Final Defense recommendation can only be saved after all milestones are approved.';
+                $recommendationMessageType = 'warning';
+            } else {
+                $saved = fpSaveFinalDefenseRecommendation($crad, $groupId, $groupNumber, $adviserUserId, $adviserName, $remarks);
+                $recommendationMessage = $saved
+                    ? 'Final Defense recommendation saved.'
+                    : 'The Final Defense recommendation could not be saved.';
+                $recommendationMessageType = $saved ? 'success' : 'danger';
+            }
         } elseif ($action === 'revoke') {
             $saved = fpClearFinalDefenseRecommendation($crad, $groupId);
             $recommendationMessage = $saved
@@ -335,9 +341,14 @@ $progressColor = $overallProgress >= 80 ? '#10b981' : ($overallProgress >= 40 ? 
                             <form method="post">
                                 <?= csrfField() ?>
                                 <input type="hidden" name="fdr_action" value="recommend">
+                                <?php if (!$finalDefenseRecommendationEligible): ?>
+                                    <div class="alert alert-warning py-2 mb-3">
+                                        All milestones must be approved before recommending this group for Final Defense.
+                                    </div>
+                                <?php endif; ?>
                                 <label class="form-label small fw-bold" for="fdr_remarks">Remarks (optional)</label>
                                 <textarea class="form-control form-control-sm mb-3" id="fdr_remarks" name="fdr_remarks" rows="3" maxlength="5000" placeholder="Add readiness remarks for the research group."></textarea>
-                                <button type="submit" class="btn btn-primary btn-sm">
+                                <button type="submit" class="btn btn-primary btn-sm" <?= $finalDefenseRecommendationEligible ? '' : 'disabled' ?>>
                                     <i class="fas fa-flag-checkered me-1"></i>Recommend for Final Defense
                                 </button>
                             </form>

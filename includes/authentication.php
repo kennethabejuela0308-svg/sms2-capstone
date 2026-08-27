@@ -317,10 +317,6 @@ function smsResearchCoordinatorCradModule(): array
                 'adviser-availability',
                 'assign-research-adviser',
             ],
-            'Research Documents' => [
-                'final-manuscript-review',
-                'research-repository',
-            ],
             'Research Collaboration' => [
                 'research-collaboration-portal',
             ],

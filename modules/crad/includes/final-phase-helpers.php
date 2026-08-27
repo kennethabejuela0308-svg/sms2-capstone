@@ -149,9 +149,32 @@ function fpIsRecommendedForFinalDefense(PDO $crad, int $groupId): bool
     return (string) ($row['status'] ?? '') === 'Recommended';
 }
 
+function fpAreAllMilestonesApprovedForFinalDefense(PDO $crad, int $groupId): bool
+{
+    if ($groupId <= 0) {
+        return false;
+    }
+
+    $stmt = $crad->prepare(
+        "SELECT COUNT(rm.id) AS total_count,
+                SUM(CASE WHEN rm.status IN ('Approved', 'Completed') THEN 1 ELSE 0 END) AS approved_count
+         FROM research_plans rp
+         INNER JOIN research_milestones rm ON rm.research_plan_id = rp.id
+         WHERE rp.research_group_id = ?"
+    );
+    $stmt->execute([$groupId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+    $totalCount = (int) ($row['total_count'] ?? 0);
+    return $totalCount > 0 && (int) ($row['approved_count'] ?? 0) === $totalCount;
+}
+
 function fpSaveFinalDefenseRecommendation(PDO $crad, int $groupId, string $groupNumber, int $adviserUserId, string $adviserName, string $remarks): bool
 {
     if ($groupId <= 0 || $adviserUserId <= 0 || trim($adviserName) === '') {
+        return false;
+    }
+    if (!fpAreAllMilestonesApprovedForFinalDefense($crad, $groupId)) {
         return false;
     }
 
@@ -193,7 +216,14 @@ function fpGetFinalDefenseRecommendation(PDO $crad, int $groupId): ?array
     $stmt = $crad->prepare("SELECT * FROM final_defense_recommendations WHERE research_group_id = ? LIMIT 1");
     $stmt->execute([$groupId]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($row) return $row;
+    if ($row) {
+        $row['final_defense_recommended'] = (string) ($row['status'] ?? '') === 'Recommended' ? 1 : 0;
+        $row['final_defense_recommended_by'] = $row['adviser_user_id'] ?? null;
+        $row['final_defense_recommended_by_name'] = $row['adviser_name'] ?? '';
+        $row['final_defense_recommended_at'] = $row['recommended_at'] ?? null;
+        $row['final_defense_recommendation_remarks'] = $row['remarks'] ?? null;
+        return $row;
+    }
     return null;
 }
 
