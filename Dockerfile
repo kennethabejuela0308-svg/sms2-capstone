@@ -8,8 +8,6 @@ RUN apt-get update \
     && a2enmod headers rewrite \
     && rm -rf /var/lib/apt/lists/*
 
-# Build this Dockerfile with the repository root as the Docker context:
-# docker build -f modules/crad/Dockerfile .
 COPY . /var/www/html/
 
 WORKDIR /var/www/html/
