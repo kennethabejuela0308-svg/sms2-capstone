@@ -15,6 +15,7 @@ $types = $mpl['types'] ?? ['All Types'];
 $listTitle = $mpl['list_title'] ?? 'Record List';
 $listSubtitle = $mpl['list_subtitle'] ?? 'View and manage all records.';
 $showAddButton = array_key_exists('show_add_button', $mpl) ? (bool) $mpl['show_add_button'] : true;
+$showArchiveButton = array_key_exists('show_archive_button', $mpl) ? (bool) $mpl['show_archive_button'] : true;
 $showPager = array_key_exists('show_pager', $mpl) ? (bool) $mpl['show_pager'] : true;
 $columns = $mpl['columns'] ?? [
     'ref' => 'Reference No.',
@@ -98,12 +99,14 @@ $statusClass = static function (string $class, string $status): string {
                     <i class="fas fa-arrow-left" aria-hidden="true"></i>Active list
                 </a>
             <?php else: ?>
-                <a class="mpl-btn mpl-btn-soft" href="?view=archive">
-                    <i class="fas fa-archive" aria-hidden="true"></i>Archive
-                    <?php if ($archiveCount > 0): ?>
-                        <span class="mpl-btn-count"><?= (int) $archiveCount ?></span>
-                    <?php endif; ?>
-                </a>
+                <?php if ($showArchiveButton): ?>
+                    <a class="mpl-btn mpl-btn-soft" href="?view=archive">
+                        <i class="fas fa-archive" aria-hidden="true"></i>Archive
+                        <?php if ($archiveCount > 0): ?>
+                            <span class="mpl-btn-count"><?= (int) $archiveCount ?></span>
+                        <?php endif; ?>
+                    </a>
+                <?php endif; ?>
                 <?php if ($showAddButton): ?>
                     <a class="mpl-btn mpl-btn-primary" href="?process=<?= htmlspecialchars(urlencode($addProcess)) ?>">
                         <i class="fas fa-plus" aria-hidden="true"></i><?= htmlspecialchars($addLabelDisplay) ?>

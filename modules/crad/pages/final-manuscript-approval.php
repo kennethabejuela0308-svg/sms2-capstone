@@ -19,8 +19,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$submission || !fpIsManuscriptApproved($crad, $groupId)) $error = 'The latest manuscript must be evaluated as approved first.';
         elseif (!fpIsEligibleForFinalApproval($crad, $groupId)) $error = 'Final Defense evaluation or revision compliance is not complete.';
         else {
-            $stmt = $crad->prepare("INSERT INTO final_manuscript_approvals (research_group_id, approved_by_user, approved_by_name, status, remarks, approved_at) VALUES (?, ?, ?, 'Approved', ?, NOW()) ON DUPLICATE KEY UPDATE approved_by_user = VALUES(approved_by_user), approved_by_name = VALUES(approved_by_name), status = 'Approved', remarks = VALUES(remarks), approved_at = NOW()");
-            $stmt->execute([$groupId, (int) ($_SESSION['user_id'] ?? 0), (string) ($_SESSION['full_name'] ?? $_SESSION['username'] ?? ''), $remarks]);
+            $stmt = $crad->prepare("INSERT INTO final_manuscript_approvals (research_group_id, defense_schedule_id, approved_by_user, approved_by_name, status, remarks, approved_at) VALUES (?, ?, ?, ?, 'Approved', ?, NOW()) ON DUPLICATE KEY UPDATE defense_schedule_id = VALUES(defense_schedule_id), approved_by_user = VALUES(approved_by_user), approved_by_name = VALUES(approved_by_name), status = 'Approved', remarks = VALUES(remarks), approved_at = NOW()");
+            $stmt->execute([$groupId, (int) (fpGetFinalDefenseSchedule($crad, $groupId)['id'] ?? 0) ?: null, (int) ($_SESSION['user_id'] ?? 0), (string) ($_SESSION['full_name'] ?? $_SESSION['username'] ?? ''), $remarks]);
             fpNotifyFinalManuscriptApproval(
                 $crad,
                 $submission,

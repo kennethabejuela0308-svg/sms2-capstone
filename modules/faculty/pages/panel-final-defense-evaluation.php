@@ -43,6 +43,12 @@ if (!$crad instanceof PDO) {
 }
 
 $defense = $crad instanceof PDO && $selectedId > 0 ? finalDefenseAssignedSchedule($crad, $selectedId) : null;
+if ($defense && $defense['evaluation_id'] !== null) {
+    $defense = null;
+    if ($error === '') {
+        $error = 'This Final Defense already has your evaluation.';
+    }
+}
 $rows = $crad instanceof PDO ? finalDefenseRows($crad, $showHistory) : [];
 ?>
 

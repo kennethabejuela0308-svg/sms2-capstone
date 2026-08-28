@@ -37,7 +37,6 @@ function cradEnsureDefenseScheduleTable(PDO $pdo): void
             recorded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
-            UNIQUE KEY uniq_rds_group_number (group_number),
             KEY idx_rds_proposal_id (proposal_id),
             KEY idx_rds_proposal_number (proposal_number),
             KEY idx_rds_status (status)
@@ -67,6 +66,15 @@ function cradEnsureDefenseScheduleTable(PDO $pdo): void
         if (!$pdo->query("SHOW COLUMNS FROM research_defense_schedules LIKE " . $pdo->quote($column))->fetch()) {
             $pdo->exec($sql);
         }
+    }
+
+    try {
+        $legacyUnique = $pdo->query("SHOW INDEX FROM research_defense_schedules WHERE Key_name = 'uniq_rds_group_number' AND Non_unique = 0")->fetch();
+        if ($legacyUnique) {
+            $pdo->exec('ALTER TABLE research_defense_schedules DROP INDEX uniq_rds_group_number');
+        }
+    } catch (Throwable $e) {
+        error_log('CRAD schedule index cleanup failed: ' . $e->getMessage());
     }
 
     foreach ([

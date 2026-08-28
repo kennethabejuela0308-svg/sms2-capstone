@@ -31,6 +31,10 @@ function finalDefenseEnsureSchema(PDO $crad): void
             KEY idx_final_status (status)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
+    $idColumn = $crad->query("SHOW COLUMNS FROM final_defense_evaluations LIKE 'id'")->fetch(PDO::FETCH_ASSOC);
+    if ($idColumn && stripos((string) ($idColumn['Extra'] ?? ''), 'auto_increment') === false) {
+        $crad->exec("ALTER TABLE final_defense_evaluations MODIFY id INT UNSIGNED NOT NULL AUTO_INCREMENT");
+    }
 }
 
 function finalDefenseRequirePanelMember(): void
@@ -45,6 +49,61 @@ function finalDefenseRequirePanelMember(): void
 function finalDefenseDb(): ?PDO
 {
     return function_exists('cradDb') ? cradDb() : null;
+}
+
+function finalDefenseCurrentPanelId(PDO $crad): int
+{
+    $sessionName = trim((string) ($_SESSION['user_name'] ?? ''));
+    $sessionEmail = strtolower(trim((string) ($_SESSION['user_email'] ?? '')));
+    $assignmentIdentities = [
+        ['column' => 'panel_name', 'value' => $sessionName, 'expression' => 'TRIM(panel_name)'],
+        ['column' => 'panel_email', 'value' => $sessionEmail, 'expression' => 'LOWER(TRIM(panel_email))'],
+    ];
+    foreach ($assignmentIdentities as $identity) {
+        if ($identity['value'] === '') {
+            continue;
+        }
+        try {
+            $stmt = $crad->prepare(
+                "SELECT panel_user_id
+                 FROM research_panel_assignments
+                 WHERE {$identity['expression']} = ?
+                   AND defense_phase = 'Final Defense'
+                   AND assignment_status = 'Assigned'
+                 ORDER BY id DESC
+                 LIMIT 1"
+            );
+            $stmt->execute([$identity['value']]);
+            $panelId = (int) ($stmt->fetchColumn() ?: 0);
+            if ($panelId > 0) {
+                return $panelId;
+            }
+        } catch (Throwable $e) {
+            error_log('Final Defense assignment identity lookup failed: ' . $e->getMessage());
+        }
+    }
+
+    foreach ([
+        ['column' => 'full_name', 'value' => $sessionName],
+        ['column' => 'email', 'value' => $sessionEmail],
+    ] as $identity) {
+        if ($identity['value'] === '') {
+            continue;
+        }
+        try {
+            $operator = $identity['column'] === 'email' ? 'LOWER(TRIM(email))' : 'TRIM(full_name)';
+            $stmt = $crad->prepare("SELECT id FROM sms2_db.users WHERE {$operator} = ? AND role_key = 'panel' LIMIT 1");
+            $stmt->execute([$identity['value']]);
+            $userId = (int) ($stmt->fetchColumn() ?: 0);
+            if ($userId > 0) {
+                return $userId;
+            }
+        } catch (Throwable $e) {
+            error_log('Final Defense panel identity lookup failed: ' . $e->getMessage());
+        }
+    }
+
+    return (int) (getCurrentUserId() ?? 0);
 }
 
 function finalDefenseRubric(): array
@@ -68,25 +127,32 @@ function finalDefenseAssignedSchedule(PDO $crad, int $scheduleId): ?array
                 rds.research_title, rds.adviser_name, rds.venue,
                 rds.defense_datetime, rds.defense_end_datetime, rds.status,
                 rds.defense_type,
-                rpa.panel_name,
-                (SELECT fde.id FROM final_defense_evaluations fde
+                                rpa.panel_user_id AS assigned_panel_user_id,
+                                rpa.panel_name,
+                                (SELECT fde.id FROM final_defense_evaluations fde
                  WHERE fde.defense_schedule_id = rds.id
-                   AND fde.panel_user_id = :panel_id_check
+                                     AND fde.panel_user_id = rpa.panel_user_id
                  LIMIT 1) AS evaluation_id
          FROM research_defense_schedules rds
          INNER JOIN research_panel_assignments rpa
            ON rpa.research_group_id = rds.research_group_id
-          AND rpa.panel_user_id = :panel_id
-          AND rpa.defense_phase = 'Final Defense'
+                    AND rpa.defense_schedule_id = rds.id
+           AND rpa.defense_phase = 'Final Defense'
           AND rpa.assignment_status = 'Assigned'
+                    AND rpa.panel_user_id = :panel_id
          WHERE rds.id = :schedule_id
            AND LOWER(TRIM(COALESCE(rds.defense_type, ''))) = 'final defense'
            AND rds.defense_datetime IS NOT NULL
+           AND EXISTS (
+                SELECT 1
+                FROM research_groups rg_gate
+                WHERE rg_gate.id = rds.research_group_id
+                  AND " . cradOfficialRegistryGroupWhereSql('rg_gate') . "
+           )
          LIMIT 1"
     );
-    $panelId = (int) getCurrentUserId();
+    $panelId = finalDefenseCurrentPanelId($crad);
     $stmt->execute([
-        ':panel_id_check' => $panelId,
         ':panel_id' => $panelId,
         ':schedule_id' => $scheduleId,
     ]);
@@ -97,7 +163,7 @@ function finalDefenseAssignedSchedule(PDO $crad, int $scheduleId): ?array
 function finalDefenseRows(PDO $crad, bool $history = false): array
 {
     finalDefenseEnsureSchema($crad);
-    $panelId = (int) getCurrentUserId();
+    $panelId = finalDefenseCurrentPanelId($crad);
     $evaluationFilter = $history ? 'fde.id IS NOT NULL' : 'fde.id IS NULL';
 
     $stmt = $crad->prepare(
@@ -110,6 +176,7 @@ function finalDefenseRows(PDO $crad, bool $history = false): array
          FROM research_defense_schedules rds
          INNER JOIN research_panel_assignments rpa
            ON rpa.research_group_id = rds.research_group_id
+          AND rpa.defense_schedule_id = rds.id
           AND rpa.panel_user_id = :panel_id
           AND rpa.defense_phase = 'Final Defense'
           AND rpa.assignment_status = 'Assigned'
@@ -119,6 +186,12 @@ function finalDefenseRows(PDO $crad, bool $history = false): array
          WHERE LOWER(TRIM(COALESCE(rds.defense_type, ''))) = 'final defense'
            AND rds.defense_datetime IS NOT NULL
            AND LOWER(rds.status) IN ('scheduled', 'finalized', 'final', 'completed', 'passed', 'failed')
+           AND EXISTS (
+                SELECT 1
+                FROM research_groups rg_gate
+                WHERE rg_gate.id = rds.research_group_id
+                  AND " . cradOfficialRegistryGroupWhereSql('rg_gate') . "
+           )
            AND {$evaluationFilter}
          ORDER BY rds.defense_datetime DESC, rds.id DESC"
     );
@@ -135,7 +208,7 @@ function finalDefenseSubmitEvaluation(PDO $crad, int $scheduleId, array $data): 
     if (!$defense) {
         return ['ok' => false, 'error' => 'This Final Defense is not assigned to your panel account.'];
     }
-    if (!empty($defense['evaluation_id'])) {
+    if ($defense['evaluation_id'] !== null) {
         return ['ok' => false, 'error' => 'This Final Defense already has your evaluation.'];
     }
 
@@ -168,7 +241,7 @@ function finalDefenseSubmitEvaluation(PDO $crad, int $scheduleId, array $data): 
         $stmt->execute([
             $scheduleId,
             (int) ($defense['research_group_id'] ?? 0) ?: null,
-            (int) getCurrentUserId(),
+            (int) ($defense['assigned_panel_user_id'] ?? finalDefenseCurrentPanelId($crad)),
             getCurrentUserName(),
             $scores['content'],
             $scores['methodology'],

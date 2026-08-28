@@ -37,13 +37,64 @@ if ($groupId > 0 && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 if ($groupId > 0) { $stmt = $crad->prepare('SELECT * FROM manuscript_submissions WHERE research_group_id = ? ORDER BY version_number DESC'); $stmt->execute([$groupId]); $submissions = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: []; }
+$isFinalManuscriptEligible = $groupId > 0 && fpIsRecommendedForFinalDefense($crad, $groupId);
+function renderFinalManuscriptEligibilityBlock(bool $eligible): void
+{
+    if ($eligible): ?>
+        <form method="post" enctype="multipart/form-data">
+            <?= csrfField() ?>
+            <div class="mb-3"><label class="form-label">Full Chapter 1-5 Manuscript</label><input class="form-control" type="file" name="manuscript_file" accept=".pdf,.doc,.docx" required></div>
+            <div class="mb-3"><label class="form-label">Submission Notes</label><textarea class="form-control" name="submission_notes" rows="3"></textarea></div>
+            <button class="btn btn-primary" type="submit"><i class="fas fa-upload me-1"></i>Submit Manuscript</button>
+        </form>
+    <?php else: ?>
+        <div class="alert alert-warning">Not yet eligible. Final Defense Recommendation is required.</div>
+    <?php endif;
+}
+if (($_GET['ajax'] ?? '') === 'eligibility') {
+    header('Content-Type: application/json; charset=utf-8');
+    ob_start();
+    renderFinalManuscriptEligibilityBlock($isFinalManuscriptEligible);
+    echo json_encode(['ok' => true, 'eligible' => $isFinalManuscriptEligible, 'html' => trim((string) ob_get_clean())]);
+    exit;
+}
 $breadcrumbs = [['label' => 'Student Portal', 'url' => BASE_URL . '/modules/student-portal/pages/dashboard.php'], ['label' => 'Final Manuscript', 'url' => null]];
 require_once ROOT_PATH . '/includes/layout-start.php'; renderBreadcrumbs($breadcrumbs);
 ?>
 <div class="glass-dashboard"><div class="glass-board"><div class="glass-panel"><div class="glass-panel-body">
 <h5 class="glass-panel-title">Final Chapter 1-5 Manuscript</h5><p class="glass-panel-sub">Submit the consolidated manuscript after adviser recommendation.</p>
 <?php if ($message): ?><div class="alert alert-success"><?= e($message) ?></div><?php endif; ?><?php if ($error): ?><div class="alert alert-danger"><?= e($error) ?></div><?php endif; ?>
-<?php if ($groupId > 0 && fpIsRecommendedForFinalDefense($crad, $groupId)): ?><form method="post" enctype="multipart/form-data"><?= csrfField() ?><div class="mb-3"><label class="form-label">Full Chapter 1-5 Manuscript</label><input class="form-control" type="file" name="manuscript_file" accept=".pdf,.doc,.docx" required></div><div class="mb-3"><label class="form-label">Submission Notes</label><textarea class="form-control" name="submission_notes" rows="3"></textarea></div><button class="btn btn-primary" type="submit"><i class="fas fa-upload me-1"></i>Submit Manuscript</button></form><?php else: ?><div class="alert alert-warning">Not yet eligible. Final Defense Recommendation is required.</div><?php endif; ?>
+<div data-final-manuscript-eligibility><?php renderFinalManuscriptEligibilityBlock($isFinalManuscriptEligible); ?></div>
 <?php if ($submissions): ?><hr><h6>Submission History</h6><div class="table-responsive"><table class="table align-middle"><thead><tr><th>Version</th><th>File</th><th>Status</th><th>Submitted</th><th>Notes</th></tr></thead><tbody><?php foreach ($submissions as $row): ?><tr><td>v<?= (int) $row['version_number'] ?></td><td><?= e((string) $row['original_name']) ?></td><td><?= e((string) $row['status']) ?></td><td><?= e((string) $row['submitted_at']) ?></td><td><?= e((string) ($row['submission_notes'] ?? '')) ?></td></tr><?php endforeach; ?></tbody></table></div><?php endif; ?>
 </div></div></div></div>
+<script>
+(function () {
+    var target = document.querySelector('[data-final-manuscript-eligibility]');
+    if (!target) return;
+    var lastEligible = <?= $isFinalManuscriptEligible ? 'true' : 'false' ?>;
+    async function refreshEligibility() {
+        try {
+            var url = new URL(window.location.href);
+            url.searchParams.set('ajax', 'eligibility');
+            url.searchParams.set('_', Date.now().toString());
+            var response = await fetch(url.toString(), {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+                cache: 'no-store'
+            });
+            if (!response.ok) return;
+            var payload = await response.json();
+            if (!payload || !payload.ok || typeof payload.html !== 'string') return;
+            if (payload.eligible !== lastEligible) {
+                target.innerHTML = payload.html;
+                lastEligible = !!payload.eligible;
+            }
+        } catch (error) {}
+    }
+    window.setInterval(refreshEligibility, 5000);
+    document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) refreshEligibility();
+    });
+})();
+</script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>

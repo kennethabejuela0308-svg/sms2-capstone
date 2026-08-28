@@ -94,11 +94,13 @@ function panelDefenseRows(bool $history = false): array
              LEFT JOIN research_venues rv ON rv.id = rds.venue_id
              LEFT JOIN research_panel_assignments rpa_self
                ON rpa_self.research_group_id = rds.research_group_id
+              AND rpa_self.defense_schedule_id = rds.id
               AND rpa_self.panel_user_id = :panel_user_id_match
               AND rpa_self.defense_phase = 'Pre-Oral Defense'
               AND rpa_self.assignment_status = 'Assigned'
              LEFT JOIN research_panel_assignments rpa_all
                ON rpa_all.research_group_id = rds.research_group_id
+              AND rpa_all.defense_schedule_id = rds.id
               AND rpa_all.defense_phase = 'Pre-Oral Defense'
               AND rpa_all.assignment_status = 'Assigned'
              LEFT JOIN sms2_db.users u_all ON u_all.id = rpa_all.panel_user_id
@@ -107,16 +109,19 @@ function panelDefenseRows(bool $history = false): array
               AND ev.panel_user_id = :panel_user_id
               AND ev.status = 'Submitted'
              WHERE rds.defense_datetime IS NOT NULL
+               AND LOWER(TRIM(COALESCE(rds.defense_type, ''))) = 'pre-oral'
                AND LOWER(rds.status) IN ('scheduled', 'finalized', 'final', 'completed', 'passed', 'failed')
                AND rpa_self.id IS NOT NULL
+               AND EXISTS (
+                     SELECT 1
+                     FROM research_groups rg_gate
+                     WHERE rg_gate.id = rds.research_group_id
+                       AND " . cradOfficialRegistryGroupWhereSql('rg_gate') . "
+               )
                AND (
-                     -- History mode: only show rows whose group is still in the official
-                     -- Capstone Registry. When a group loses registry eligibility its
-                     -- preoral_defense_evaluations rows are deleted by
-                     -- cradCleanupPreoralEvaluationsForInvalidRegistry() (runs on every
-                     -- DB connect) and the query below immediately stops returning those
-                     -- rows on the next poll cycle, keeping the Evaluation History page
-                     -- real-time with the CRAD officer's registry.
+                     -- History mode additionally requires an evaluation; the registry
+                     -- gate above keeps Assigned Defenses and details in sync with
+                     -- Research Director records on every live poll.
                      NOT :history_gate
                      OR EXISTS (
                            SELECT 1
@@ -176,9 +181,16 @@ function chapterPanelCanAccessSubmission(PDO $crad, array $submission): bool
                     SELECT 1
                     FROM research_panel_assignments rpa
                     WHERE rpa.research_group_id = research_defense_schedules.research_group_id
+                      AND rpa.defense_schedule_id = research_defense_schedules.id
                       AND rpa.panel_user_id = ?
                       AND rpa.defense_phase = 'Pre-Oral Defense'
                       AND rpa.assignment_status = 'Assigned'
+               )
+               AND EXISTS (
+                    SELECT 1
+                    FROM research_groups rg_gate
+                    WHERE rg_gate.id = research_defense_schedules.research_group_id
+                      AND " . cradOfficialRegistryGroupWhereSql('rg_gate') . "
                )
              ORDER BY defense_datetime DESC, id DESC"
         );

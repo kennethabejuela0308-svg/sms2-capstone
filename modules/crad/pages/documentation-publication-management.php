@@ -17,12 +17,13 @@ $crad = cradDb();
 finalPhaseEnsureSchema($crad);
 $publicationMessage = '';
 $publicationError = '';
+$validTitleApprovalSql = cradValidTitleApprovalWhereSql('ta');
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrfVerify()) { $publicationError = 'Security check failed.'; }
     else {
         if (($_POST['publication_action'] ?? '') === 'create') {
             $groupId = (int) ($_POST['research_group_id'] ?? 0);
-            $groupStmt = $crad->prepare("SELECT rg.research_title, rg.group_name FROM research_groups rg INNER JOIN final_manuscript_approvals fma ON fma.research_group_id = rg.id AND fma.status = 'Approved' WHERE rg.id = ? LIMIT 1");
+            $groupStmt = $crad->prepare("SELECT rg.research_title, rg.group_name FROM research_groups rg INNER JOIN title_approvals ta ON ta.id = rg.title_approval_id AND {$validTitleApprovalSql} INNER JOIN final_manuscript_approvals fma ON fma.research_group_id = rg.id AND fma.status = 'Approved' WHERE rg.id = ? LIMIT 1");
             $groupStmt->execute([$groupId]);
             $group = $groupStmt->fetch(PDO::FETCH_ASSOC);
             if (!$group || !fpIsFinalManuscriptApproved($crad, $groupId)) {
@@ -43,10 +44,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (($_POST['publication_action'] ?? '') !== 'create') {
         $publicationId = (int) ($_POST['publication_id'] ?? 0);
         $status = (string) ($_POST['status'] ?? 'Draft');
+        $publicationCheck = $crad->prepare(
+            "SELECT p.research_group_id, fma.status AS approval_status
+             FROM publications p
+             INNER JOIN research_groups rg ON rg.id = p.research_group_id
+             INNER JOIN title_approvals ta ON ta.id = rg.title_approval_id AND {$validTitleApprovalSql}
+             LEFT JOIN final_manuscript_approvals fma ON fma.research_group_id = p.research_group_id
+             WHERE p.id = ? LIMIT 1"
+        );
+        $publicationCheck->execute([$publicationId]);
+        $publicationRecord = $publicationCheck->fetch(PDO::FETCH_ASSOC) ?: null;
+        if (!$publicationRecord) {
+            $publicationError = 'Publication record not found or title approval is no longer valid.';
+        } elseif ($status !== 'Draft' && (string) ($publicationRecord['approval_status'] ?? '') !== 'Approved') {
+            $publicationError = 'Only a group with an approved final manuscript can enter publication processing.';
+        }
         if (($_POST['publication_action'] ?? '') === 'create') {
             $status = 'Draft';
-        } elseif (!in_array($status, ['Draft', 'For Publication', 'Published', 'Archived'], true)) { $publicationError = 'Invalid publication status.'; }
-        else {
+        } elseif ($publicationError === '' && !in_array($status, ['Draft', 'For Publication', 'Published', 'Archived'], true)) { $publicationError = 'Invalid publication status.'; }
+        elseif ($publicationError === '') {
             $stmt = $crad->prepare("UPDATE publications SET publication_outlet = ?, publication_date = NULLIF(?, ''), doi_link = ?, status = ?, notes = ? WHERE id = ?");
             $stmt->execute([trim((string) ($_POST['publication_outlet'] ?? '')), trim((string) ($_POST['publication_date'] ?? '')), trim((string) ($_POST['doi_link'] ?? '')), $status, trim((string) ($_POST['notes'] ?? '')), $publicationId]);
             logActivity('update', 'Updated publication record #' . $publicationId, 'crad');
@@ -55,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
-$publicationRows = $crad->query('SELECT p.*, rg.group_number, rg.group_name FROM publications p LEFT JOIN research_groups rg ON rg.id = p.research_group_id ORDER BY p.updated_at DESC, p.id DESC')->fetchAll(PDO::FETCH_ASSOC) ?: [];
+$publicationRows = $crad->query("SELECT p.*, rg.group_number, rg.group_name FROM publications p INNER JOIN research_groups rg ON rg.id = p.research_group_id INNER JOIN title_approvals ta ON ta.id = rg.title_approval_id AND {$validTitleApprovalSql} ORDER BY p.updated_at DESC, p.id DESC")->fetchAll(PDO::FETCH_ASSOC) ?: [];
 $publicationMetrics = ['total' => count($publicationRows), 'for_publication' => 0, 'published' => 0, 'archived' => 0];
 foreach ($publicationRows as $publicationRow) { if ($publicationRow['status'] === 'For Publication') $publicationMetrics['for_publication']++; if ($publicationRow['status'] === 'Published') $publicationMetrics['published']++; if ($publicationRow['status'] === 'Archived') $publicationMetrics['archived']++; }
 $breadcrumbs = [['label' => 'CRAD', 'url' => BASE_URL . '/modules/crad/index.php'], ['label' => 'Documentation & Publication Management', 'url' => null]];

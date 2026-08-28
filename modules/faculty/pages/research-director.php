@@ -61,6 +61,30 @@ function rdScheduleUrl(string $view, array $params = []): string
     return BASE_URL . '/modules/faculty/pages/research-director.php?' . http_build_query($params);
 }
 
+function rdScheduleTypedUrl(string $view, string $defenseType, array $params = []): string
+{
+    if ($defenseType === CRAD_DEFENSE_TYPE_FINAL) {
+        $params = ['defense_type' => $defenseType] + $params;
+    }
+    return rdScheduleUrl($view, $params);
+}
+
+function rdScheduleSidebarActivePage(string $view, string $defenseType): string
+{
+    if ($defenseType !== CRAD_DEFENSE_TYPE_FINAL) {
+        return $view === 'overview' ? '' : $view;
+    }
+
+    $finalDefenseSidebarMap = [
+        'defense-scheduling-queue' => 'final-defense-scheduling-queue',
+        'manual-scheduling-optimizer' => 'final-defense-manual-scheduling',
+        'proposed-schedules' => 'final-defense-proposed-schedules',
+        'finalize-defense-schedule' => 'final-defense-finalize-schedule',
+    ];
+
+    return $finalDefenseSidebarMap[$view] ?? ($view === 'overview' ? '' : $view);
+}
+
 function rdScheduleEnsureSchema(PDO $pdo): void
 {
     $columns = [
@@ -239,9 +263,9 @@ function rdSchedulePanelNames(PDO $pdo, int $groupId, string $fallback = ''): ar
     return $names ?: rdPanelNamesFromString($fallback);
 }
 
-function rdScheduleReadyGroup(PDO $pdo, int $groupId): ?array
+function rdScheduleReadyGroup(PDO $pdo, int $groupId, string $defenseType = CRAD_DEFENSE_TYPE_PRE_ORAL): ?array
 {
-    foreach (rdScheduleReadyRows($pdo) as $row) {
+    foreach (rdScheduleReadyRows($pdo, $defenseType === CRAD_DEFENSE_TYPE_FINAL, $defenseType) as $row) {
         if ((int) ($row['research_group_id'] ?? 0) === $groupId) {
             return $row;
         }
@@ -249,9 +273,64 @@ function rdScheduleReadyGroup(PDO $pdo, int $groupId): ?array
     return null;
 }
 
-function rdScheduleReadyRows(PDO $pdo, bool $includeScheduled = false): array
+function rdScheduleAutoDefenseType(PDO $pdo, int $groupId, string $requestedType): string
 {
-    $stmt = $pdo->query(
+    if ($requestedType === CRAD_DEFENSE_TYPE_FINAL || $groupId <= 0) {
+        return $requestedType;
+    }
+
+    try {
+        $stmt = $pdo->prepare(
+            "SELECT 1
+             FROM manuscript_submissions ms
+             INNER JOIN manuscript_evaluations me ON me.submission_id = ms.id
+             WHERE ms.research_group_id = ?
+               AND ms.status = 'Approved'
+               AND me.result = 'APPROVED'
+             LIMIT 1"
+        );
+        $stmt->execute([$groupId]);
+        if ($stmt->fetchColumn()) {
+            return CRAD_DEFENSE_TYPE_FINAL;
+        }
+    } catch (Throwable $e) {
+        error_log('RD automatic defense type lookup failed: ' . $e->getMessage());
+    }
+
+    return CRAD_DEFENSE_TYPE_PRE_ORAL;
+}
+
+function rdScheduleReadyRows(PDO $pdo, bool $includeScheduled = false, string $defenseType = CRAD_DEFENSE_TYPE_PRE_ORAL): array
+{
+        $finalDefenseJoins = '';
+        $finalDefenseWhere = '';
+        if ($defenseType === CRAD_DEFENSE_TYPE_FINAL) {
+                $finalDefenseJoins = "
+                 INNER JOIN final_defense_recommendations fdr
+                     ON fdr.research_group_id = rg.id
+                    AND fdr.status = 'Recommended'
+                 INNER JOIN manuscript_submissions fms
+                     ON fms.id = (
+                                SELECT ms.id
+                                FROM manuscript_submissions ms
+                                WHERE ms.research_group_id = rg.id
+                                ORDER BY ms.version_number DESC, ms.id DESC
+                                LIMIT 1
+                     )
+                 INNER JOIN manuscript_evaluations fme
+                     ON fme.id = (
+                                SELECT me.id
+                                FROM manuscript_evaluations me
+                                WHERE me.submission_id = fms.id
+                                ORDER BY me.id DESC
+                                LIMIT 1
+                     )";
+                $finalDefenseWhere = "
+                     AND fms.status = 'Approved'
+                     AND fme.result = 'APPROVED'";
+        }
+
+    $stmt = $pdo->prepare(
         "SELECT
             rg.id AS research_group_id,
             rg.proposal_id,
@@ -276,6 +355,7 @@ function rdScheduleReadyRows(PDO $pdo, bool $includeScheduled = false): array
                 COALESCE(raa.updated_at, '1000-01-01 00:00:00')
             ) AS updated_at
          FROM research_groups rg
+         {$finalDefenseJoins}
          INNER JOIN chapter_submissions ch1 ON ch1.id = (
             SELECT cs1.id FROM chapter_submissions cs1
             WHERE cs1.research_group_id = rg.id AND cs1.chapter_number = 1
@@ -315,6 +395,7 @@ function rdScheduleReadyRows(PDO $pdo, bool $includeScheduled = false): array
                 SELECT rds.id
                 FROM research_defense_schedules rds
                 WHERE rds.research_group_id = rg.id
+                                    AND rds.defense_type = :ready_defense_type
                   AND LOWER(rds.status) IN ('scheduled', 'finalized', 'final')
                 ORDER BY rds.updated_at DESC, rds.id DESC
                 LIMIT 1
@@ -326,6 +407,7 @@ function rdScheduleReadyRows(PDO $pdo, bool $includeScheduled = false): array
            AND UPPER(REPLACE(ce1.result, ' ', '_')) IN ('APPROVED', 'APPROVED_WITH_REVISION')
            AND UPPER(REPLACE(ce2.result, ' ', '_')) IN ('APPROVED', 'APPROVED_WITH_REVISION')
            AND UPPER(REPLACE(ce3.result, ' ', '_')) IN ('APPROVED', 'APPROVED_WITH_REVISION')
+           {$finalDefenseWhere}
          GROUP BY rg.id, rg.proposal_id, rg.title_approval_id, rg.proposal_number, rg.group_number,
                   group_name, research_title, rg.academic_year, raa.adviser_user_id, raa.adviser_name,
                   raa.availability_status, raa.updated_at, finalized.id,
@@ -333,6 +415,7 @@ function rdScheduleReadyRows(PDO $pdo, bool $includeScheduled = false): array
          ORDER BY updated_at DESC, rg.id DESC"
     );
 
+    $stmt->execute([':ready_defense_type' => $defenseType]);
     $rows = [];
     foreach (($stmt->fetchAll() ?: []) as $row) {
         if ((int) ($row['panel_count'] ?? 0) !== RD_SCHEDULE_MAX_PANEL_MEMBERS) {
@@ -346,14 +429,16 @@ function rdScheduleReadyRows(PDO $pdo, bool $includeScheduled = false): array
     return $rows;
 }
 
-function rdScheduleRows(PDO $pdo, array $statuses = []): array
+function rdScheduleRows(PDO $pdo, array $statuses = [], string $defenseType = CRAD_DEFENSE_TYPE_PRE_ORAL): array
 {
-    $where = '';
+    $whereParts = ['rds.defense_type = ?'];
     $params = [];
+    $params[] = $defenseType;
     if ($statuses) {
-        $where = "WHERE LOWER(rds.status) IN (" . implode(',', array_fill(0, count($statuses), '?')) . ")";
-        $params = array_map('strtolower', $statuses);
+        $whereParts[] = "LOWER(rds.status) IN (" . implode(',', array_fill(0, count($statuses), '?')) . ")";
+        $params = array_merge($params, array_map('strtolower', $statuses));
     }
+    $where = "WHERE " . implode(' AND ', $whereParts);
     $stmt = $pdo->prepare(
         "SELECT rds.*, rv.venue_name
          FROM research_defense_schedules rds
@@ -394,9 +479,10 @@ function rdScheduleAvailabilityReport(PDO $pdo, array $slot, int $ignoreId = 0):
 {
     $groupId = (int) ($slot['research_group_id'] ?? 0);
     $venueId = (int) ($slot['venue_id'] ?? 0);
+    $defenseType = (string) ($slot['defense_type'] ?? CRAD_DEFENSE_TYPE_PRE_ORAL);
     $start = (string) ($slot['defense_datetime'] ?? '');
     $end = (string) ($slot['defense_end_datetime'] ?? '');
-    $group = $groupId > 0 ? rdScheduleReadyGroup($pdo, $groupId) : null;
+    $group = $groupId > 0 ? rdScheduleReadyGroup($pdo, $groupId, $defenseType) : null;
     $panels = $groupId > 0 ? rdSchedulePanelRows($pdo, $groupId) : [];
     $items = [];
     $hasConflict = false;
@@ -510,17 +596,17 @@ function rdScheduleReviewPayload(PDO $pdo, int $scheduleId): ?array
         'panels' => array_map(static fn (array $panel): string => (string) ($panel['panel_name'] ?? 'Panel Member'), $availability['panels']),
         'availability' => $availability['items'],
         'has_conflict' => (bool) $availability['has_conflict'],
-        'alternative_url' => rdScheduleUrl('alternative-time-slots', [
+        'alternative_url' => rdScheduleTypedUrl('alternative-time-slots', (string) ($slot['defense_type'] ?? CRAD_DEFENSE_TYPE_PRE_ORAL), [
             'group_id' => (int) ($slot['research_group_id'] ?? 0),
             'schedule_id' => (int) ($slot['id'] ?? 0),
         ]),
     ];
 }
 
-function rdScheduleConflictMessages(PDO $pdo, int $groupId, int $venueId, string $start, string $end, int $ignoreId = 0): array
+function rdScheduleConflictMessages(PDO $pdo, int $groupId, int $venueId, string $start, string $end, int $ignoreId = 0, string $defenseType = CRAD_DEFENSE_TYPE_PRE_ORAL): array
 {
     $messages = [];
-    $group = rdScheduleReadyGroup($pdo, $groupId);
+    $group = rdScheduleReadyGroup($pdo, $groupId, $defenseType);
     if (!$group) {
         return ['Research group is not ready for scheduling.'];
     }
@@ -533,7 +619,7 @@ function rdScheduleConflictMessages(PDO $pdo, int $groupId, int $venueId, string
         }
     }
     if (count($uniquePanelIds) !== RD_SCHEDULE_MAX_PANEL_MEMBERS) {
-        $messages[] = 'Exactly 3 Panel Members are required for a Pre-Oral Defense schedule.';
+        $messages[] = 'Exactly 3 Panel Members are required for a ' . $defenseType . ' schedule.';
     }
     $venueStmt = $pdo->prepare("SELECT id, venue_name, status FROM research_venues WHERE id = ?");
     $venueStmt->execute([$venueId]);
@@ -606,6 +692,10 @@ function rdScheduleConflictMessages(PDO $pdo, int $groupId, int $venueId, string
     return array_values(array_unique($messages));
 }
 
+$requestedDefenseType = trim((string) ($_GET['defense_type'] ?? CRAD_DEFENSE_TYPE_PRE_ORAL));
+if (!in_array($requestedDefenseType, [CRAD_DEFENSE_TYPE_PRE_ORAL, CRAD_DEFENSE_TYPE_FINAL], true)) {
+    $requestedDefenseType = CRAD_DEFENSE_TYPE_PRE_ORAL;
+}
 $readyRows = [];
 $scheduledRows = [];
 $venueRows = [];
@@ -752,7 +842,11 @@ if ($crad) {
         } else {
             $requestGroupId = (int) ($_GET['group_id'] ?? 0);
             $groupId = (int) ($_POST['research_group_id'] ?? 0);
-            $group = $groupId > 0 ? rdScheduleReadyGroup($crad, $groupId) : null;
+            $postedDefenseType = trim((string) ($_POST['defense_type'] ?? ''));
+            $defenseType = in_array($postedDefenseType, [CRAD_DEFENSE_TYPE_PRE_ORAL, CRAD_DEFENSE_TYPE_FINAL], true)
+                ? $postedDefenseType
+                : rdScheduleAutoDefenseType($crad, $groupId, CRAD_DEFENSE_TYPE_PRE_ORAL);
+            $group = $groupId > 0 ? rdScheduleReadyGroup($crad, $groupId, $defenseType) : null;
             $panelRowsForSchedule = $groupId > 0 ? rdSchedulePanelRows($crad, $groupId) : [];
             $uniquePanelIds = [];
             foreach ($panelRowsForSchedule as $panelRowForSchedule) {
@@ -770,9 +864,9 @@ if ($crad) {
                 $errors[] = 'Select a defense-ready research group.';
             }
             if ($panelCountForSchedule > RD_SCHEDULE_MAX_PANEL_MEMBERS) {
-                $errors[] = 'Maximum of 3 Panel Members is allowed for a Pre-Oral Defense schedule. Please update the panel assignment before continuing.';
+                $errors[] = 'Maximum of 3 Panel Members is allowed for a ' . $defenseType . ' schedule. Please update the panel assignment before continuing.';
             } elseif ($panelCountForSchedule !== RD_SCHEDULE_MAX_PANEL_MEMBERS) {
-                $errors[] = 'Exactly 3 Panel Members are required before creating a Pre-Oral Defense schedule.';
+                $errors[] = 'Exactly 3 Panel Members are required before creating a ' . $defenseType . ' schedule.';
             }
 
             $dates = is_array($_POST['defense_date'] ?? null) ? $_POST['defense_date'] : [$_POST['defense_date'] ?? ''];
@@ -838,7 +932,7 @@ if ($crad) {
                             $errors[] = 'Slot ' . ($slotIndex + 1) . ': overlaps another submitted slot for this research group.';
                         }
                     }
-                    $slotErrors = rdScheduleConflictMessages($crad, $groupId, (int) $slot['venue_id'], (string) $slot['start_at'], (string) $slot['end_at']);
+                    $slotErrors = rdScheduleConflictMessages($crad, $groupId, (int) $slot['venue_id'], (string) $slot['start_at'], (string) $slot['end_at'], 0, $defenseType);
                     foreach ($slotErrors as $slotError) {
                         $errors[] = 'Slot ' . ($slotIndex + 1) . ': ' . $slotError;
                     }
@@ -848,12 +942,13 @@ if ($crad) {
                 $official = $crad->prepare(
                     "SELECT id FROM research_defense_schedules
                      WHERE research_group_id = ?
+                                             AND defense_type = ?
                        AND LOWER(status) IN ('scheduled', 'finalized', 'final')
                      LIMIT 1"
                 );
-                $official->execute([$groupId]);
+                                $official->execute([$groupId, $defenseType]);
                 if ($official->fetchColumn()) {
-                    $errors[] = 'This research group already has an official finalized schedule.';
+                                        $errors[] = 'This research group already has an official ' . $defenseType . ' schedule.';
                 }
             }
             if ($errors) {
@@ -861,7 +956,7 @@ if ($crad) {
             } else {
                 $slotSignatures = array_map(static fn (array $slot): string => (string) $slot['signature'], $slots);
                 sort($slotSignatures);
-                $scheduleLockName = 'rd_preoral_' . $groupId . '_' . sha1(implode('|', $slotSignatures));
+                $scheduleLockName = 'rd_' . strtolower(str_replace(' ', '_', $defenseType)) . '_' . $groupId . '_' . sha1(implode('|', $slotSignatures));
                 $lockAcquired = false;
                 try {
                     $lockStmt = $crad->prepare("SELECT GET_LOCK(?, 5)");
@@ -877,6 +972,7 @@ if ($crad) {
                            AND venue_id = ?
                            AND defense_datetime = ?
                            AND defense_end_datetime = ?
+                                                     AND defense_type = ?
                            AND LOWER(status) IN ('proposed', 'selected', 'scheduled', 'finalized', 'final')
                          LIMIT 1"
                     );
@@ -894,10 +990,10 @@ if ($crad) {
                          VALUES
                             (:research_group_id, :proposal_id, :proposal_number, :group_number, :research_group,
                              :research_title, :adviser_name, :panel_members, :panel_chair, :venue, :venue_id,
-                             :defense_datetime, :defense_end_datetime, 'Pre-Oral', 'Proposed', :recorded_by, NOW(), NOW())"
+                             :defense_datetime, :defense_end_datetime, :defense_type, 'Proposed', :recorded_by, NOW(), NOW())"
                     );
                     foreach ($slots as $slot) {
-                        $exists->execute([$groupId, (int) $slot['venue_id'], (string) $slot['start_at'], (string) $slot['end_at']]);
+                        $exists->execute([$groupId, (int) $slot['venue_id'], (string) $slot['start_at'], (string) $slot['end_at'], $defenseType]);
                         if ($exists->fetchColumn()) {
                             throw new RuntimeException('One of the proposed slots already exists.');
                         }
@@ -915,6 +1011,7 @@ if ($crad) {
                             ':venue_id' => (int) $slot['venue_id'],
                             ':defense_datetime' => (string) $slot['start_at'],
                             ':defense_end_datetime' => (string) $slot['end_at'],
+                            ':defense_type' => $defenseType,
                             ':recorded_by' => (int) getCurrentUserId(),
                         ]);
                     }
@@ -968,18 +1065,20 @@ if ($crad) {
                 $venueId,
                 (string) $slot['defense_datetime'],
                 (string) $slot['defense_end_datetime'],
-                $scheduleId
+                $scheduleId,
+                (string) ($slot['defense_type'] ?? CRAD_DEFENSE_TYPE_PRE_ORAL)
             );
             $official = $crad->prepare(
                 "SELECT id FROM research_defense_schedules
                  WHERE id <> ?
                    AND research_group_id = ?
+                                     AND defense_type = ?
                    AND LOWER(status) IN ('scheduled', 'finalized', 'final')
                  LIMIT 1"
             );
-            $official->execute([$scheduleId, $groupId]);
+                        $official->execute([$scheduleId, $groupId, (string) ($slot['defense_type'] ?? CRAD_DEFENSE_TYPE_PRE_ORAL)]);
             if ($official->fetchColumn()) {
-                $conflicts[] = 'This research group already has an official finalized schedule.';
+                                $conflicts[] = 'This research group already has an official ' . (string) ($slot['defense_type'] ?? CRAD_DEFENSE_TYPE_PRE_ORAL) . ' schedule.';
             }
             if ($conflicts) {
                 throw new RuntimeException(implode(' ', $conflicts));
@@ -999,20 +1098,38 @@ if ($crad) {
             if (!$assignedPanels) {
                 throw new RuntimeException('No active panel members are assigned to this research group.');
             }
-            $crad->prepare("UPDATE research_defense_schedules SET status = 'Rejected', updated_at = NOW() WHERE research_group_id = ? AND id <> ? AND LOWER(status) IN ('proposed', 'selected')")
-                ->execute([$groupId, $scheduleId]);
+            $scheduleDefenseType = (string) ($slot['defense_type'] ?? CRAD_DEFENSE_TYPE_PRE_ORAL);
+            if ($scheduleDefenseType === CRAD_DEFENSE_TYPE_FINAL) {
+                $crad->prepare(
+                    "INSERT INTO research_panel_assignments
+                        (research_group_id, defense_schedule_id, proposal_id, title_approval_id, proposal_number,
+                         group_number, research_title, panel_user_id, panel_name, panel_email, expertise,
+                         availability_status, assignment_status, defense_phase, assigned_by, assigned_at, created_at, updated_at)
+                     SELECT research_group_id, ?, proposal_id, title_approval_id, proposal_number,
+                            group_number, research_title, panel_user_id, panel_name, panel_email, expertise,
+                            availability_status, 'Assigned', ?, assigned_by, NOW(), NOW(), NOW()
+                     FROM research_panel_assignments
+                     WHERE research_group_id = ?
+                       AND defense_phase = ?
+                       AND assignment_status = 'Assigned'
+                     ON DUPLICATE KEY UPDATE defense_schedule_id = VALUES(defense_schedule_id), assignment_status = 'Assigned', updated_at = NOW()"
+                )->execute([$scheduleId, CRAD_DEFENSE_PHASE_FINAL, $groupId, CRAD_DEFENSE_PHASE_PRE_ORAL]);
+            }
+            $crad->prepare("UPDATE research_defense_schedules SET status = 'Rejected', updated_at = NOW() WHERE research_group_id = ? AND id <> ? AND defense_type = ? AND LOWER(status) IN ('proposed', 'selected')")
+                ->execute([$groupId, $scheduleId, $scheduleDefenseType]);
             $crad->prepare("UPDATE research_defense_schedules SET status = 'Finalized', finalized_by = ?, finalized_at = NOW(), updated_at = NOW() WHERE id = ?")
                 ->execute([(int) getCurrentUserId(), $scheduleId]);
             $crad->prepare(
                 "UPDATE research_panel_assignments
                  SET defense_schedule_id = ?, updated_at = NOW()
-                 WHERE research_group_id = ?
-                   AND " . rdPanelActiveAssignmentSql('research_panel_assignments')
-            )->execute([$scheduleId, $groupId]);
+                                 WHERE research_group_id = ?
+                                     AND defense_phase = ?
+                   AND assignment_status = 'Assigned'
+                ")->execute([$scheduleId, $groupId, $scheduleDefenseType === CRAD_DEFENSE_TYPE_FINAL ? CRAD_DEFENSE_PHASE_FINAL : CRAD_DEFENSE_PHASE_PRE_ORAL]);
             $planStmt = $crad->prepare("SELECT id FROM research_plans WHERE research_group_id = ? LIMIT 1");
             $planStmt->execute([$groupId]);
             $planId = (int) ($planStmt->fetchColumn() ?: 0);
-            if ($planId > 0) {
+            if ($planId > 0 && $scheduleDefenseType === CRAD_DEFENSE_TYPE_PRE_ORAL) {
                 rpSetCurrentStageIfFirstSemesterComplete($crad, $planId, $groupId);
             }
             $notify = $crad->prepare(
@@ -1038,18 +1155,18 @@ if ($crad) {
                     continue;
                 }
                 $notify->execute([
-                    ':event_key' => 'preoral-defense-finalized:s' . $scheduleId . ':u' . $panelUserId,
+                    ':event_key' => strtolower(str_replace(' ', '-', $scheduleDefenseType)) . '-finalized:s' . $scheduleId . ':u' . $panelUserId,
                     ':recipient_user_id' => $panelUserId,
                     ':recipient_email' => (string) ($panel['panel_email'] ?? ''),
                     ':panel_assignment_id' => (int) ($panel['id'] ?? 0) ?: null,
                     ':research_group_id' => $groupId,
-                    ':title' => 'Pre-Oral Defense Scheduled',
+                    ':title' => $scheduleDefenseType . ' Scheduled',
                     ':body' => $notificationBody,
                     ':url' => BASE_URL . '/modules/faculty/pages/defense-details.php?id=' . $scheduleId,
                 ]);
             }
             $crad->commit();
-            echo json_encode(['ok' => true, 'message' => 'Final Pre-Oral Defense schedule confirmed.']);
+            echo json_encode(['ok' => true, 'message' => $scheduleDefenseType . ' schedule confirmed.']);
         } catch (Throwable $e) {
             if ($crad->inTransaction()) {
                 $crad->rollBack();
@@ -1106,10 +1223,11 @@ if ($crad) {
             $official = $crad->prepare(
                 "SELECT id FROM research_defense_schedules
                  WHERE research_group_id = ?
+                                     AND defense_type = ?
                    AND LOWER(status) IN ('scheduled', 'finalized', 'final')
                  LIMIT 1"
             );
-            $official->execute([$groupId]);
+                        $official->execute([$groupId, (string) ($slot['defense_type'] ?? CRAD_DEFENSE_TYPE_PRE_ORAL)]);
             if ($official->fetchColumn()) {
                 throw new RuntimeException('This research group already has an official finalized schedule.');
             }
@@ -1121,7 +1239,7 @@ if ($crad) {
             echo json_encode([
                 'ok' => true,
                 'message' => 'Proposed schedule selected for final review.',
-                'redirect' => rdScheduleUrl('finalize-defense-schedule', ['schedule_id' => $scheduleId]),
+                'redirect' => rdScheduleTypedUrl('finalize-defense-schedule', (string) ($slot['defense_type'] ?? CRAD_DEFENSE_TYPE_PRE_ORAL), ['schedule_id' => $scheduleId]),
             ]);
         } catch (Throwable $e) {
             if ($crad->inTransaction()) {
@@ -1142,7 +1260,7 @@ if ($crad) {
     }
 
     try {
-        $readyRows = rdScheduleReadyRows($crad);
+        $readyRows = rdScheduleReadyRows($crad, $requestedDefenseType === CRAD_DEFENSE_TYPE_FINAL, $requestedDefenseType);
     } catch (Throwable $e) {
         error_log('Research director ready list failed: ' . $e->getMessage());
     }
@@ -1159,7 +1277,7 @@ if ($crad) {
         } else {
             $scheduleStatusFilter = [];
         }
-        foreach (rdScheduleRows($crad, $scheduleStatusFilter) as $row) {
+        foreach (rdScheduleRows($crad, $scheduleStatusFilter, $requestedDefenseType) as $row) {
             $panelNames = rdSchedulePanelNames(
                 $crad,
                 (int) ($row['research_group_id'] ?? 0),
@@ -1191,7 +1309,7 @@ if ($crad) {
                 'updated' => $timeLabel,
                 'updated_raw' => (string) ($row['updated_at'] ?? ''),
                 'defense_datetime_raw' => (string) ($row['defense_datetime'] ?? ''),
-                'action_url' => rdScheduleUrl('finalize-defense-schedule', ['schedule_id' => (int) ($row['id'] ?? 0)]),
+                'action_url' => rdScheduleTypedUrl('finalize-defense-schedule', $requestedDefenseType, ['schedule_id' => (int) ($row['id'] ?? 0)]),
                 'action_label' => in_array(strtolower((string) ($row['status'] ?? '')), ['proposed', 'selected'], true) ? 'Review' : '',
             ];
         }
@@ -1210,20 +1328,26 @@ if ($crad) {
     }
 
     try {
-        $officialScheduledCount = (int) $crad->query(
+        $officialScheduledStmt = $crad->prepare(
             "SELECT COUNT(*)
              FROM research_defense_schedules rds
              " . rdOfficialScheduleJoinSql() . "
              WHERE rds.defense_datetime IS NOT NULL
+               AND rds.defense_type = ?
                AND LOWER(rds.status) IN ('scheduled', 'finalized', 'final')"
-        )->fetchColumn();
-        $completedScheduleCount = (int) $crad->query(
+        );
+        $officialScheduledStmt->execute([$requestedDefenseType]);
+        $officialScheduledCount = (int) $officialScheduledStmt->fetchColumn();
+        $completedScheduleStmt = $crad->prepare(
             "SELECT COUNT(*)
              FROM research_defense_schedules rds
              " . rdOfficialScheduleJoinSql() . "
              WHERE rds.defense_datetime IS NOT NULL
+               AND rds.defense_type = ?
                AND LOWER(rds.status) IN ('completed', 'passed')"
-        )->fetchColumn();
+        );
+        $completedScheduleStmt->execute([$requestedDefenseType]);
+        $completedScheduleCount = (int) $completedScheduleStmt->fetchColumn();
     } catch (Throwable $e) {
         error_log('Research director schedule counters failed: ' . $e->getMessage());
     }
@@ -1256,7 +1380,10 @@ $schedulerViews = ['manual-scheduling-optimizer', 'alternative-time-slots'];
 $isSchedulerView = in_array($view, $schedulerViews, true);
 $hasExplicitGroupSelection = isset($_GET['group_id']) && (int) $_GET['group_id'] > 0;
 $selectedGroupId = (int) ($_GET['group_id'] ?? 0);
-$selectedReadyGroup = ($crad && $selectedGroupId > 0) ? rdScheduleReadyGroup($crad, $selectedGroupId) : null;
+$requestedDefenseType = rdScheduleAutoDefenseType($crad, $selectedGroupId, $requestedDefenseType);
+$defenseTypeLabel = $requestedDefenseType === CRAD_DEFENSE_TYPE_FINAL ? CRAD_DEFENSE_TYPE_FINAL : 'Pre-Oral Defense';
+$activePage = rdScheduleSidebarActivePage($view, $requestedDefenseType);
+$selectedReadyGroup = ($crad && $selectedGroupId > 0) ? rdScheduleReadyGroup($crad, $selectedGroupId, $requestedDefenseType) : null;
 $selectedPanelRows = ($crad && $selectedGroupId > 0) ? rdSchedulePanelRows($crad, $selectedGroupId) : [];
 $selectedGroupIsOfficial = ($crad && $selectedGroupId > 0) ? rdIsOfficialResearchGroup($crad, $selectedGroupId) : false;
 $selectedGroupHasOfficial = false;
@@ -1265,10 +1392,11 @@ if ($crad && $selectedGroupId > 0) {
         $officialStmt = $crad->prepare(
             "SELECT id FROM research_defense_schedules
              WHERE research_group_id = ?
+                             AND defense_type = ?
                AND LOWER(status) IN ('scheduled', 'finalized', 'final')
              LIMIT 1"
         );
-        $officialStmt->execute([$selectedGroupId]);
+                $officialStmt->execute([$selectedGroupId, $requestedDefenseType]);
         $selectedGroupHasOfficial = (bool) $officialStmt->fetchColumn();
     } catch (Throwable $e) {
         error_log('RD selected official lookup failed: ' . $e->getMessage());
@@ -1285,7 +1413,7 @@ $normalizedVenueRows = array_map(static function (array $row): array {
     return $row;
 }, $venueRows);
 
-$displayRows = $view === 'venues' ? $normalizedVenueRows : ($directorUsesScheduleRows ? $scheduledRows : array_map(static function (array $row): array {
+$displayRows = $view === 'venues' ? $normalizedVenueRows : ($directorUsesScheduleRows ? $scheduledRows : array_map(static function (array $row) use ($requestedDefenseType): array {
     $panelCount = (int) ($row['panel_count'] ?? 0);
     $panelNames = rdPanelNamesFromString((string) ($row['panel_members'] ?? ''));
     $savedStatus = trim((string) ($row['schedule_status'] ?? ''));
@@ -1306,13 +1434,13 @@ $displayRows = $view === 'venues' ? $normalizedVenueRows : ($directorUsesSchedul
         'panel_count' => $panelCount,
         'panel_assignment_complete' => rdPanelAssignmentComplete($panelCount),
         'updated' => date('M j, Y h:i A', strtotime((string) ($row['updated_at'] ?? 'now'))),
-        'action_url' => rdScheduleUrl('manual-scheduling-optimizer', ['group_id' => (int) ($row['research_group_id'] ?? 0)]),
+        'action_url' => rdScheduleTypedUrl('manual-scheduling-optimizer', $requestedDefenseType, ['group_id' => (int) ($row['research_group_id'] ?? 0)]),
         'action_label' => 'Start Scheduling',
     ];
 }, $readyRows));
 
 if ($directorUsesScheduleRows) {
-    $displayRows = array_map(static function (array $row): array {
+    $displayRows = array_map(static function (array $row) use ($requestedDefenseType): array {
         $proposalStatus = trim((string) ($row['proposal_status'] ?? ''));
         $progress = (int) ($row['proposal_progress'] ?? 0);
         $adviser = trim((string) ($row['adviser'] ?? ''));
@@ -1335,11 +1463,12 @@ if ($directorUsesScheduleRows) {
             'ready_for_defense' => $hasRequiredInfo && in_array(strtolower($status), ['ready for scheduling', 'scheduled', 'completed', 'passed'], true),
         ];
         $row['verification_status'] = in_array(false, $row['verification'], true) ? 'Needs Verification' : 'Verified';
-        $row['proceed_url'] = BASE_URL . '/modules/faculty/pages/research-director.php?view=proposed-schedules'
-            . '&group=' . rawurlencode((string) ($row['reference'] ?? ''))
-            . '&title=' . rawurlencode((string) ($row['title'] ?? ''));
+        $row['proceed_url'] = rdScheduleTypedUrl('proposed-schedules', $requestedDefenseType, [
+            'group' => (string) ($row['reference'] ?? ''),
+            'title' => (string) ($row['title'] ?? ''),
+        ]);
         if (in_array(strtolower($status), ['proposed', 'selected'], true)) {
-            $row['action_url'] = rdScheduleUrl('finalize-defense-schedule', ['schedule_id' => (int) ($row['id'] ?? 0)]);
+            $row['action_url'] = rdScheduleTypedUrl('finalize-defense-schedule', $requestedDefenseType, ['schedule_id' => (int) ($row['id'] ?? 0)]);
             $row['action_label'] = 'Review';
         }
         return $row;
@@ -1363,9 +1492,10 @@ if ($directorUsesVerificationRows) {
             'ready_for_defense' => $hasAdviser && $hasPanel,
         ];
         $row['verification_status'] = in_array(false, $row['verification'], true) ? 'Needs Verification' : 'Verified';
-        $row['proceed_url'] = BASE_URL . '/modules/faculty/pages/research-director.php?view=manual-scheduling-optimizer'
-            . '&group=' . rawurlencode((string) ($row['reference'] ?? ''))
-            . '&title=' . rawurlencode((string) ($row['title'] ?? ''));
+        $row['proceed_url'] = rdScheduleTypedUrl('manual-scheduling-optimizer', CRAD_DEFENSE_TYPE_PRE_ORAL, [
+            'group' => (string) ($row['reference'] ?? ''),
+            'title' => (string) ($row['title'] ?? ''),
+        ]);
         return $row;
     }, $displayRows);
 }
@@ -2080,15 +2210,15 @@ renderBreadcrumbs($breadcrumbs);
 <?php if ($isSchedulerView): ?>
     <section class="director-scheduler">
         <div class="director-scheduler__head">
-            <h2><?= $view === 'alternative-time-slots' ? 'Add Alternative Time Slot' : 'Manual Scheduling Optimizer' ?></h2>
-            <p><?= $selectedReadyGroup ? 'Create proposed Pre-Oral Defense slots from current database records.' : 'Select a defense-ready research before creating a Pre-Oral Defense schedule.' ?></p>
+            <h2><?= $view === 'alternative-time-slots' ? 'Add Alternative Time Slot' : ($requestedDefenseType === CRAD_DEFENSE_TYPE_FINAL ? 'Final Defense Manual Scheduling Optimizer' : 'Manual Scheduling Optimizer') ?></h2>
+            <p><?= $selectedReadyGroup ? 'Create proposed ' . htmlspecialchars($defenseTypeLabel) . ' slots from current database records.' : 'Select a defense-ready research before creating a ' . htmlspecialchars($defenseTypeLabel) . ' schedule.' ?></p>
         </div>
         <?php if (!$hasExplicitGroupSelection): ?>
             <div class="director-scheduler-grid">
                 <div class="director-scheduler-box">
                     <h3>No Research Selected</h3>
-                    <p>Please select a defense-ready research before creating a Pre-Oral Defense schedule.</p>
-                    <a class="director-action-btn" href="<?= htmlspecialchars(rdScheduleUrl('defense-scheduling-queue')) ?>">
+                    <p>Please select a defense-ready research before creating a <?= htmlspecialchars($defenseTypeLabel) ?> schedule.</p>
+                    <a class="director-action-btn" href="<?= htmlspecialchars(rdScheduleTypedUrl('defense-scheduling-queue', $requestedDefenseType)) ?>">
                         <i class="fas fa-list-alt" aria-hidden="true"></i>
                         View Ready for Scheduling
                     </a>
@@ -2098,8 +2228,8 @@ renderBreadcrumbs($breadcrumbs);
             <div class="director-scheduler-grid">
                 <div class="director-scheduler-box">
                     <h3><?= !$selectedGroupIsOfficial ? 'Research group is no longer available in the official Capstone Group/Student Registry.' : 'Scheduling is currently unavailable for this research.' ?></h3>
-                    <p><?= !$selectedGroupIsOfficial ? 'This group can no longer be used in Pre-Oral Defense scheduling.' : 'One or more required records are no longer complete.' ?></p>
-                    <a class="director-action-btn" href="<?= htmlspecialchars(rdScheduleUrl('defense-scheduling-queue')) ?>">
+                    <p><?= !$selectedGroupIsOfficial ? 'This group can no longer be used in ' . htmlspecialchars($defenseTypeLabel) . ' scheduling.' : 'One or more required records are no longer complete.' ?></p>
+                    <a class="director-action-btn" href="<?= htmlspecialchars(rdScheduleTypedUrl('defense-scheduling-queue', $requestedDefenseType)) ?>">
                         <i class="fas fa-arrow-left" aria-hidden="true"></i>
                         Back to Ready for Scheduling
                     </a>
@@ -2126,6 +2256,7 @@ renderBreadcrumbs($breadcrumbs);
                     <?= csrfField() ?>
                     <input type="hidden" name="schedule_action" value="save_proposed">
                     <input type="hidden" name="research_group_id" value="<?= (int) $selectedGroupId ?>">
+                    <input type="hidden" name="defense_type" value="<?= htmlspecialchars($requestedDefenseType) ?>">
                     <label class="is-wide">
                         <span>Research Group</span>
                         <input type="text" value="<?= htmlspecialchars((string) ($selectedReadyGroup['group_name'] ?? 'Research Group')) ?>" readonly>
@@ -2459,6 +2590,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const isVerifyView = <?= $view === 'verify-research-defense' ? 'true' : 'false' ?>;
     const isVenueView  = <?= $view === 'venues' ? 'true' : 'false' ?>;
     const isFinalizeView = <?= $view === 'finalize-defense-schedule' ? 'true' : 'false' ?>;
+    const currentDefenseType = <?= json_encode($requestedDefenseType) ?>;
     const isProposedView = <?= $view === 'proposed-schedules' ? 'true' : 'false' ?>;
     const csrfToken    = <?= json_encode(csrfToken()) ?>;
     const pageUrl      = window.location.pathname + '?view=venues';
@@ -2700,8 +2832,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     body.set('schedule_action', 'finalize');
                     body.set('schedule_id', String(activeId));
                     body.set('csrf_token', csrfToken);
-                    const url = window.location.pathname + '?view=finalize-defense-schedule';
-                    const res = await fetch(url, {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('view', 'finalize-defense-schedule');
+                    if (currentDefenseType === 'Final Defense') {
+                        url.searchParams.set('defense_type', currentDefenseType);
+                    } else {
+                        url.searchParams.delete('defense_type');
+                    }
+                    const res = await fetch(url.toString(), {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded',
@@ -2839,7 +2977,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     form.set('schedule_action', 'choose_schedule');
                     form.set('schedule_id', String(activeReview.id || 0));
                     form.set('csrf_token', csrfToken);
-                    const res = await fetch(window.location.pathname + '?view=proposed-schedules', {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('view', 'proposed-schedules');
+                    if (currentDefenseType === 'Final Defense') {
+                        url.searchParams.set('defense_type', currentDefenseType);
+                    } else {
+                        url.searchParams.delete('defense_type');
+                    }
+                    const res = await fetch(url.toString(), {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded',
@@ -2850,7 +2995,19 @@ document.addEventListener('DOMContentLoaded', function () {
                     });
                     const data = await res.json();
                     if (!data.ok) throw new Error(data.message || 'Could not choose schedule.');
-                    window.location.href = data.redirect || (window.location.pathname + '?view=finalize-defense-schedule&schedule_id=' + encodeURIComponent(String(activeReview.id || 0)));
+                    if (data.redirect) {
+                        window.location.href = data.redirect;
+                    } else {
+                        const redirectUrl = new URL(window.location.href);
+                        redirectUrl.searchParams.set('view', 'finalize-defense-schedule');
+                        redirectUrl.searchParams.set('schedule_id', String(activeReview.id || 0));
+                        if (currentDefenseType === 'Final Defense') {
+                            redirectUrl.searchParams.set('defense_type', currentDefenseType);
+                        } else {
+                            redirectUrl.searchParams.delete('defense_type');
+                        }
+                        window.location.href = redirectUrl.toString();
+                    }
                 } catch (err) {
                     alert(err.message || 'Could not choose schedule.');
                     chooseConfirm.disabled = false;

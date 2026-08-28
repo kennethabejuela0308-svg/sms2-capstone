@@ -10,11 +10,12 @@ require_once ROOT_PATH . '/modules/crad/includes/final-phase-helpers.php';
 requireAuth();
 if (!in_array(getCurrentUserRoleKey(), ['crad_officer', 'research_coordinator', 'superadmin', 'admin'], true)) { http_response_code(403); exit('Forbidden'); }
 $crad = cradDb(); finalPhaseEnsureSchema($crad); $message = ''; $error = '';
+$validTitleApprovalSql = cradValidTitleApprovalWhereSql('ta');
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrfVerify()) $error = 'Security check failed.';
     else {
         $groupId = (int) ($_POST['research_group_id'] ?? 0);
-        $stmt = $crad->prepare("SELECT rg.research_title, rg.group_name FROM research_groups rg INNER JOIN final_manuscript_approvals fma ON fma.research_group_id = rg.id AND fma.status = 'Approved' WHERE rg.id = ? AND NOT EXISTS (SELECT 1 FROM publications p WHERE p.research_group_id = rg.id) LIMIT 1");
+        $stmt = $crad->prepare("SELECT rg.research_title, rg.group_name FROM research_groups rg INNER JOIN title_approvals ta ON ta.id = rg.title_approval_id AND {$validTitleApprovalSql} INNER JOIN final_manuscript_approvals fma ON fma.research_group_id = rg.id AND fma.status = 'Approved' WHERE rg.id = ? AND NOT EXISTS (SELECT 1 FROM publications p WHERE p.research_group_id = rg.id) LIMIT 1");
         $stmt->execute([$groupId]); $group = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$group) $error = 'Only approved groups without an existing publication record may be selected.';
         else {
@@ -24,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
-$groups = $crad->query("SELECT rg.id, rg.group_number, rg.research_title FROM research_groups rg INNER JOIN final_manuscript_approvals fma ON fma.research_group_id = rg.id AND fma.status = 'Approved' WHERE NOT EXISTS (SELECT 1 FROM publications p WHERE p.research_group_id = rg.id) ORDER BY rg.group_number")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+$groups = $crad->query("SELECT rg.id, rg.group_number, rg.research_title FROM research_groups rg INNER JOIN title_approvals ta ON ta.id = rg.title_approval_id AND {$validTitleApprovalSql} INNER JOIN final_manuscript_approvals fma ON fma.research_group_id = rg.id AND fma.status = 'Approved' WHERE NOT EXISTS (SELECT 1 FROM publications p WHERE p.research_group_id = rg.id) ORDER BY rg.group_number")->fetchAll(PDO::FETCH_ASSOC) ?: [];
 $breadcrumbs = [['label' => 'CRAD', 'url' => BASE_URL . '/modules/crad/index.php'], ['label' => 'New Publication Record', 'url' => null]];
 require_once ROOT_PATH . '/includes/layout-start.php'; renderBreadcrumbs($breadcrumbs);
 ?>

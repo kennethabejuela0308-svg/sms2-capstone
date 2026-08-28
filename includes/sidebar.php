@@ -289,6 +289,12 @@ $researchDirectorNavGroups = [
         ['slug' => 'venues', 'href' => $researchDirectorBaseUrl . 'venues', 'icon' => 'fa-map-marker-alt', 'label' => 'Venues'],
         ['slug' => 'finalize-defense-schedule', 'href' => $researchDirectorBaseUrl . 'finalize-defense-schedule', 'icon' => 'fa-clipboard-check', 'label' => 'Finalize Schedule'],
     ],
+    'FINAL DEFENSE SCHEDULING' => [
+        ['slug' => 'final-defense-scheduling-queue', 'href' => $researchDirectorBaseUrl . 'defense-scheduling-queue&defense_type=Final%20Defense', 'icon' => 'fa-list-alt', 'label' => 'Ready for Scheduling'],
+        ['slug' => 'final-defense-manual-scheduling', 'href' => $researchDirectorBaseUrl . 'manual-scheduling-optimizer&defense_type=Final%20Defense', 'icon' => 'fa-calendar-check', 'label' => 'Manual Scheduling Optimizer'],
+        ['slug' => 'final-defense-proposed-schedules', 'href' => $researchDirectorBaseUrl . 'proposed-schedules&defense_type=Final%20Defense', 'icon' => 'fa-calendar-plus', 'label' => 'Proposed Schedules'],
+        ['slug' => 'final-defense-finalize-schedule', 'href' => $researchDirectorBaseUrl . 'finalize-defense-schedule&defense_type=Final%20Defense', 'icon' => 'fa-clipboard-check', 'label' => 'Finalize Schedule'],
+    ],
     'SYSTEM' => [
         ['slug' => 'security-settings', 'href' => BASE_URL . '/account/module-security.php?module=faculty', 'icon' => 'fa-shield-alt', 'label' => 'Security Settings'],
     ],
@@ -406,29 +412,50 @@ $researchDirectorNavGroups = [
                             $pageTitles[$p['slug']] = $p['title'];
                         }
                         foreach ($module['groups'] as $groupLabel => $groupSlugs):
+                            $reportSidebarItems = null;
+                            if ($navModuleKey === 'crad' && $groupLabel === 'Reports') {
+                                $reportSidebarItems = [
+                                    ['slug' => 'capstone-analytics', 'label' => 'Capstone Analytics', 'icon' => 'fa-chart-pie'],
+                                    ['slug' => 'progress-reports', 'label' => 'Progress Reports', 'icon' => 'fa-chart-line'],
+                                    ['slug' => 'defense-reports', 'label' => 'Defense Reports', 'icon' => 'fa-gavel'],
+                                    ['slug' => 'adviser-reports', 'label' => 'Adviser Reports', 'icon' => 'fa-user-tie'],
+                                    ['slug' => 'completion-reports', 'label' => 'Completion Reports', 'icon' => 'fa-check-double'],
+                                    ['slug' => 'publication-reports', 'label' => 'Publication Reports', 'icon' => 'fa-book-open'],
+                                ];
+                            }
                     ?>
                         <li class="nav-item sidebar-group-label">
                             <span class="nav-link sidebar-group-heading"><?= htmlspecialchars($groupLabel) ?></span>
                         </li>
-                        <?php foreach ($groupSlugs as $slug): ?>
+                        <?php foreach (($reportSidebarItems ?? array_map(static fn(string $slug): array => ['slug' => $slug], $groupSlugs)) as $sidebarItem): ?>
                             <?php
+                            $slug = (string) ($sidebarItem['slug'] ?? '');
+                            if ($reportSidebarItems !== null) {
+                                $sidebarPageTitle = (string) ($sidebarItem['label'] ?? 'Report');
+                                $pageHref = BASE_URL . '/modules/crad/pages/research-analytics-reporting.php?report=' . rawurlencode($slug);
+                                $pageIcon = (string) ($sidebarItem['icon'] ?? 'fa-chart-bar');
+                                $isPageActive = $isModuleActive && $activePage === 'research-analytics-reporting' && (string) ($_GET['report'] ?? 'capstone-analytics') === $slug;
+                            } else {
                             if (!isset($pageTitles[$slug])) { continue; }
                             // CRAD Officer: hide Research Defense Scheduling from sidebar only.
                             // The page, its files, database tables, and APIs are NOT removed.
                             if ($roleKey === 'crad_officer' && $slug === 'research-defense-scheduling') { continue; }
                             $isPageActive = ($isModuleActive && $activePage === $slug);
                             $pageHref = BASE_URL . '/modules/' . $moduleFolder . '/pages/' . $slug . '.php';
+                            $sidebarPageTitle = $pageTitles[$slug];
+                            $pageIcon = smsNavPageIcon($slug);
                             if ($slug === 'security-settings') {
                                 $pageHref = BASE_URL . '/account/module-security.php?module=' . urlencode((string) $navModuleKey);
+                            }
                             }
                             ?>
                             <li class="nav-item">
                                 <a class="nav-link sidebar-sub <?= $isPageActive ? 'active' : '' ?>"
                                    href="<?= htmlspecialchars($pageHref) ?>"
-                                   data-title="<?= htmlspecialchars($pageTitles[$slug]) ?>"
-                                   title="<?= htmlspecialchars($pageTitles[$slug]) ?>">
-                                    <i class="fas <?= htmlspecialchars(smsNavPageIcon($slug)) ?>" aria-hidden="true"></i>
-                                    <span><?= htmlspecialchars($pageTitles[$slug]) ?></span>
+                                   data-title="<?= htmlspecialchars($sidebarPageTitle) ?>"
+                                   title="<?= htmlspecialchars($sidebarPageTitle) ?>">
+                                    <i class="fas <?= htmlspecialchars($pageIcon) ?>" aria-hidden="true"></i>
+                                    <span><?= htmlspecialchars($sidebarPageTitle) ?></span>
                                 </a>
                             </li>
                         <?php endforeach; ?>

@@ -5,6 +5,7 @@ require_once __DIR__ . '/../config/config.php';
 require_once ROOT_PATH . '/includes/authentication.php';
 require_once ROOT_PATH . '/includes/uploads.php';
 require_once ROOT_PATH . '/modules/faculty/includes/final-defense-evaluation.php';
+require_once ROOT_PATH . '/modules/crad/includes/research-progress-helpers.php';
 
 function finalPhaseEnsureSchema(PDO $crad): void
 {
@@ -119,6 +120,35 @@ function finalPhaseEnsureSchema(PDO $crad): void
     }
 
     foreach ([
+        'final_defense_recommendations' => 'INT UNSIGNED NOT NULL AUTO_INCREMENT',
+        'final_manuscript_approvals' => 'INT UNSIGNED NOT NULL AUTO_INCREMENT',
+        'manuscript_evaluations' => 'INT UNSIGNED NOT NULL AUTO_INCREMENT',
+        'manuscript_submissions' => 'INT UNSIGNED NOT NULL AUTO_INCREMENT',
+        'publications' => 'INT UNSIGNED NOT NULL AUTO_INCREMENT',
+    ] as $table => $definition) {
+        try {
+            $idColumn = $crad->query("SHOW COLUMNS FROM `{$table}` LIKE 'id'")->fetch(PDO::FETCH_ASSOC);
+            if ($idColumn && stripos((string) ($idColumn['Extra'] ?? ''), 'auto_increment') === false) {
+                $crad->exec("ALTER TABLE `{$table}` MODIFY `id` {$definition}");
+            }
+        } catch (Throwable $e) {
+            error_log('Final phase id schema repair failed for ' . $table . ': ' . $e->getMessage());
+        }
+    }
+
+    try {
+        $legacyUnique = $crad->query(
+            "SHOW INDEX FROM research_defense_schedules
+             WHERE Key_name = 'uniq_rds_group_number' AND Non_unique = 0"
+        )->fetch();
+        if ($legacyUnique) {
+            $crad->exec('ALTER TABLE research_defense_schedules DROP INDEX uniq_rds_group_number');
+        }
+    } catch (Throwable $e) {
+        error_log('Final phase schedule index cleanup failed: ' . $e->getMessage());
+    }
+
+    foreach ([
         'original_name' => "VARCHAR(255) NOT NULL DEFAULT ''",
         'stored_subdir' => "VARCHAR(180) NOT NULL DEFAULT ''",
         'stored_name' => "VARCHAR(120) NOT NULL DEFAULT ''",
@@ -145,6 +175,10 @@ function finalPhaseEnsureSchema(PDO $crad): void
 
 function fpIsRecommendedForFinalDefense(PDO $crad, int $groupId): bool
 {
+    $plan = rpGetResearchPlan($crad, $groupId);
+    if (!$plan || !rpIsFirstSemesterComplete($crad, (int) $plan['id'], $groupId)) {
+        return false;
+    }
     $row = fpGetFinalDefenseRecommendation($crad, $groupId);
     return (string) ($row['status'] ?? '') === 'Recommended';
 }
@@ -184,11 +218,22 @@ function fpSaveFinalDefenseRecommendation(PDO $crad, int $groupId, string $group
             (research_group_id, group_number, adviser_user_id, adviser_name, status, remarks, recommended_at)
          VALUES (?, ?, ?, ?, 'Recommended', ?, NOW())
          ON DUPLICATE KEY UPDATE
-            group_number = VALUES(group_number), adviser_user_id = VALUES(adviser_user_id),
+            research_group_id = VALUES(research_group_id), group_number = VALUES(group_number), adviser_user_id = VALUES(adviser_user_id),
             adviser_name = VALUES(adviser_name), status = 'Recommended', remarks = VALUES(remarks),
             recommended_at = NOW()"
     );
     $stmt->execute([$groupId, trim($groupNumber), $adviserUserId, trim($adviserName), trim($remarks)]);
+    rpEnsureFinalDefenseRecommendationSchema($crad);
+    $legacy = $crad->prepare(
+        "UPDATE research_plans
+         SET final_defense_recommended = 1,
+             final_defense_recommended_by = ?,
+             final_defense_recommended_by_name = ?,
+             final_defense_recommended_at = NOW(),
+             final_defense_recommendation_remarks = ?
+         WHERE research_group_id = ?"
+    );
+    $legacy->execute([$adviserUserId, trim($adviserName), trim($remarks), $groupId]);
     return true;
 }
 
@@ -206,6 +251,17 @@ function fpClearFinalDefenseRecommendation(PDO $crad, int $groupId): bool
             adviser_name = '', remarks = NULL, recommended_at = NULL"
     );
     $stmt->execute([$groupId]);
+    rpEnsureFinalDefenseRecommendationSchema($crad);
+    $legacy = $crad->prepare(
+        "UPDATE research_plans
+         SET final_defense_recommended = 0,
+             final_defense_recommended_by = NULL,
+             final_defense_recommended_by_name = NULL,
+             final_defense_recommended_at = NULL,
+             final_defense_recommendation_remarks = NULL
+         WHERE research_group_id = ?"
+    );
+    $legacy->execute([$groupId]);
     return true;
 }
 
@@ -223,6 +279,42 @@ function fpGetFinalDefenseRecommendation(PDO $crad, int $groupId): ?array
         $row['final_defense_recommended_at'] = $row['recommended_at'] ?? null;
         $row['final_defense_recommendation_remarks'] = $row['remarks'] ?? null;
         return $row;
+    }
+    $legacy = rpGetFinalDefenseRecommendation($crad, $groupId);
+    if (!empty($legacy['final_defense_recommended'])) {
+        $groupStmt = $crad->prepare("SELECT group_number FROM research_groups WHERE id = ? LIMIT 1");
+        $groupStmt->execute([$groupId]);
+        $groupNumber = (string) ($groupStmt->fetchColumn() ?: '');
+        $sync = $crad->prepare(
+            "INSERT INTO final_defense_recommendations
+                (research_group_id, group_number, adviser_user_id, adviser_name, status, remarks, recommended_at)
+             VALUES (?, ?, ?, ?, 'Recommended', ?, COALESCE(?, NOW()))
+             ON DUPLICATE KEY UPDATE
+                group_number = VALUES(group_number),
+                adviser_user_id = VALUES(adviser_user_id),
+                adviser_name = VALUES(adviser_name),
+                status = 'Recommended',
+                remarks = VALUES(remarks),
+                recommended_at = VALUES(recommended_at)"
+        );
+        $sync->execute([
+            $groupId,
+            $groupNumber,
+            (int) ($legacy['final_defense_recommended_by'] ?? 0) ?: null,
+            (string) ($legacy['final_defense_recommended_by_name'] ?? ''),
+            (string) ($legacy['final_defense_recommendation_remarks'] ?? ''),
+            $legacy['final_defense_recommended_at'] ?? null,
+        ]);
+        $stmt->execute([$groupId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row) {
+            $row['final_defense_recommended'] = 1;
+            $row['final_defense_recommended_by'] = $row['adviser_user_id'] ?? null;
+            $row['final_defense_recommended_by_name'] = $row['adviser_name'] ?? '';
+            $row['final_defense_recommended_at'] = $row['recommended_at'] ?? null;
+            $row['final_defense_recommendation_remarks'] = $row['remarks'] ?? null;
+            return $row;
+        }
     }
     return null;
 }
@@ -250,7 +342,7 @@ function fpIsManuscriptApproved(PDO $crad, int $groupId): bool
 
 function fpGetFinalDefenseSchedule(PDO $crad, int $groupId): ?array
 {
-    $stmt = $crad->prepare("SELECT * FROM research_defense_schedules WHERE research_group_id = ? AND defense_type = ? ORDER BY defense_datetime DESC, id DESC LIMIT 1");
+    $stmt = $crad->prepare("SELECT * FROM research_defense_schedules WHERE research_group_id = ? AND defense_type = ? AND LOWER(status) IN ('scheduled', 'finalized', 'final') ORDER BY defense_datetime DESC, id DESC LIMIT 1");
     $stmt->execute([$groupId, CRAD_DEFENSE_TYPE_FINAL]); $row = $stmt->fetch(PDO::FETCH_ASSOC); return $row ?: null;
 }
 
@@ -264,9 +356,23 @@ function fpGroupNeedsFinalRevision(PDO $crad, int $groupId): bool
 {
     $schedule = fpGetFinalDefenseSchedule($crad, $groupId); $panel = fpGetFinalDefensePanel($crad, $groupId);
     if (!$schedule || !$panel) return false;
-    $stmt = $crad->prepare("SELECT COUNT(*) FROM final_defense_evaluations WHERE defense_schedule_id = ? AND result = 'APPROVED WITH REVISION'");
-    $stmt->execute([(int) $schedule['id']]);
-    $needsRevision = (int) $stmt->fetchColumn() === count($panel);
+        $stmt = $crad->prepare(
+                "SELECT COUNT(DISTINCT rpa.panel_user_id) AS assigned_count,
+                                COUNT(DISTINCT CASE WHEN fde.id IS NOT NULL THEN rpa.panel_user_id END) AS submitted_count,
+                                COUNT(DISTINCT CASE WHEN fde.result = 'APPROVED WITH REVISION' THEN rpa.panel_user_id END) AS revision_count
+                 FROM research_panel_assignments rpa
+                 LEFT JOIN final_defense_evaluations fde
+                     ON fde.defense_schedule_id = ?
+                    AND fde.panel_user_id = rpa.panel_user_id
+                 WHERE rpa.research_group_id = ?
+                     AND rpa.defense_phase = ?
+                     AND rpa.assignment_status = 'Assigned'"
+        );
+        $stmt->execute([(int) $schedule['id'], $groupId, CRAD_DEFENSE_PHASE_FINAL]);
+        $evaluationState = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+        $needsRevision = (int) ($evaluationState['assigned_count'] ?? 0) > 0
+                && (int) ($evaluationState['submitted_count'] ?? 0) === (int) ($evaluationState['assigned_count'] ?? 0)
+                && (int) ($evaluationState['revision_count'] ?? 0) > 0;
     if ($needsRevision) {
         $cycle = $crad->prepare("INSERT INTO research_revision_cycles (research_group_id, defense_schedule_id, official_result, revision_status) VALUES (?, ?, 'APPROVED WITH REVISION', 'Needs Revision') ON DUPLICATE KEY UPDATE revision_status = IF(revision_status = 'Compliant', revision_status, 'Needs Revision')");
         $cycle->execute([$groupId, (int) $schedule['id']]);
@@ -345,8 +451,22 @@ function fpIsEligibleForFinalApproval(PDO $crad, int $groupId): bool
     if (fpGroupNeedsFinalRevision($crad, $groupId)) {
         return (string) (fpGetRevisionCycle($crad, $groupId)['revision_status'] ?? '') === 'Compliant';
     }
-    $stmt = $crad->prepare("SELECT COUNT(*) FROM final_defense_evaluations WHERE defense_schedule_id = ? AND result = 'APPROVED'");
-    $stmt->execute([(int) $schedule['id']]); return (int) $stmt->fetchColumn() === count($panel);
+    $stmt = $crad->prepare(
+        "SELECT COUNT(DISTINCT rpa.panel_user_id) AS assigned_count,
+                COUNT(DISTINCT CASE WHEN fde.result = 'APPROVED' THEN rpa.panel_user_id END) AS approved_count
+         FROM research_panel_assignments rpa
+         LEFT JOIN final_defense_evaluations fde
+           ON fde.defense_schedule_id = ?
+          AND fde.panel_user_id = rpa.panel_user_id
+         WHERE rpa.research_group_id = ?
+           AND rpa.defense_phase = ?
+           AND rpa.assignment_status = 'Assigned'"
+    );
+    $stmt->execute([(int) $schedule['id'], $groupId, CRAD_DEFENSE_PHASE_FINAL]);
+    $approval = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    $assignedCount = (int) ($approval['assigned_count'] ?? 0);
+    return $assignedCount > 0
+        && (int) ($approval['approved_count'] ?? 0) === $assignedCount;
 }
 
 function fpGetFinalDefenseRevisionGroups(PDO $crad, int $adviserUserId, string $adviserEmail): array

@@ -14,6 +14,66 @@ if (!function_exists('smsModulePageUi')) {
 
         $title = $pageTitle !== '' ? $pageTitle : ($page['title'] ?? $pageSlug);
         $rows = $page['rows'] ?? [];
+        if ($module === 'crad' && $pageSlug === 'research-analytics-reporting' && function_exists('cradDb')) {
+            try {
+                $crad = cradDb();
+                if ($crad instanceof PDO) {
+                    $count = static function (PDO $db, string $sql): string {
+                        try {
+                            return (string) ((int) $db->query($sql)->fetchColumn());
+                        } catch (Throwable $e) {
+                            error_log('CRAD analytics metric query failed: ' . $e->getMessage());
+                            return '0';
+                        }
+                    };
+                    $totalGroups = $count($crad, 'SELECT COUNT(*) FROM research_groups');
+                    $approvedTitles = $count($crad, "SELECT COUNT(*) FROM title_approvals WHERE status = 'Approved'");
+                    $withAdvisers = $count($crad, "SELECT COUNT(DISTINCT research_group_id) FROM research_adviser_assignments WHERE assignment_status IN ('Assigned', 'Confirmed') AND research_group_id IS NOT NULL");
+                    $preOralCompleted = $count($crad, "SELECT COUNT(*) FROM research_defense_schedules WHERE defense_type = 'Pre-Oral' AND LOWER(status) IN ('scheduled', 'finalized', 'final', 'completed', 'passed')");
+                    $finalDefenseCompleted = $count($crad, "SELECT COUNT(*) FROM research_defense_schedules WHERE defense_type = 'Final Defense' AND LOWER(status) IN ('scheduled', 'finalized', 'final', 'completed', 'passed')");
+                    $finalApproved = $count($crad, "SELECT COUNT(*) FROM final_manuscript_approvals WHERE status = 'Approved'");
+                    $forRevision = $count($crad, "SELECT COUNT(*) FROM research_revision_cycles WHERE revision_status IN ('Needs Revision', 'Under Review')");
+                    $validPublicationTitleSql = function_exists('cradValidTitleApprovalWhereSql') ? cradValidTitleApprovalWhereSql('pub_ta') : "pub_ta.status = 'Approved'";
+                    $published = $count($crad, "SELECT COUNT(*) FROM publications p INNER JOIN research_groups pub_rg ON pub_rg.id = p.research_group_id INNER JOIN title_approvals pub_ta ON pub_ta.id = pub_rg.title_approval_id AND {$validPublicationTitleSql} WHERE p.status = 'Published'");
+                    $page['stats'] = [
+                        ['label' => 'Total Groups', 'value' => $totalGroups, 'icon' => 'fa-users', 'tone' => 'blue'],
+                        ['label' => 'Approved Titles', 'value' => $approvedTitles, 'icon' => 'fa-check-circle', 'tone' => 'green'],
+                        ['label' => 'Final Defenses Completed', 'value' => $finalDefenseCompleted, 'icon' => 'fa-gavel', 'tone' => 'amber'],
+                        ['label' => 'Published', 'value' => $published, 'icon' => 'fa-book-open', 'tone' => 'purple'],
+                    ];
+                    if (!empty($page['rows'][0])) {
+                        $page['rows'][0]['detail'] = 'Total Groups ' . $totalGroups
+                            . ' | Approved Titles ' . $approvedTitles
+                            . ' | With Advisers ' . $withAdvisers
+                            . ' | Pre-Oral Completed ' . $preOralCompleted
+                            . ' | Final Defense Completed ' . $finalDefenseCompleted
+                            . ' | Final Approved ' . $finalApproved
+                            . ' | For Revision ' . $forRevision
+                            . ' | Published ' . $published;
+                        $page['rows'][0]['schedule'] = date('M j, Y');
+                    }
+                    $page['rows'] = array_values(array_filter([
+                        $totalGroups !== '0' ? ['reference' => 'RAN-001', 'subject' => 'Capstone Analytics', 'subtitle' => 'Overall capstone performance', 'owner' => 'CRAD', 'detail' => 'Total Groups ' . $totalGroups . ' | Approved Titles ' . $approvedTitles . ' | With Advisers ' . $withAdvisers . ' | Pre-Oral Completed ' . $preOralCompleted . ' | Final Defense Completed ' . $finalDefenseCompleted . ' | Final Approved ' . $finalApproved . ' | For Revision ' . $forRevision . ' | Published ' . $published, 'schedule' => date('M j, Y'), 'status' => 'On Track', 'status_class' => 'completed', 'type' => 'Capstone Analytics'] : null,
+                        $withAdvisers !== '0' ? ['reference' => 'RAN-004', 'subject' => 'Adviser Reports', 'subtitle' => 'Adviser assignments', 'owner' => 'CRAD', 'detail' => 'Assigned groups and adviser monitoring', 'schedule' => date('M j, Y'), 'status' => 'On Track', 'status_class' => 'completed', 'type' => 'Adviser Reports'] : null,
+                        $preOralCompleted !== '0' || $finalDefenseCompleted !== '0' ? ['reference' => 'RAN-003', 'subject' => 'Defense Reports', 'subtitle' => 'Pre-Oral and Final Defense', 'owner' => 'CRAD', 'detail' => 'Schedules, panel evaluations, and defense outcomes', 'schedule' => date('M j, Y'), 'status' => 'On Track', 'status_class' => 'completed', 'type' => 'Defense Reports'] : null,
+                        $finalApproved !== '0' ? ['reference' => 'RAN-005', 'subject' => 'Completion Reports', 'subtitle' => 'Final manuscript approval', 'owner' => 'CRAD', 'detail' => 'Completed research groups and approval status', 'schedule' => date('M j, Y'), 'status' => 'On Track', 'status_class' => 'completed', 'type' => 'Completion Reports'] : null,
+                        ($published !== '0' || $approvedTitles !== '0') ? ['reference' => 'RAN-006', 'subject' => 'Publication Reports', 'subtitle' => 'Publication and repository', 'owner' => 'CRAD', 'detail' => 'Draft, For Publication, Published, and Archived records', 'schedule' => date('M j, Y'), 'status' => 'On Track', 'status_class' => 'completed', 'type' => 'Publication Reports'] : null,
+                        $forRevision !== '0' ? ['reference' => 'RAN-002', 'subject' => 'Progress Reports', 'subtitle' => 'Research development', 'owner' => 'CRAD', 'detail' => 'Milestone and research group progress', 'schedule' => date('M j, Y'), 'status' => 'Needs Attention', 'status_class' => 'cancelled', 'type' => 'Progress Reports'] : null,
+                    ], static fn($row): bool => is_array($row)));
+                }
+            } catch (Throwable $e) {
+                error_log('CRAD analytics catalog stats failed: ' . $e->getMessage());
+            }
+        }
+        if ($module === 'crad' && $pageSlug === 'research-analytics-reporting') {
+            $selectedReport = trim((string) ($_GET['report'] ?? ''));
+            if ($selectedReport !== '') {
+                $rows = array_values(array_filter($rows, static function (array $row) use ($selectedReport): bool {
+                    $type = strtolower(trim((string) ($row['type'] ?? '')));
+                    return $type === strtolower(str_replace('-', ' ', $selectedReport));
+                }));
+            }
+        }
         $statuses = ['All Status'];
         $types = ['All Types'];
         foreach ($rows as $row) {
@@ -45,6 +105,8 @@ if (!function_exists('smsModulePageUi')) {
                 'schedule' => 'Schedule',
             ],
             'rows' => $rows,
+            'show_archive_button' => $pageSlug !== 'research-analytics-reporting',
+            'show_add_button' => $pageSlug !== 'research-analytics-reporting',
         ];
     }
 }
@@ -368,7 +430,7 @@ if (!function_exists('smsEnrollmentPageUiCatalog')) {
                     ['label' => 'Waitlisted', 'value' => '23', 'icon' => 'fa-stream', 'tone' => 'purple'],
                 ],
                 'columns' => [
-                    'ref' => 'Metric ID',
+                    'ref' => 'Report ID',
                     'subject' => 'Pipeline Item',
                     'owner' => 'Owner Office',
                     'detail' => 'Current Count',
@@ -626,24 +688,25 @@ if (!function_exists('smsCradPageUiCatalog')) {
                 'list_subtitle' => 'View research performance analytics and generate institutional reports.',
                 'search_placeholder' => 'Search by metric, college, or report.',
                 'stats' => [
-                    ['label' => 'Active Studies', 'value' => '24', 'icon' => 'fa-flask', 'tone' => 'blue'],
-                    ['label' => 'Approval Rate', 'value' => '78%', 'icon' => 'fa-percent', 'tone' => 'green'],
-                    ['label' => 'Grants Released', 'value' => '₱486K', 'icon' => 'fa-hand-holding-usd', 'tone' => 'amber'],
-                    ['label' => 'Publications', 'value' => '31', 'icon' => 'fa-book-open', 'tone' => 'purple'],
+                    ['label' => 'Total Groups', 'value' => '1', 'icon' => 'fa-users', 'tone' => 'blue'],
+                    ['label' => 'Approved Titles', 'value' => '1', 'icon' => 'fa-check-circle', 'tone' => 'green'],
+                    ['label' => 'Final Defenses Completed', 'value' => '1', 'icon' => 'fa-gavel', 'tone' => 'amber'],
+                    ['label' => 'Published', 'value' => '1', 'icon' => 'fa-book-open', 'tone' => 'purple'],
                 ],
                 'columns' => [
-                    'ref' => 'Metric ID',
+                    'ref' => 'Report ID',
                     'subject' => 'Research Metric',
                     'owner' => 'College / Office',
                     'detail' => 'Current Value',
                     'schedule' => 'As of',
                 ],
                 'rows' => [
-                    ['reference' => 'RAN-001', 'subject' => 'Proposal Submission Rate', 'subtitle' => 'Proposals', 'owner' => 'CCS', 'detail' => '18 proposals / term', 'schedule' => 'Jul 18, 2026', 'status' => 'On Track', 'status_class' => 'completed', 'type' => 'Proposals'],
-                    ['reference' => 'RAN-002', 'subject' => 'Defense Pass Rate', 'subtitle' => 'Defenses', 'owner' => 'CBA', 'detail' => '92% pass rate', 'schedule' => 'Jul 18, 2026', 'status' => 'On Track', 'status_class' => 'completed', 'type' => 'Defenses'],
-                    ['reference' => 'RAN-003', 'subject' => 'Grant Utilization', 'subtitle' => 'Grants', 'owner' => 'COE', 'detail' => '₱148,500 utilized', 'schedule' => 'Jul 17, 2026', 'status' => 'Monitoring', 'status_class' => 'pending', 'type' => 'Grants'],
-                    ['reference' => 'RAN-004', 'subject' => 'Publication Output', 'subtitle' => 'Publications', 'owner' => 'Criminology', 'detail' => '12 outputs this year', 'schedule' => 'Jul 16, 2026', 'status' => 'On Track', 'status_class' => 'completed', 'type' => 'Publications'],
-                    ['reference' => 'RAN-005', 'subject' => 'Adviser Workload Balance', 'subtitle' => 'Assignments', 'owner' => 'All Colleges', 'detail' => 'Avg. 4.5 advisees / adviser', 'schedule' => 'Jul 14, 2026', 'status' => 'Needs Attention', 'status_class' => 'cancelled', 'type' => 'Assignments'],
+                    ['reference' => 'RAN-001', 'subject' => 'Capstone Analytics', 'subtitle' => 'Overall capstone performance', 'owner' => 'CRAD', 'detail' => 'Total groups, approvals, defenses, and publication status', 'schedule' => 'Aug 28, 2026', 'status' => 'On Track', 'status_class' => 'completed', 'type' => 'Capstone Analytics'],
+                    ['reference' => 'RAN-002', 'subject' => 'Progress Reports', 'subtitle' => 'Research development', 'owner' => 'CRAD', 'detail' => 'Milestone and research group progress', 'schedule' => 'Aug 28, 2026', 'status' => 'On Track', 'status_class' => 'completed', 'type' => 'Progress Reports'],
+                    ['reference' => 'RAN-003', 'subject' => 'Defense Reports', 'subtitle' => 'Pre-Oral and Final Defense', 'owner' => 'CRAD', 'detail' => 'Schedules, panel evaluations, and defense outcomes', 'schedule' => 'Aug 28, 2026', 'status' => 'On Track', 'status_class' => 'completed', 'type' => 'Defense Reports'],
+                    ['reference' => 'RAN-004', 'subject' => 'Adviser Reports', 'subtitle' => 'Adviser assignments', 'owner' => 'CRAD', 'detail' => 'Assigned groups and adviser monitoring', 'schedule' => 'Aug 28, 2026', 'status' => 'On Track', 'status_class' => 'completed', 'type' => 'Adviser Reports'],
+                    ['reference' => 'RAN-005', 'subject' => 'Completion Reports', 'subtitle' => 'Final manuscript approval', 'owner' => 'CRAD', 'detail' => 'Completed research groups and approval status', 'schedule' => 'Aug 28, 2026', 'status' => 'On Track', 'status_class' => 'completed', 'type' => 'Completion Reports'],
+                    ['reference' => 'RAN-006', 'subject' => 'Publication Reports', 'subtitle' => 'Publication and repository', 'owner' => 'CRAD', 'detail' => 'Draft, For Publication, Published, and Archived records', 'schedule' => 'Aug 28, 2026', 'status' => 'On Track', 'status_class' => 'completed', 'type' => 'Publication Reports'],
                 ],
             ],
         ];
