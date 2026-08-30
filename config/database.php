@@ -8,19 +8,25 @@ declare(strict_types=1);
 require_once __DIR__ . '/config.php';
 
 if (!defined('DB_HOST')) {
-    define('DB_HOST', sms2_env('SMS2_DB_HOST', 'localhost'));
+    define('DB_HOST', sms2_env_first(['SMS2_DB_HOST', 'DB_HOST', 'MYSQL_HOST', 'MARIADB_HOST'], 'localhost'));
+}
+if (!defined('DB_PORT')) {
+    define('DB_PORT', sms2_env_first(['SMS2_DB_PORT', 'DB_PORT', 'MYSQL_PORT', 'MARIADB_PORT'], '3306'));
 }
 if (!defined('DB_NAME')) {
-    define('DB_NAME', sms2_env('SMS2_DB_NAME', 'sms2_db'));
+    define('DB_NAME', sms2_env_first(['SMS2_DB_NAME', 'DB_DATABASE', 'DB_NAME', 'MYSQL_DATABASE', 'MARIADB_DATABASE'], 'sms2_db'));
 }
 if (!defined('DB_USER')) {
-    define('DB_USER', sms2_env('SMS2_DB_USER', 'root'));
+    define('DB_USER', sms2_env_first(['SMS2_DB_USER', 'DB_USERNAME', 'DB_USER', 'MYSQL_USER', 'MARIADB_USER'], 'root'));
 }
 if (!defined('DB_PASS')) {
-    define('DB_PASS', sms2_env('SMS2_DB_PASS', ''));
+    define('DB_PASS', sms2_env_first(['SMS2_DB_PASS', 'DB_PASSWORD', 'DB_PASS', 'MYSQL_PASSWORD', 'MARIADB_PASSWORD'], ''));
 }
 if (!defined('DB_CHARSET')) {
-    define('DB_CHARSET', sms2_env('SMS2_DB_CHARSET', 'utf8mb4'));
+    define('DB_CHARSET', sms2_env_first(['SMS2_DB_CHARSET', 'DB_CHARSET'], 'utf8mb4'));
+}
+if (!defined('DB_CONNECTION')) {
+    define('DB_CONNECTION', strtolower((string) sms2_env_first(['SMS2_DB_CONNECTION', 'DB_CONNECTION'], 'mysql')));
 }
 
 /**
@@ -36,7 +42,13 @@ function getDatabaseConnection(): PDO
         return $pdo;
     }
 
-    $dsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=' . DB_CHARSET;
+    if (!in_array(DB_CONNECTION, ['mysql', 'mariadb'], true)) {
+        throw new RuntimeException(
+            'Unsupported database connection "' . DB_CONNECTION . '". Select MySQL/MariaDB on HostForge for SMS 2.'
+        );
+    }
+
+    $dsn = 'mysql:host=' . DB_HOST . ';port=' . DB_PORT . ';dbname=' . DB_NAME . ';charset=' . DB_CHARSET;
 
     try {
         $pdo = new PDO($dsn, DB_USER, DB_PASS, [

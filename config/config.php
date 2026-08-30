@@ -39,6 +39,20 @@ if (!function_exists('sms2_env')) {
     }
 }
 
+if (!function_exists('sms2_env_first')) {
+    function sms2_env_first(array $keys, ?string $default = null): ?string
+    {
+        foreach ($keys as $key) {
+            $value = sms2_env((string) $key);
+            if ($value !== null) {
+                return $value;
+            }
+        }
+
+        return $default;
+    }
+}
+
 if (!function_exists('sms2_detect_base_url')) {
     function sms2_detect_base_url(): string
     {

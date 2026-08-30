@@ -18,4 +18,4 @@ RUN test -f /var/www/html/index.php \
 
 ENV PORT=8000
 
-CMD ["sh", "-c", "sed -i \"s/^Listen .*/Listen ${PORT:-8000}/\" /etc/apache2/ports.conf && sed -i \"s/<VirtualHost \\*:[0-9]*>/<VirtualHost *:${PORT:-8000}>/\" /etc/apache2/sites-available/000-default.conf && apache2-foreground"]
+CMD ["sh", "-c", "if [ \"${SMS2_RUN_MIGRATIONS:-0}\" = \"1\" ]; then php /var/www/html/database/migrate.php; fi; sed -i \"s/^Listen .*/Listen ${PORT:-8000}/\" /etc/apache2/ports.conf && sed -i \"s/<VirtualHost \\*:[0-9]*>/<VirtualHost *:${PORT:-8000}>/\" /etc/apache2/sites-available/000-default.conf && apache2-foreground"]
