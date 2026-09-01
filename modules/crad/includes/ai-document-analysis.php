@@ -308,29 +308,7 @@ function rpAnalyzeWithCursor(string $text, string $milestoneName, string $fileNa
         }
     }
 
-    $agent = rpCursorCreateAgentAndWait($apiKey, $prompt);
-    if (!empty($agent['ok']) && !empty($agent['text'])) {
-        $parsed = rpParseAnalysisPayload((string) $agent['text']);
-        if ($parsed !== null) {
-            $parsed['ok'] = true;
-            $parsed['source'] = 'cursor';
-            return $parsed;
-        }
-        return [
-            'ok' => true,
-            'source' => 'cursor',
-            'verdict' => 'needs_revision',
-            'grammar_quality' => 'fair',
-            'summary' => trim((string) $agent['text']),
-            'notes' => [[
-                'issue' => 'Review the AI notes below before approving this milestone.',
-                'suggestion' => trim((string) $agent['text']),
-                'example' => '',
-            ]],
-        ];
-    }
-
-    $message = (string) ($chat['message'] ?? $agent['message'] ?? 'Cursor analysis failed.');
+    $message = (string) ($chat['message'] ?? 'Cursor analysis is not available from this endpoint.');
     return ['ok' => false, 'message' => $message];
 }
 
@@ -647,7 +625,7 @@ function rpAnalyzeWithLanguageTool(string $text, string $milestoneName, string $
 
     return [
         'ok' => true,
-        'source' => 'cursor',
+        'source' => 'grammar_engine',
         'verdict' => $verdict,
         'grammar_quality' => $quality,
         'summary' => $summary,

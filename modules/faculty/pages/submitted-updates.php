@@ -15,6 +15,7 @@ require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../../../includes/breadcrumbs.php';
 require_once __DIR__ . '/../../../modules/crad/config/config.php';
 require_once __DIR__ . '/../../../modules/crad/includes/research-progress-helpers.php';
+require_once __DIR__ . '/../../../modules/crad/includes/ai-document-analysis.php';
 
 $breadcrumbs = [
     ['label' => 'Faculty',                   'url' => BASE_URL . '/modules/faculty/index.php'],
@@ -66,6 +67,7 @@ $statusFilter    = $_GET['status'] ?? 'all';
 
 $plan = rpGetResearchPlan($crad, $groupId);
 rpEnsureProgressAttachmentSchema($crad);
+rpEnsureAiAnalysisSchema($crad);
 
 $whereConditions = ["rpu.research_group_id = ?"];
 $params = [$groupId];
@@ -79,6 +81,8 @@ try {
         SELECT rpu.*,
                rm.milestone_name, rm.milestone_order, rm.status AS milestone_current_status,
                rpa.id AS attachment_id, rpa.file_name AS attachment_name,
+               rpai.id AS ai_analysis_id, rpai.verdict AS ai_verdict, rpai.grammar_quality AS ai_grammar_quality,
+               rpai.summary AS ai_summary, rpai.notes_json AS ai_notes_json, rpai.created_at AS ai_analyzed_at,
                (SELECT COUNT(*) FROM research_progress_feedback rpf WHERE rpf.progress_update_id = rpu.id) AS feedback_count
         FROM research_progress_updates rpu
         LEFT JOIN research_milestones rm ON rm.id = rpu.milestone_id
@@ -87,6 +91,13 @@ try {
             FROM research_progress_attachments rpa2
             WHERE rpa2.progress_update_id = rpu.id
             ORDER BY rpa2.id DESC
+            LIMIT 1
+        )
+        LEFT JOIN research_progress_ai_analyses rpai ON rpai.id = (
+            SELECT rpai2.id
+            FROM research_progress_ai_analyses rpai2
+            WHERE rpai2.progress_update_id = rpu.id
+            ORDER BY rpai2.id DESC
             LIMIT 1
         )
         WHERE {$whereClause}
