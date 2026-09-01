@@ -290,7 +290,7 @@ $statusMeta = [
                     }
                     $hasAiAnalysis = !empty($update['ai_analysis_id']);
                     $aiVerdict = (string) ($update['ai_verdict'] ?? '');
-                    $needsAiBeforeDecision = ($update['milestone_status'] === 'Submitted for Review');
+                    $needsAiBeforeDecision = ($update['milestone_status'] === 'Submitted for Review') && !empty($update['attachment_id']);
                     $aiRevisionText = $hasAiAnalysis
                         ? rpFormatAiNotesForRevision([
                             'milestone_name' => (string) ($update['milestone_name'] ?? ''),
@@ -736,7 +736,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         const summary = panel.querySelector('[data-ai-summary]');
         if (summary) {
-            summary.innerHTML = escapeHtml(String(analysis.summary || '')).replace(/\\n/g, '<br>');
+            summary.innerHTML = escapeHtml(String(analysis.summary || '')).replace(/\n/g, '<br>');
         }
         const list = panel.querySelector('[data-ai-notes]');
         if (list) {

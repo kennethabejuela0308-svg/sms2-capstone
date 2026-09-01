@@ -280,11 +280,13 @@ function rpAnalyzeResearchDocument(string $text, string $milestoneName, string $
 
 function rpTruncateAnalysisText(string $text, int $maxChars): string
 {
-    if (mb_strlen($text) <= $maxChars) {
+    $length = function_exists('mb_strlen') ? mb_strlen($text, 'UTF-8') : strlen($text);
+    if ($length <= $maxChars) {
         return $text;
     }
+    $cut = function_exists('mb_substr') ? mb_substr($text, 0, $maxChars, 'UTF-8') : substr($text, 0, $maxChars);
 
-    return mb_substr($text, 0, $maxChars) . "\n\n[Document truncated for analysis.]";
+    return $cut . "\n\n[Document truncated for analysis.]";
 }
 
 /**

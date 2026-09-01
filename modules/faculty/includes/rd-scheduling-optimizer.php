@@ -247,6 +247,16 @@ function rdScheduleCursorApiKey(): string
     }
 
     $env = function_exists('sms2_env') ? sms2_env('CURSOR_API_KEY') : getenv('CURSOR_API_KEY');
+    if (is_string($env) && $env !== '') {
+        return $env;
+    }
+    $file = defined('ROOT_PATH') ? ROOT_PATH . '/storage/keys/cursor_api_key' : '';
+    if ($file !== '' && is_readable($file)) {
+        $raw = trim((string) file_get_contents($file));
+        if ($raw !== '') {
+            return $raw;
+        }
+    }
 
-    return is_string($env) && $env !== '' ? $env : '';
+    return '';
 }
