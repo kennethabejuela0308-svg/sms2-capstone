@@ -677,7 +677,7 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('[data-ai-generate]').forEach(function (btn) {
         btn.addEventListener('click', async function () {
             const updateId = this.getAttribute('data-update-id');
-            const card = this.closest('[data-update-id="' + updateId + '"]');
+            const card = this.closest('.rm-update-card');
             const origHTML = this.innerHTML;
             this.disabled = true;
             this.innerHTML = '<?= smsIcon('spinner', ['class' => 'fa-spin me-1']) ?>Analyzing…';
