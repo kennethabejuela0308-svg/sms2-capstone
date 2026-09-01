@@ -493,9 +493,16 @@ function rpCursorHttpJson(string $method, string $url, string $apiKey, ?array $p
     if ($status >= 200 && $status < 300 && is_array($decoded)) {
         return ['ok' => true, 'status' => $status, 'body' => $decoded];
     }
-    $message = is_array($decoded)
-        ? (string) ($decoded['message'] ?? $decoded['error'] ?? $decoded['error']['message'] ?? ('Cursor API HTTP ' . $status))
-        : ('Cursor API HTTP ' . $status);
+    $message = 'Cursor API HTTP ' . $status;
+    if (is_array($decoded)) {
+        if (isset($decoded['message']) && is_string($decoded['message'])) {
+            $message = $decoded['message'];
+        } elseif (isset($decoded['error']) && is_string($decoded['error'])) {
+            $message = $decoded['error'];
+        } elseif (isset($decoded['error']['message']) && is_string($decoded['error']['message'])) {
+            $message = $decoded['error']['message'];
+        }
+    }
 
     return ['ok' => false, 'status' => $status, 'message' => $message, 'body' => is_array($decoded) ? $decoded : []];
 }
