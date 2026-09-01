@@ -283,6 +283,22 @@ $statusMeta = [
                     $progressDelta = (float)$update['new_progress'] - (float)$update['previous_progress'];
                     $feedbackCount = (int) $update['feedback_count'];
                     $sc = $statusMeta[$update['milestone_status']] ?? ['color'=>'#64748b','bg'=>'#f1f5f9','accent'=>'#64748b'];
+                    $aiNotes = [];
+                    if (!empty($update['ai_notes_json'])) {
+                        $decodedNotes = json_decode((string) $update['ai_notes_json'], true);
+                        $aiNotes = is_array($decodedNotes) ? $decodedNotes : [];
+                    }
+                    $hasAiAnalysis = !empty($update['ai_analysis_id']);
+                    $aiVerdict = (string) ($update['ai_verdict'] ?? '');
+                    $needsAiBeforeDecision = ($update['milestone_status'] === 'Submitted for Review');
+                    $aiRevisionText = $hasAiAnalysis
+                        ? rpFormatAiNotesForRevision([
+                            'milestone_name' => (string) ($update['milestone_name'] ?? ''),
+                            'verdict' => $aiVerdict,
+                            'summary' => (string) ($update['ai_summary'] ?? ''),
+                            'notes' => $aiNotes,
+                        ])
+                        : '';
                 ?>
                     <div class="glass-panel rm-update-card" style="--rm-accent:<?= $sc['accent'] ?>;" data-update-id="<?= $updateId ?>">
                         <div class="glass-panel-body">
@@ -363,7 +379,7 @@ $statusMeta = [
                                     <?php if (!empty($update['attachment_id'])): ?>
                                         <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
                                             <span><?= htmlspecialchars((string) $update['attachment_name']) ?></span>
-                                            <span class="d-flex gap-2">
+                                            <span class="d-flex gap-2 flex-wrap">
                                                 <a class="btn btn-sm btn-outline-primary" target="_blank"
                                                    href="<?= htmlspecialchars(rpProgressAttachmentUrl((int) $update['attachment_id'])) ?>">
                                                     <?= smsIcon('eye', ['class' => 'me-1']) ?>View
@@ -372,6 +388,12 @@ $statusMeta = [
                                                    href="<?= htmlspecialchars(rpProgressAttachmentUrl((int) $update['attachment_id'], true)) ?>">
                                                     <?= smsIcon('download', ['class' => 'me-1']) ?>Download
                                                 </a>
+                                                <button type="button"
+                                                        class="btn btn-sm rm-ai-generate-btn"
+                                                        data-ai-generate
+                                                        data-update-id="<?= $updateId ?>">
+                                                    <?= smsIcon('robot', ['class' => 'me-1']) ?>Generate to AI
+                                                </button>
                                             </span>
                                         </div>
                                     <?php else: ?>
