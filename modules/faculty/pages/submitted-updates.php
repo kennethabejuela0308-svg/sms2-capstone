@@ -402,18 +402,62 @@ $statusMeta = [
                                 </div>
                             </div>
 
+                            <div class="rm-ai-panel<?= $hasAiAnalysis ? '' : ' d-none' ?>"
+                                 data-ai-panel
+                                 data-update-id="<?= $updateId ?>"
+                                 data-verdict="<?= htmlspecialchars($aiVerdict) ?>"
+                                 data-revision-text="<?= htmlspecialchars($aiRevisionText) ?>">
+                                <div class="rm-ai-panel-head">
+                                    <div>
+                                        <div class="rm-ai-panel-title"><?= smsIcon('robot') ?>AI Grammar Review</div>
+                                        <div class="rm-ai-panel-sub">Review these notes before you Approve or Request Revision.</div>
+                                    </div>
+                                    <span class="rm-ai-verdict" data-ai-verdict-pill>
+                                        <?= $hasAiAnalysis ? htmlspecialchars($aiVerdict === 'acceptable' ? 'Acceptable grammar' : 'Needs revision') : '' ?>
+                                    </span>
+                                </div>
+                                <div class="rm-ai-summary" data-ai-summary><?= $hasAiAnalysis ? nl2br(htmlspecialchars((string) $update['ai_summary'])) : '' ?></div>
+                                <ul class="rm-ai-notes" data-ai-notes>
+                                    <?php foreach ($aiNotes as $note): ?>
+                                        <li>
+                                            <strong><?= htmlspecialchars((string) ($note['issue'] ?? '')) ?></strong>
+                                            <?php if (!empty($note['suggestion'])): ?>
+                                                <div><?= htmlspecialchars((string) $note['suggestion']) ?></div>
+                                            <?php endif; ?>
+                                            <?php if (!empty($note['example'])): ?>
+                                                <div class="rm-ai-example">“<?= htmlspecialchars((string) $note['example']) ?>”</div>
+                                            <?php endif; ?>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                                <?php if ($needsAiBeforeDecision): ?>
+                                    <button type="button" class="btn btn-sm btn-outline-warning" data-ai-use-notes data-update-id="<?= $updateId ?>">
+                                        <?= smsIcon('redo', ['class' => 'me-1']) ?>Use notes in Request Revision
+                                    </button>
+                                <?php endif; ?>
+                            </div>
+
                             <!-- Action buttons -->
                             <div class="rm-action-row" data-action-controls>
+                                <?php if ($needsAiBeforeDecision && !$hasAiAnalysis): ?>
+                                    <div class="rm-ai-gate-note" data-ai-gate-note>
+                                        <?= smsIcon('info-circle') ?>Run <strong>Generate to AI</strong> first. The AI will check the student’s grammar before you approve or request revision.
+                                    </div>
+                                <?php endif; ?>
                                 <button type="button" class="rm-btn rm-btn-comment"
                                         data-bs-toggle="modal" data-bs-target="#feedbackModal<?= $updateId ?>">
                                     <?= smsIcon('comment') ?>Comment
                                 </button>
                                 <button type="button" class="rm-btn rm-btn-revision"
-                                        data-bs-toggle="modal" data-bs-target="#revisionModal<?= $updateId ?>">
+                                        data-bs-toggle="modal" data-bs-target="#revisionModal<?= $updateId ?>"
+                                        data-decision-btn="revision"
+                                        <?= ($needsAiBeforeDecision && !$hasAiAnalysis) ? 'disabled' : '' ?>>
                                     <?= smsIcon('redo') ?>Request Revision
                                 </button>
                                 <button type="button" class="rm-btn rm-btn-approve"
-                                        data-bs-toggle="modal" data-bs-target="#approveModal<?= $updateId ?>">
+                                        data-bs-toggle="modal" data-bs-target="#approveModal<?= $updateId ?>"
+                                        data-decision-btn="approve"
+                                        <?= ($needsAiBeforeDecision && !$hasAiAnalysis) ? 'disabled' : '' ?>>
                                     <?= smsIcon('check-circle') ?>Approve
                                 </button>
                                 <?php if ($feedbackCount > 0): ?>
