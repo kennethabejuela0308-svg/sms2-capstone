@@ -269,13 +269,13 @@ function rpAnalyzeResearchDocument(string $text, string $milestoneName, string $
 
     $fallback = rpAnalyzeWithLanguageTool($excerpt, $milestoneName, $fileName);
     if (!empty($fallback['ok'])) {
-        if (!empty($cursor['message'])) {
-            $fallback['summary'] = rtrim((string) $fallback['summary']) . ' (Cursor cloud analysis was unavailable; grammar notes were generated from the document text.)';
-        }
         return $fallback;
     }
 
-    return $cursor['message'] ?? $fallback['message'] ?? ['ok' => false, 'message' => 'AI analysis could not be completed.'];
+    return [
+        'ok' => false,
+        'message' => (string) ($cursor['message'] ?? $fallback['message'] ?? 'AI analysis could not be completed.'),
+    ];
 }
 
 function rpTruncateAnalysisText(string $text, int $maxChars): string
