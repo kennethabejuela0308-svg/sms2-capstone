@@ -68,7 +68,10 @@ function smsEnforceSystemMaintenance(): void
     }
 
     $role = function_exists('getCurrentUserRoleKey') ? getCurrentUserRoleKey() : '';
-    if (in_array($role, ['superadmin', 'admin'], true)) {
+    if (!function_exists('smsCanBypassSystemControls')) {
+        require_once __DIR__ . '/authentication.php';
+    }
+    if ($role !== '' && smsCanBypassSystemControls($role)) {
         return;
     }
 
@@ -208,7 +211,13 @@ function smsRoleTiedToModule(string $roleKey, string $moduleKey): bool
 {
     $roleKey = strtolower(trim($roleKey));
     $moduleKey = smsNormalizeModuleControlKey($moduleKey);
-    if ($roleKey === '' || $moduleKey === '' || in_array($roleKey, ['superadmin', 'admin'], true)) {
+    if ($roleKey === '' || $moduleKey === '') {
+        return false;
+    }
+    if (!function_exists('smsIsGrantedAdminRole')) {
+        require_once __DIR__ . '/authentication.php';
+    }
+    if (smsIsGrantedAdminRole($roleKey)) {
         return false;
     }
     if (function_exists('smsPrimaryModuleForRole') && smsPrimaryModuleForRole($roleKey) === $moduleKey) {
@@ -230,7 +239,10 @@ function smsEnforceModuleForceLogout(): void
         return;
     }
     $roleKey = (string) ($_SESSION['user_role_key'] ?? '');
-    if (in_array($roleKey, ['superadmin', 'admin'], true)) {
+    if (!function_exists('smsCanBypassSystemControls')) {
+        require_once __DIR__ . '/authentication.php';
+    }
+    if ($roleKey !== '' && smsCanBypassSystemControls($roleKey)) {
         return;
     }
 
@@ -302,7 +314,10 @@ function smsEnforcePrimaryModuleMaintenance(): void
         return;
     }
     $roleKey = (string) ($_SESSION['user_role_key'] ?? '');
-    if ($roleKey === '' || in_array($roleKey, ['superadmin', 'admin'], true)) {
+    if (!function_exists('smsCanBypassSystemControls')) {
+        require_once __DIR__ . '/authentication.php';
+    }
+    if ($roleKey === '' || smsCanBypassSystemControls($roleKey)) {
         return;
     }
 

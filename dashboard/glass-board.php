@@ -80,7 +80,7 @@ $activityTitle = 'Recent activity';
 $activitySub = 'Latest system events';
 $dashboardIntro = 'Live institutional performance board.';
 
-if (in_array($roleKey, ['superadmin', 'admin'], true)) {
+if (smsIsGrantedAdminRole($roleKey)) {
     $sourceTitle = 'Access by module';
     $sourceSub = 'Visible workspaces for this account';
     $donutCenterValue = (string) max(1, count($visibleModules));
@@ -378,6 +378,31 @@ if (in_array($roleKey, ['superadmin', 'admin'], true)) {
         ['icon' => 'fa-archive', 'class' => 'b5', 'label' => 'Repository', 'state' => 'Active'],
     ];
     $dashboardIntro = 'Live CRAD research performance board.';
+    if (!empty($grantDashboardMetrics)) {
+        $sourceTitle = 'Research pipeline';
+        $sourceSub = 'Ongoing vs completed funded research';
+        $ongoing = (int) ($grantDashboardMetrics['ongoing_research'] ?? 0);
+        $completed = (int) ($grantDashboardMetrics['completed_research'] ?? 0);
+        $pipelineTotal = max(1, $ongoing + $completed);
+        $ongoingPct = (int) round(($ongoing / $pipelineTotal) * 100);
+        $completedPct = 100 - $ongoingPct;
+        $donutCenterValue = (string) ($ongoing + $completed);
+        $donutCenterLabel = 'Projects';
+        $sourceLegend = [
+            ['label' => 'Ongoing', 'pct' => $ongoingPct . '%', 'color' => '#3b82f6'],
+            ['label' => 'Completed', 'pct' => $completedPct . '%', 'color' => '#22c55e'],
+        ];
+        $trendTitle = 'Funding released';
+        $trendSub = 'Total disbursements to funded projects';
+        $trendBig = grantFormatDashboardMetricValue('total_funding', $grantDashboardMetrics);
+        $trendDelta = 'Live';
+        $pipelineInLabel = 'Ongoing';
+        $pipelineOutLabel = 'Completed';
+        $inflow = (string) $ongoing;
+        $outflow = (string) $completed;
+        $netFlow = $completedPct . '%';
+        $pipelineGaugeLabel = 'Completion';
+    }
 } elseif ($roleKey === 'research_coordinator') {
     $sourceTitle = 'Assignments by college';
     $sourceSub = 'Approved research coordination load';
@@ -551,71 +576,205 @@ if (in_array($roleKey, ['superadmin', 'admin'], true)) {
     $pipelineGaugeLabel = 'Finalized';
     $dashboardIntro = 'Live research director defense scheduling board.';
 }
+
+require_once __DIR__ . '/period-filter.php';
+$dashboardPeriodKey    = $dashboardPeriodKey ?? smsDashboardCurrentPeriod();
+$dashboardPeriods      = $dashboardPeriods ?? smsDashboardPeriods();
+$dashboardPeriodMeta   = $dashboardPeriodMeta ?? $dashboardPeriods[$dashboardPeriodKey];
+$dashboardPeriodFactor = $dashboardPeriodFactor ?? $dashboardPeriodMeta['factor'];
+
+$donutCenterValue = smsDashboardScaleMetricValue((string) $donutCenterValue, $dashboardPeriodFactor);
+$trendBig         = smsDashboardScaleMetricValue((string) $trendBig, $dashboardPeriodFactor);
+$inflow           = smsDashboardScaleMetricValue((string) $inflow, $dashboardPeriodFactor);
+$outflow          = smsDashboardScaleMetricValue((string) $outflow, $dashboardPeriodFactor);
+$netFlow          = smsDashboardScaleMetricValue((string) $netFlow, $dashboardPeriodFactor);
+$trendDelta       = smsDashboardScaleDelta((string) $trendDelta, $dashboardPeriodFactor);
 ?>
 
-<div class="dashboard-shell glass-dashboard">
-    <div class="page-header dashboard-page-header">
+<div class="dashboard-shell glass-dashboard academic-dashboard">
+    <div class="page-header dashboard-page-header sms-page-header">
         <div>
-            <span class="dash-kicker">Analytics</span>
-            <h1>Dashboard</h1>
+            <span class="dash-kicker">Dashboard</span>
+            <h1>Overview</h1>
             <p>Welcome back, <?= htmlspecialchars(getCurrentUserName()) ?>. <?= htmlspecialchars($dashboardIntro) ?></p>
         </div>
-        <div class="dash-period">
-            <i class="fas fa-calendar-alt" aria-hidden="true"></i>
-            <span>SY 2025–2026 · This month</span>
+        <div class="dash-period glass-period-filter dropdown">
+            <?= smsIcon('calendar-alt', ['aria-hidden' => 'true']) ?>
+            <button type="button"
+                    class="glass-period-btn dropdown-toggle"
+                    data-bs-toggle="dropdown"
+                    aria-expanded="false"
+                    aria-label="Select reporting period">
+                <span><?= htmlspecialchars($dashboardPeriodMeta['sy'] . ' · ' . $dashboardPeriodMeta['label']) ?></span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end glass-period-menu">
+                <?php foreach ($dashboardPeriods as $periodKey => $periodMeta): ?>
+                    <li>
+                        <a class="dropdown-item<?= $periodKey === $dashboardPeriodKey ? ' active' : '' ?>"
+                           href="<?= htmlspecialchars(smsDashboardPeriodUrl($periodKey)) ?>">
+                            <?= htmlspecialchars($periodMeta['label']) ?>
+                        </a>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
         </div>
     </div>
 
-    <section class="ai-insight-panel" aria-labelledby="aiInsightTitle" data-ai-state="preview">
-        <div class="ai-insight-icon" aria-hidden="true"><i class="fas fa-wand-magic-sparkles"></i></div>
+    <section class="academic-notices-panel" aria-labelledby="academicNoticesTitle">
+        <div class="academic-notices-icon" aria-hidden="true"><?= smsIcon('bullhorn') ?></div>
         <div>
-            <span class="ai-insight-kicker">AI Copilot</span>
-            <h2 class="ai-insight-title" id="aiInsightTitle">A quick read of your workspace</h2>
-            <p class="ai-insight-copy">Preview insights for <?= htmlspecialchars(getCurrentUserName()) ?> based on the dashboard signals shown below.</p>
+            <span class="ai-insight-kicker">Academic notices</span>
+            <h2 class="ai-insight-title" id="academicNoticesTitle">Workspace summary</h2>
+            <p class="ai-insight-copy">Important items for <?= htmlspecialchars(getCurrentUserName()) ?> this reporting period.</p>
             <ul class="ai-insight-list">
-                <li><?= htmlspecialchars($progressTitle) ?> is currently the clearest opportunity for follow-up.</li>
-                <li><?= htmlspecialchars($pipelineTitle) ?> is ready for a closer review before the next reporting cycle.</li>
+                <li><?= htmlspecialchars($progressTitle) ?> may need follow-up before the next cycle.</li>
+                <li>Check <?= htmlspecialchars(strtolower($activityTitle)) ?> for the latest institutional updates.</li>
             </ul>
-            <div class="ai-insight-actions">
-                <a class="ai-insight-action" href="#glassBoard"><i class="fas fa-chart-line" aria-hidden="true"></i> Review metrics</a>
-                <a class="ai-insight-action" href="#glassBoard"><i class="fas fa-arrow-down-wide-short" aria-hidden="true"></i> See priorities</a>
-            </div>
         </div>
-        <span class="ai-insight-status"><i class="fas fa-flask" aria-hidden="true"></i> Preview mode</span>
     </section>
 
-    <div class="glass-board" id="glassBoard" data-role="<?= htmlspecialchars($roleKey) ?>">
+    <div class="glass-board"
+         id="glassBoard"
+         data-role="<?= htmlspecialchars($roleKey) ?>"
+         data-period="<?= htmlspecialchars($dashboardPeriodKey) ?>"
+         data-period-factor="<?= htmlspecialchars((string) $dashboardPeriodFactor) ?>"
+         <?php if ($roleKey === 'crad_officer' && !empty($grantDashboardMetrics)): ?>
+         data-crad-donut="<?= htmlspecialchars(json_encode([
+             'ongoing' => (int) ($grantDashboardMetrics['ongoing_research'] ?? 0),
+             'completed' => (int) ($grantDashboardMetrics['completed_research'] ?? 0),
+         ], JSON_THROW_ON_ERROR), ENT_QUOTES, 'UTF-8') ?>"
+         <?php endif; ?>>
 
-        <!-- TOP: Performance + Source + Trend -->
-        <div class="glass-row glass-row-top">
+        <section class="glass-panel">
+            <div class="glass-panel-body">
+                <div class="glass-panel-head">
+                    <div>
+                        <h2 class="glass-panel-title">Key metrics</h2>
+                        <p class="glass-panel-sub">Summary for your workspace</p>
+                    </div>
+                    <div class="glass-period-filter dropdown">
+                        <button type="button"
+                                class="glass-chip glass-chip-btn dropdown-toggle"
+                                data-bs-toggle="dropdown"
+                                aria-expanded="false"
+                                aria-label="Filter metrics by period">
+                            <?= smsIcon('filter', ['aria-hidden' => 'true']) ?>
+                            <span><?= htmlspecialchars($dashboardPeriodMeta['label']) ?></span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end glass-period-menu">
+                            <?php foreach ($dashboardPeriods as $periodKey => $periodMeta): ?>
+                                <li>
+                                    <a class="dropdown-item<?= $periodKey === $dashboardPeriodKey ? ' active' : '' ?>"
+                                       href="<?= htmlspecialchars(smsDashboardPeriodUrl($periodKey)) ?>">
+                                        <?= htmlspecialchars($periodMeta['label']) ?>
+                                    </a>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+                </div>
+                <div class="perf-grid">
+                    <?php foreach ($statCards as $i => $card): ?>
+                        <?php
+                        $tone = $perfColors[$i % count($perfColors)];
+                        $dir = $card['deltaDir'] ?? 'neutral';
+                        $arrow = $dir === 'down' ? 'fa-arrow-down' : ($dir === 'up' ? 'fa-arrow-up' : 'fa-minus');
+                        ?>
+                        <article class="perf-item">
+                            <div class="perf-icon <?= $tone ?>"><?= smsIcon($card['icon'], ['aria-hidden' => 'true']) ?></div>
+                            <p class="perf-label"><?= htmlspecialchars($card['label']) ?></p>
+                            <p class="perf-value"<?php if (!empty($card['metricKey'])): ?> data-gdm-value="<?= htmlspecialchars((string) $card['metricKey']) ?>"<?php endif; ?>><?= htmlspecialchars($card['value']) ?></p>
+                            <p class="perf-trend <?= htmlspecialchars($dir) ?>">
+                                <?= smsIcon($arrow, ['aria-hidden' => 'true']) ?>
+                                <?= htmlspecialchars($card['delta'] ?? '') ?>
+                                <span class="perf-delta-label"><?= htmlspecialchars($card['deltaLabel'] ?? '') ?></span>
+                            </p>
+                        </article>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </section>
+
+        <?php if ($roleKey === 'crad_officer'): ?>
+            <?php include __DIR__ . '/partials/grant-dashboard-metrics.php'; ?>
+        <?php endif; ?>
+
+        <?php if ($roleKey === 'crad_officer'):
+            require_once __DIR__ . '/../modules/crad/config/config.php';
+            require_once __DIR__ . '/../modules/crad/includes/grant-approval-helpers.php';
+        ?>
+        <section class="glass-panel gaw-dashboard-dock" data-crad-approval-dock="1">
+            <div class="glass-panel-body">
+                <div class="glass-panel-head">
+                    <div>
+                        <h2 class="glass-panel-title">
+                            Grant Approval Workflows
+                            <span class="gaw-live-badge">Live</span>
+                        </h2>
+                        <p class="glass-panel-sub">Same pipeline view as advisers and approvers — <?= htmlspecialchars(grantApprovalPipelineLabel()) ?></p>
+                    </div>
+                    <a class="glass-chip" href="<?= BASE_URL ?>/modules/crad/pages/approval-workflows.php">
+                        <?= smsIcon('external-link-alt', ['aria-hidden' => 'true']) ?>
+                        Open full pipeline
+                    </a>
+                </div>
+                <div id="cradApprovalDockStats" class="gaw-stat-row" style="margin-bottom:1rem;">
+                    <span class="gaw-stat pending"><strong data-gaw-in-progress>0</strong> in progress</span>
+                    <span class="gaw-stat completed"><strong data-gaw-completed>0</strong> completed</span>
+                </div>
+                <div id="cradApprovalDockList" class="gaw-dashboard-list">
+                    <p class="gaw-dashboard-empty">Loading approval workflows…</p>
+                </div>
+            </div>
+        </section>
+        <?php endif; ?>
+
+        <?php if (!empty($visibleModules)): ?>
+        <section class="glass-panel glass-quick-actions">
+            <div class="glass-panel-body">
+                <div class="glass-panel-head">
+                    <div>
+                        <h2 class="glass-panel-title">Quick actions</h2>
+                        <p class="glass-panel-sub">Open a module workspace</p>
+                    </div>
+                </div>
+                <div class="row g-3 module-grid">
+                    <?php foreach ($visibleModules as $moduleKey => $module): ?>
+                        <?php $moduleFolder = $moduleKey === 'student_portal' ? 'student-portal' : $moduleKey; ?>
+                        <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                            <a href="<?= BASE_URL ?>/modules/<?= htmlspecialchars($moduleFolder) ?>/index.php" class="quick-module">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <?= smsIcon($module['icon'], ['aria-hidden' => 'true']) ?>
+                                        <p class="small mb-0 fw-medium"><?= htmlspecialchars($module['label']) ?></p>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </section>
+        <?php endif; ?>
+
+        <div class="glass-row glass-row-bot">
             <section class="glass-panel">
                 <div class="glass-panel-body">
                     <div class="glass-panel-head">
                         <div>
-                            <h2 class="glass-panel-title">Performance overview</h2>
-                            <p class="glass-panel-sub">Key metrics for your workspace</p>
+                            <h2 class="glass-panel-title"><?= htmlspecialchars($activityTitle) ?></h2>
+                            <p class="glass-panel-sub"><?= htmlspecialchars($activitySub) ?></p>
                         </div>
-                        <span class="glass-chip"><i class="fas fa-filter" aria-hidden="true"></i> This month</span>
                     </div>
-                    <div class="perf-grid">
-                        <?php foreach ($statCards as $i => $card): ?>
-                            <?php
-                            $tone = $perfColors[$i % count($perfColors)];
-                            $dir = $card['deltaDir'] ?? 'neutral';
-                            $arrow = $dir === 'down' ? 'fa-arrow-down' : ($dir === 'up' ? 'fa-arrow-up' : 'fa-minus');
-                            ?>
-                            <article class="perf-item">
-                                <div class="perf-icon <?= $tone ?>"><i class="fas <?= htmlspecialchars($card['icon']) ?>" aria-hidden="true"></i></div>
-                                <p class="perf-label"><?= htmlspecialchars($card['label']) ?></p>
-                                <p class="perf-value"><?= htmlspecialchars($card['value']) ?></p>
-                                <p class="perf-trend <?= htmlspecialchars($dir) ?>">
-                                    <i class="fas <?= $arrow ?>" aria-hidden="true"></i>
-                                    <?= htmlspecialchars($card['delta'] ?? '') ?>
-                                    <span style="font-weight:500;opacity:.8"><?= htmlspecialchars($card['deltaLabel'] ?? '') ?></span>
-                                </p>
-                            </article>
+                    <ul class="glass-activity">
+                        <?php foreach ($activities as $act): ?>
+                            <li>
+                                <span class="act-icon <?= htmlspecialchars($act['tone']) ?>"><?= smsIcon($act['icon'], ['aria-hidden' => 'true']) ?></span>
+                                <div class="act-body"><strong><?= htmlspecialchars($act['text']) ?></strong></div>
+                                <span class="act-time"><?= htmlspecialchars($act['when']) ?></span>
+                            </li>
                         <?php endforeach; ?>
-                    </div>
+                    </ul>
                 </div>
             </section>
 
@@ -649,188 +808,6 @@ if (in_array($roleKey, ['superadmin', 'admin'], true)) {
                     </div>
                 </div>
             </section>
-
-            <section class="glass-panel">
-                <div class="glass-panel-body">
-                    <div class="glass-panel-head">
-                        <div>
-                            <h2 class="glass-panel-title"><?= htmlspecialchars($trendTitle) ?></h2>
-                            <p class="glass-panel-sub"><?= htmlspecialchars($trendSub) ?></p>
-                        </div>
-                    </div>
-                    <div class="glass-metric-row">
-                        <span class="big"><?= htmlspecialchars($trendBig) ?></span>
-                        <span class="up"><i class="fas fa-arrow-up" aria-hidden="true"></i> <?= htmlspecialchars($trendDelta) ?></span>
-                    </div>
-                    <div class="glass-chart-stage">
-                        <canvas id="glassTrend" aria-label="Trend chart"></canvas>
-                    </div>
-                </div>
-            </section>
         </div>
-
-        <!-- MID: Table + Progress + Cash flow -->
-        <div class="glass-row glass-row-mid">
-            <section class="glass-panel">
-                <div class="glass-panel-body">
-                    <div class="glass-panel-head">
-                        <div>
-                            <h2 class="glass-panel-title"><?= htmlspecialchars($tableTitle) ?></h2>
-                            <p class="glass-panel-sub"><?= htmlspecialchars($tableSub) ?></p>
-                        </div>
-                        <a href="#" class="glass-chip">View all</a>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="glass-table">
-                            <thead>
-                                <tr>
-                                    <th>User</th>
-                                    <th>Role</th>
-                                    <th>Status</th>
-                                    <th>Last active</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($tableRows as $row): ?>
-                                    <tr>
-                                        <td>
-                                            <div class="glass-user">
-                                                <span class="glass-avatar"><?= htmlspecialchars($row['initial']) ?></span>
-                                                <strong><?= htmlspecialchars($row['name']) ?></strong>
-                                            </div>
-                                        </td>
-                                        <td><?= htmlspecialchars($row['role']) ?></td>
-                                        <td><span class="glass-status <?= htmlspecialchars($row['status']) ?>"><?= htmlspecialchars($row['statusLabel']) ?></span></td>
-                                        <td><?= htmlspecialchars($row['when']) ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <section class="glass-panel">
-                <div class="glass-panel-body">
-                    <div class="glass-panel-head">
-                        <div>
-                            <h2 class="glass-panel-title"><?= htmlspecialchars($progressTitle) ?></h2>
-                            <p class="glass-panel-sub"><?= htmlspecialchars($progressSub) ?></p>
-                        </div>
-                    </div>
-                    <div class="glass-progress-list">
-                        <?php foreach ($progressItems as $item): ?>
-                            <div class="glass-progress-row">
-                                <div class="glass-progress-meta">
-                                    <span><?= htmlspecialchars($item['label']) ?></span>
-                                    <strong><?= (int) $item['pct'] ?>%</strong>
-                                </div>
-                                <div class="glass-bar <?= htmlspecialchars($item['tone']) ?>" style="--pct: <?= (int) $item['pct'] ?>%"><i></i></div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-            </section>
-
-            <section class="glass-panel">
-                <div class="glass-panel-body">
-                    <div class="glass-panel-head">
-                        <div>
-                            <h2 class="glass-panel-title"><?= htmlspecialchars($pipelineTitle) ?></h2>
-                            <p class="glass-panel-sub"><?= htmlspecialchars($pipelineSub) ?></p>
-                        </div>
-                    </div>
-                    <div class="cash-layout">
-                        <div>
-                            <div class="cash-stats">
-                                <div class="in"><span><?= htmlspecialchars($pipelineInLabel) ?></span><strong><?= htmlspecialchars($inflow) ?></strong></div>
-                                <div class="out"><span><?= htmlspecialchars($pipelineOutLabel) ?></span><strong><?= htmlspecialchars($outflow) ?></strong></div>
-                            </div>
-                            <div class="glass-chart-stage" style="min-height:150px;height:150px;">
-                                <canvas id="glassCash" aria-label="Pipeline chart"></canvas>
-                            </div>
-                        </div>
-                        <div class="cash-gauge">
-                            <canvas id="glassNet" aria-label="Approval rate gauge"></canvas>
-                            <div class="cash-gauge-center">
-                                <strong><?= htmlspecialchars($netFlow) ?></strong>
-                                <span><?= htmlspecialchars($pipelineGaugeLabel) ?></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </div>
-
-        <!-- BOT: Activity + Badges -->
-        <div class="glass-row glass-row-bot">
-            <section class="glass-panel">
-                <div class="glass-panel-body">
-                    <div class="glass-panel-head">
-                        <div>
-                            <h2 class="glass-panel-title"><?= htmlspecialchars($activityTitle) ?></h2>
-                            <p class="glass-panel-sub"><?= htmlspecialchars($activitySub) ?></p>
-                        </div>
-                        <a href="#" class="glass-chip">View all</a>
-                    </div>
-                    <ul class="glass-activity">
-                        <?php foreach ($activities as $act): ?>
-                            <li>
-                                <span class="act-icon <?= htmlspecialchars($act['tone']) ?>"><i class="fas <?= htmlspecialchars($act['icon']) ?>" aria-hidden="true"></i></span>
-                                <div class="act-body"><strong><?= htmlspecialchars($act['text']) ?></strong></div>
-                                <span class="act-time"><?= htmlspecialchars($act['when']) ?></span>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
-                </div>
-            </section>
-
-            <section class="glass-panel">
-                <div class="glass-panel-body">
-                    <div class="glass-panel-head">
-                        <div>
-                            <h2 class="glass-panel-title">Badges &amp; achievements</h2>
-                            <p class="glass-panel-sub">Unlocked milestones</p>
-                        </div>
-                    </div>
-                    <div class="glass-badges">
-                        <?php foreach ($badges as $b): ?>
-                            <div class="glass-badge">
-                                <div class="ico <?= htmlspecialchars($b['class']) ?>"><i class="fas <?= htmlspecialchars($b['icon']) ?>" aria-hidden="true"></i></div>
-                                <strong><?= htmlspecialchars($b['label']) ?></strong>
-                                <span><?= htmlspecialchars($b['state']) ?></span>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-            </section>
-        </div>
-
-        <!-- Modules -->
-        <section class="glass-panel glass-modules">
-            <div class="glass-panel-body">
-                <div class="glass-panel-head">
-                    <div>
-                        <h2 class="glass-panel-title">System modules</h2>
-                        <p class="glass-panel-sub">Jump into a workspace</p>
-                    </div>
-                </div>
-                <div class="row g-3 module-grid">
-                    <?php foreach ($visibleModules as $moduleKey => $module): ?>
-                        <?php $moduleFolder = $moduleKey === 'student_portal' ? 'student-portal' : $moduleKey; ?>
-                        <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-                            <a href="<?= BASE_URL ?>/modules/<?= htmlspecialchars($moduleFolder) ?>/index.php" class="quick-module">
-                                <div class="card h-100">
-                                    <div class="card-body">
-                                        <i class="fas <?= htmlspecialchars($module['icon']) ?>" aria-hidden="true"></i>
-                                        <p class="small mb-0 fw-medium"><?= htmlspecialchars($module['label']) ?></p>
-                                    </div>
-                                </div>
-                            </a>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-        </section>
     </div>
 </div>

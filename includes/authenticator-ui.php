@@ -262,7 +262,7 @@ function smsRenderAuthenticatorCard(int $userId, string $formActionUrl, string $
                         <input type="hidden" name="totp_code" value="">
                     <?php endif; ?>
                     <button type="submit" class="sms-sec-btn sms-sec-btn-danger">
-                        <i class="fas fa-power-off" aria-hidden="true"></i>Turn Off
+                        <?= smsIcon('power-off', ['aria-hidden' => 'true']) ?>Turn Off
                     </button>
                     <button type="submit" name="action" value="auth_disable_cancel" class="btn btn-outline-secondary ms-1" formnovalidate>Cancel</button>
                 </form>
@@ -282,7 +282,7 @@ function smsRenderAuthenticatorCard(int $userId, string $formActionUrl, string $
                     <?= $csrfFieldHtml ?>
                     <input type="hidden" name="action" value="auth_turn_off_start">
                     <button type="submit" class="sms-sec-btn sms-sec-btn-danger">
-                        <i class="fas fa-power-off" aria-hidden="true"></i>Turn Off
+                        <?= smsIcon('power-off', ['aria-hidden' => 'true']) ?>Turn Off
                     </button>
                 </form>
 
@@ -329,7 +329,7 @@ function smsRenderAuthenticatorCard(int $userId, string $formActionUrl, string $
                     <?= $csrfFieldHtml ?>
                     <input type="hidden" name="action" value="auth_turn_on">
                     <button type="submit" class="sms-sec-btn sms-sec-btn-primary">
-                        <i class="fas fa-power-off" aria-hidden="true"></i>Turn On
+                        <?= smsIcon('power-off', ['aria-hidden' => 'true']) ?>Turn On
                     </button>
                 </form>
             <?php endif; ?>

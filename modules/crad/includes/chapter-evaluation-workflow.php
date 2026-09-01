@@ -9,6 +9,7 @@ require_once ROOT_PATH . '/includes/security.php';
 require_once ROOT_PATH . '/includes/audit.php';
 require_once ROOT_PATH . '/includes/uploads.php';
 require_once ROOT_PATH . '/modules/crad/config/config.php';
+require_once ROOT_PATH . '/includes/icons.php';
 require_once ROOT_PATH . '/modules/crad/includes/research-progress-helpers.php';
 
 function chapterRegistryFullyApprovedClause(string $alias = 't'): string
@@ -124,11 +125,11 @@ function chapterSubmissionUnavailableMessage(): string
 
 function chapterRenderUnavailableNotice(): void
 {
-    echo '<div class="alert alert-info">
-        <i class="fas fa-info-circle me-2"></i>
-        <strong>Document Submission is not yet available.</strong><br>
-        Your research group must be officially listed in the Capstone Group/Student Registry before you can submit Chapter 1-3. Please ensure your approved research title, group members, adviser, coordinator, program, and academic year are complete.
-    </div>';
+    echo '<div class="alert alert-info">'
+        . smsIcon('info-circle', ['class' => 'me-2'])
+        . '<strong>Document Submission is not yet available.</strong><br>'
+        . 'Your research group must be officially listed in the Capstone Group/Student Registry before you can submit Chapter 1-3. Please ensure your approved research title, group members, adviser, coordinator, program, and academic year are complete.'
+        . '</div>';
 }
 
 function chapterAllowedChapters(): array

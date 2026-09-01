@@ -30,7 +30,7 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
 <div class="glass-dashboard" data-chapter-live="evaluator" data-live-endpoint="<?= BASE_URL ?>/modules/crad/api/chapter-live.php?mode=evaluator" data-document-base="<?= BASE_URL ?>/modules/crad/api/chapter-document.php?id=">
     <section class="glass-panel p-4">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="mb-0"><i class="fas fa-clipboard-check me-2 text-primary"></i>For Evaluation</h5>
+            <h5 class="mb-0"><?= smsIcon('clipboard-check', ['class' => 'me-2 text-primary']) ?>For Evaluation</h5>
             <small class="text-muted"><span data-evaluator-pending-count><?= count($rows) ?></span> pending · Live</small>
         </div>
         <div class="table-responsive">
@@ -49,7 +49,7 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
                                 <td><?= e($row['submitted_by_name']) ?></td>
                                 <td><?= e(chapterFormatDate((string) $row['submitted_at'])) ?></td>
                                 <td><span class="badge text-bg-<?= e(chapterStatusClass((string) $row['status'])) ?>"><?= e($row['status']) ?></span></td>
-                                <td><a class="btn btn-sm btn-sms-primary" href="<?= BASE_URL ?>/modules/faculty/pages/evaluation-scoring.php?id=<?= (int) $row['id'] ?>"><i class="fas fa-pen me-1"></i>Review</a></td>
+                                <td><a class="btn btn-sm btn-sms-primary" href="<?= BASE_URL ?>/modules/faculty/pages/evaluation-scoring.php?id=<?= (int) $row['id'] ?>"><?= smsIcon('pen', ['class' => 'me-1']) ?>Review</a></td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>

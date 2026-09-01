@@ -617,10 +617,10 @@ renderBreadcrumbs($breadcrumbs);
 ?>
 
 <?php if ($success): ?>
-    <div class="alert alert-success"><i class="fas fa-check-circle me-2"></i><?= e($success) ?></div>
+    <div class="alert alert-success"><?= smsIcon('check-circle', ['class' => 'me-2']) ?><?= e($success) ?></div>
 <?php endif; ?>
 <?php if ($error): ?>
-    <div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i><?= e($error) ?></div>
+    <div class="alert alert-danger"><?= smsIcon('exclamation-circle', ['class' => 'me-2']) ?><?= e($error) ?></div>
 <?php endif; ?>
 <?php if ($otpDevCode !== ''): ?>
     <div class="alert alert-warning">
@@ -640,7 +640,7 @@ renderBreadcrumbs($breadcrumbs);
                         <div class="card-body">
                             <div class="sms-sec-card-head">
                                 <div class="sms-sec-card-title">
-                                    <span class="sms-sec-icon"><i class="fas <?= e($info['icon']) ?>" aria-hidden="true"></i></span>
+                                    <span class="sms-sec-icon"><?= smsIcon($info['icon'] ?? 'shield', ['aria-hidden' => 'true']) ?></span>
                                     <div>
                                         <h2 class="h6 fw-bold mb-0 d-flex align-items-center gap-2 flex-wrap">
                                             <?= e($info['label']) ?>
@@ -651,7 +651,7 @@ renderBreadcrumbs($breadcrumbs);
                                         <p class="sms-sec-lead mb-0 mt-1">Activity Logs · Passwords · Authenticator</p>
                                     </div>
                                 </div>
-                                <i class="fas fa-chevron-right text-sms-primary" style="opacity:.55;font-size:.75rem;" aria-hidden="true"></i>
+                                <?= smsIcon('chevron-right', ['class' => 'text-sms-primary', 'aria-hidden' => 'true', 'style' => 'opacity:.55;font-size:.75rem;']) ?>
                             </div>
                         </div>
                     </section>
@@ -665,7 +665,7 @@ renderBreadcrumbs($breadcrumbs);
         <div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
             <div>
                 <h1>
-                    <i class="fas <?= e($moduleOptions[$moduleKey]['icon'] ?? 'fa-shield-alt') ?> text-sms-primary me-2"></i>
+                    <?= smsIcon($moduleOptions[$moduleKey]['icon'] ?? 'shield-alt', ['class' => 'text-sms-primary me-2']) ?>
                     <?= e($moduleLabel) ?> Security Settings
                 </h1>
                 <p class="mb-0">
@@ -674,19 +674,19 @@ renderBreadcrumbs($breadcrumbs);
                 </p>
             </div>
             <a class="btn btn-outline-secondary btn-sm" href="<?= e($pickerUrl()) ?>">
-                <i class="fas fa-th-large me-1"></i>All modules
+                <?= smsIcon('th-large', ['class' => 'me-1']) ?>All modules
             </a>
         </div>
 
         <ul class="nav nav-tabs sms-sec-tabs mb-3" role="tablist">
             <li class="nav-item" role="presentation">
                 <button type="button" class="nav-link active" data-sec-tab="logs" data-sec-tab-card="logs" role="tab" aria-controls="panel-logs">
-                    <i class="fas fa-history me-1"></i>Activity Logs
+                    <?= smsIcon('history', ['class' => 'me-1']) ?>Activity Logs
                 </button>
             </li>
             <li class="nav-item" role="presentation">
                 <button type="button" class="nav-link" data-sec-tab="passwords" data-sec-tab-card="passwords" role="tab" aria-controls="panel-passwords">
-                    <i class="fas fa-key me-1"></i>Password Management
+                    <?= smsIcon('key', ['class' => 'me-1']) ?>Password Management
                     <?php if ($pendingCount > 0): ?>
                         <span class="badge bg-danger ms-1"><?= (int) $pendingCount ?></span>
                     <?php endif; ?>
@@ -694,12 +694,12 @@ renderBreadcrumbs($breadcrumbs);
             </li>
             <li class="nav-item" role="presentation">
                 <button type="button" class="nav-link" data-sec-tab="authenticator" data-sec-tab-card="authenticator" role="tab" aria-controls="panel-authenticator">
-                    <i class="fas fa-fingerprint me-1"></i>Authenticator &amp; Passkey
+                    <?= smsIcon('fingerprint', ['class' => 'me-1']) ?>Authenticator &amp; Passkey
                 </button>
             </li>
             <li class="nav-item" role="presentation">
                 <button type="button" class="nav-link" data-sec-tab="module" data-sec-tab-card="module" role="tab" aria-controls="panel-module">
-                    <i class="fas fa-cogs me-1"></i>Module Management
+                    <?= smsIcon('cogs', ['class' => 'me-1']) ?>Module Management
                     <?php if (!empty($moduleMaintenanceOn)): ?>
                         <span class="badge text-bg-warning ms-1">Maint</span>
                     <?php endif; ?>
@@ -723,7 +723,7 @@ renderBreadcrumbs($breadcrumbs);
                 <div class="card-body">
                     <div class="sms-sec-card-head">
                         <div class="sms-sec-card-title">
-                            <span class="sms-sec-icon"><i class="fas fa-history" aria-hidden="true"></i></span>
+                            <span class="sms-sec-icon"><?= smsIcon('history', ['aria-hidden' => 'true']) ?></span>
                             <div>
                                 <h2 class="h5 fw-bold mb-0"><?= e($moduleLabel) ?> — Activity Logs</h2>
                                 <p class="sms-sec-lead mb-0 mt-1">All <?= e($moduleLabel) ?> security events — including Super Admin actions for this module.</p>
@@ -735,7 +735,7 @@ renderBreadcrumbs($breadcrumbs);
                                     data-sms-export-csv="#secLogTable"
                                     data-sms-export-rows="tbody tr.sec-log-row"
                                     data-sms-export-filename="<?= e($moduleKey) ?>-activity-logs.csv">
-                                <i class="fas fa-file-export me-1"></i>Export CSV
+                                <?= smsIcon('file-export', ['class' => 'me-1']) ?>Export CSV
                             </button>
                             <button type="button" class="btn btn-sm btn-outline-secondary" id="secLogClear">Clear filters</button>
                         </div>
@@ -812,7 +812,7 @@ renderBreadcrumbs($breadcrumbs);
                 <div class="card-body">
                     <div class="sms-sec-card-head">
                         <div class="sms-sec-card-title">
-                            <span class="sms-sec-icon"><i class="fas fa-key" aria-hidden="true"></i></span>
+                            <span class="sms-sec-icon"><?= smsIcon('key', ['aria-hidden' => 'true']) ?></span>
                             <div>
                                 <h2 class="h5 fw-bold mb-0"><?= e($moduleLabel) ?> — Password Management</h2>
                                 <p class="sms-sec-lead mb-0 mt-1">Approve staff requests or reset a <?= e($moduleLabel) ?> user password.</p>
@@ -827,7 +827,7 @@ renderBreadcrumbs($breadcrumbs);
                         <div class="col-lg-7">
                             <div class="sms-sec-pw-box h-100">
                                 <h3 class="h6 fw-bold mb-3">
-                                    <i class="fas fa-inbox text-sms-primary me-1" aria-hidden="true"></i>Password requests
+                                    <?= smsIcon('inbox', ['class' => 'text-sms-primary me-1', 'aria-hidden' => 'true']) ?>Password requests
                                 </h3>
                                 <div class="table-responsive sms-sec-list mb-0">
                                     <table class="table table-sm align-middle mb-0">
@@ -876,7 +876,7 @@ renderBreadcrumbs($breadcrumbs);
                         <div class="col-lg-5">
                             <div class="sms-sec-pw-box h-100">
                                 <h3 class="h6 fw-bold mb-3">
-                                    <i class="fas fa-user-cog text-sms-primary me-1" aria-hidden="true"></i>Reset staff password
+                                    <?= smsIcon('user-cog', ['class' => 'text-sms-primary me-1', 'aria-hidden' => 'true']) ?>Reset staff password
                                     <?php if ($singleResetUser): ?>
                                         <span class="fw-normal text-muted">· one user</span>
                                     <?php endif; ?>
@@ -945,7 +945,7 @@ renderBreadcrumbs($breadcrumbs);
                                     </div>
                                     <div class="col-12">
                                         <button type="submit" class="btn btn-sms-primary" <?= !$resetUsers ? 'disabled' : '' ?>>
-                                            <i class="fas fa-key me-1"></i>Reset password
+                                            <?= smsIcon('key', ['class' => 'me-1']) ?>Reset password
                                         </button>
                                     </div>
                                 </form>
@@ -955,55 +955,69 @@ renderBreadcrumbs($breadcrumbs);
                 </div>
             </section>
 
-            <div class="modal fade" id="approveModal" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered">
-                    <div class="modal-content">
+            <div class="modal fade sms-confirm-modal" id="approveModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered sms-confirm-dialog">
+                    <div class="modal-content sms-confirm-content">
                         <form method="POST" action="<?= e($focusUrl($moduleKey)) ?>">
                             <?= csrfField() ?>
                             <input type="hidden" name="module_key" value="<?= e($moduleKey) ?>">
                             <input type="hidden" name="action" value="approve_request">
                             <input type="hidden" name="confirm_approve" value="1">
                             <input type="hidden" name="request_id" id="approveRequestId" value="">
-                            <div class="modal-header">
-                                <h5 class="modal-title"><i class="fas fa-exclamation-triangle text-warning me-2"></i>Confirm approval</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            <div class="sms-confirm-header">
+                                <div class="sms-confirm-header-text">
+                                    <span class="sms-confirm-kicker">Password request</span>
+                                    <h5 class="modal-title sms-confirm-title">Confirm approval</h5>
+                                </div>
+                                <button type="button" class="sms-confirm-close" data-bs-dismiss="modal" aria-label="Close"><span class="sms-confirm-close__glyph" aria-hidden="true">×</span></button>
                             </div>
-                            <div class="modal-body">
-                                <p class="mb-2">Approve password request for <strong id="approveUserName">this user</strong>?</p>
+                            <div class="sms-confirm-body">
+                                <div class="sms-confirm-icon sms-confirm-icon--primary" aria-hidden="true">
+                                    <?= smsIcon('check-circle') ?>
+                                </div>
+                                <p class="sms-confirm-msg mb-1">Approve password request for <strong id="approveUserName">this user</strong>?</p>
                                 <p class="small text-muted mb-0">Their chosen password will become active immediately.</p>
                             </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                                <button type="submit" class="btn btn-success">Yes, approve</button>
+                            <div class="sms-confirm-footer">
+                                <button type="button" class="btn btn-outline-secondary sms-confirm-cancel" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn sms-confirm-ok sms-confirm-ok--primary">Yes, approve</button>
                             </div>
                         </form>
                     </div>
                 </div>
             </div>
 
-            <div class="modal fade" id="rejectModal" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered">
-                    <div class="modal-content">
+            <div class="modal fade sms-confirm-modal" id="rejectModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered sms-confirm-dialog sms-confirm-dialog--wide">
+                    <div class="modal-content sms-confirm-content">
                         <form method="POST" action="<?= e($focusUrl($moduleKey)) ?>">
                             <?= csrfField() ?>
                             <input type="hidden" name="module_key" value="<?= e($moduleKey) ?>">
                             <input type="hidden" name="action" value="reject_request">
                             <input type="hidden" name="request_id" id="rejectRequestId" value="">
-                            <div class="modal-header">
-                                <h5 class="modal-title"><i class="fas fa-times-circle text-danger me-2"></i>Reject request</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            <div class="sms-confirm-header">
+                                <div class="sms-confirm-header-text">
+                                    <span class="sms-confirm-kicker">Password request</span>
+                                    <h5 class="modal-title sms-confirm-title">Reject request</h5>
+                                </div>
+                                <button type="button" class="sms-confirm-close" data-bs-dismiss="modal" aria-label="Close"><span class="sms-confirm-close__glyph" aria-hidden="true">×</span></button>
                             </div>
-                            <div class="modal-body">
-                                <p class="mb-3">Reject request for <strong id="rejectUserName">this user</strong>.</p>
-                                <label class="form-label fw-semibold" for="admin_note">
-                                    Note to user <span class="text-muted fw-normal">(optional)</span>
-                                </label>
-                                <textarea class="form-control" id="admin_note" name="admin_note" rows="3" maxlength="500"
-                                          placeholder="Optional message the user will see…"></textarea>
+                            <div class="sms-confirm-body sms-confirm-body--form">
+                                <div class="sms-confirm-icon sms-confirm-icon--danger" aria-hidden="true">
+                                    <?= smsIcon('times-circle') ?>
+                                </div>
+                                <p class="sms-confirm-msg mb-0">Reject request for <strong id="rejectUserName">this user</strong>.</p>
+                                <div class="w-100 text-start">
+                                    <label class="form-label fw-semibold" for="admin_note">
+                                        Note to user <span class="text-muted fw-normal">(optional)</span>
+                                    </label>
+                                    <textarea class="form-control" id="admin_note" name="admin_note" rows="3" maxlength="500"
+                                              placeholder="Optional message the user will see…"></textarea>
+                                </div>
                             </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                                <button type="submit" class="btn btn-danger">Reject request</button>
+                            <div class="sms-confirm-footer">
+                                <button type="button" class="btn btn-outline-secondary sms-confirm-cancel" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn sms-confirm-ok sms-confirm-ok--danger">Reject request</button>
                             </div>
                         </form>
                     </div>
@@ -1022,7 +1036,7 @@ renderBreadcrumbs($breadcrumbs);
                     <div class="card-body">
                         <div class="sms-sec-card-head">
                             <div class="sms-sec-card-title">
-                                <span class="sms-sec-icon"><i class="fas fa-qrcode" aria-hidden="true"></i></span>
+                                <span class="sms-sec-icon"><?= smsIcon('qrcode', ['aria-hidden' => 'true']) ?></span>
                                 <h2 class="h5 fw-bold mb-0">Turn On — <?= e($adminAuthSetupUser['full_name']) ?></h2>
                             </div>
                         </div>
@@ -1053,7 +1067,7 @@ renderBreadcrumbs($breadcrumbs);
                     <div class="px-3 pt-3">
                         <div class="sms-sec-card-head border-0 pb-2 mb-0">
                             <div class="sms-sec-card-title">
-                                <span class="sms-sec-icon"><i class="fas fa-fingerprint" aria-hidden="true"></i></span>
+                                <span class="sms-sec-icon"><?= smsIcon('fingerprint', ['aria-hidden' => 'true']) ?></span>
                                 <h2 class="h5 fw-bold mb-0"><?= e($moduleLabel) ?> — Authenticator &amp; Passkey</h2>
                             </div>
                         </div>
@@ -1122,7 +1136,7 @@ renderBreadcrumbs($breadcrumbs);
                                                                             data-sms-confirm="Are you sure you want to remove “<?= e($pkName) ?>” for <?= e($displayName) ?>? Only this passkey will be removed; any others stay."
                                                                             data-sms-confirm-title="Remove this passkey?"
                                                                             data-sms-confirm-ok="Yes, remove">
-                                                                        <i class="fas fa-trash-alt" aria-hidden="true"></i>Remove
+                                                                        <?= smsIcon('trash-alt', ['aria-hidden' => 'true']) ?>Remove
                                                                     </button>
                                                                 </form>
                                                             </li>
@@ -1142,7 +1156,7 @@ renderBreadcrumbs($breadcrumbs);
                                                                 data-sms-confirm="Are you sure you want to turn off Authenticator for <?= e($displayName) ?>? They will no longer need an app code at login."
                                                                 data-sms-confirm-title="Turn off Authenticator?"
                                                                 data-sms-confirm-ok="Yes, turn off">
-                                                            <i class="fas fa-power-off" aria-hidden="true"></i>Turn Off
+                                                            <?= smsIcon('power-off', ['aria-hidden' => 'true']) ?>Turn Off
                                                         </button>
                                                     </form>
                                                 <?php else: ?>
@@ -1154,7 +1168,7 @@ renderBreadcrumbs($breadcrumbs);
                                                         <button type="submit"
                                                                 class="sms-sec-btn sms-sec-btn-primary"
                                                             <?= ($adminAuthSetupId > 0 && $adminAuthSetupId !== (int) $u['id']) ? 'disabled' : '' ?>>
-                                                            <i class="fas fa-power-off" aria-hidden="true"></i>Turn On
+                                                            <?= smsIcon('power-off', ['aria-hidden' => 'true']) ?>Turn On
                                                         </button>
                                                     </form>
                                                 <?php endif; ?>
@@ -1175,7 +1189,7 @@ renderBreadcrumbs($breadcrumbs);
                 <div class="card-body">
                     <div class="sms-sec-card-head">
                         <div class="sms-sec-card-title">
-                            <span class="sms-sec-icon"><i class="fas fa-tools" aria-hidden="true"></i></span>
+                            <span class="sms-sec-icon"><?= smsIcon('tools', ['aria-hidden' => 'true']) ?></span>
                             <div>
                                 <h2 class="h5 fw-bold mb-0"><?= e($moduleLabel) ?> — Maintenance</h2>
                                 <p class="sms-sec-lead mb-0 mt-1">
@@ -1201,14 +1215,14 @@ renderBreadcrumbs($breadcrumbs);
                         <div class="col-12 d-flex flex-wrap gap-2">
                             <?php if ($moduleMaintenanceOn): ?>
                                 <button type="submit" name="action" value="module_maintenance_off" class="btn btn-sms-primary">
-                                    <i class="fas fa-check me-1"></i>Turn maintenance off
+                                    <?= smsIcon('check', ['class' => 'me-1']) ?>Turn maintenance off
                                 </button>
                             <?php else: ?>
                                 <button type="submit" name="action" value="module_maintenance_on" class="btn btn-warning"
                                         data-sms-confirm="Put <?= e($moduleLabel) ?> in maintenance? Module users will only see the note and Sign out."
                                         data-sms-confirm-title="Enable module maintenance?"
                                         data-sms-confirm-ok="Yes, enable">
-                                    <i class="fas fa-tools me-1"></i>Enable maintenance
+                                    <?= smsIcon('tools', ['class' => 'me-1']) ?>Enable maintenance
                                 </button>
                             <?php endif; ?>
                         </div>
@@ -1220,7 +1234,7 @@ renderBreadcrumbs($breadcrumbs);
                 <div class="card-body">
                     <div class="sms-sec-card-head">
                         <div class="sms-sec-card-title">
-                            <span class="sms-sec-icon"><i class="fas fa-sign-out-alt" aria-hidden="true"></i></span>
+                            <span class="sms-sec-icon"><?= smsIcon('sign-out-alt', ['aria-hidden' => 'true']) ?></span>
                             <div>
                                 <h2 class="h5 fw-bold mb-0">Force logout — <?= e($moduleLabel) ?></h2>
                                 <p class="sms-sec-lead mb-0 mt-1">
@@ -1321,7 +1335,7 @@ renderBreadcrumbs($breadcrumbs);
                         </div>
 
                         <button type="submit" class="btn btn-outline-danger" id="moduleForceLogoutBtn">
-                            <i class="fas fa-sign-out-alt me-1"></i>Force logout
+                            <?= smsIcon('sign-out-alt', ['class' => 'me-1']) ?>Force logout
                         </button>
                     </form>
                 </div>
@@ -1404,8 +1418,8 @@ renderBreadcrumbs($breadcrumbs);
             if (picker) picker.hidden = !isPick;
             if (btn) {
                 btn.innerHTML = isPick
-                    ? '<i class="fas fa-user-slash me-1"></i>Force logout selected'
-                    : '<i class="fas fa-sign-out-alt me-1"></i>Force logout all';
+                    ? '<?= smsIcon('user-slash', ['class' => 'me-1']) ?>Force logout selected'
+                    : '<?= smsIcon('sign-out-alt', ['class' => 'me-1']) ?>Force logout all';
             }
             form.setAttribute(
                 'data-sms-confirm-submit',
@@ -1445,8 +1459,6 @@ renderBreadcrumbs($breadcrumbs);
     })();
     </script>
 
-    <link href="<?= BASE_URL ?>/assets/css/password-strength.css" rel="stylesheet">
-    <script src="<?= BASE_URL ?>/assets/js/password-strength.js"></script>
     <script src="<?= BASE_URL ?>/modules/user-management/assets/js/module-security.js?v=20260723h"></script>
 <?php endif; ?>
 

@@ -8,7 +8,7 @@ require_once ROOT_PATH . '/includes/breadcrumbs.php';
 require_once ROOT_PATH . '/modules/crad/config/config.php';
 require_once ROOT_PATH . '/modules/crad/includes/final-phase-helpers.php';
 requireAuth();
-if (!in_array(getCurrentUserRoleKey(), ['crad_officer', 'research_coordinator', 'superadmin', 'admin'], true)) { http_response_code(403); exit('Forbidden'); }
+if (!smsRoleAllowedForModule(['crad_officer', 'research_coordinator'], 'crad')) { http_response_code(403); exit('Forbidden'); }
 $crad = cradDb(); finalPhaseEnsureSchema($crad); $message = ''; $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrfVerify()) $error = 'Security check failed.';

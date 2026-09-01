@@ -1,7 +1,7 @@
 /* CRAD shared UI layer */
 .crad-app {
-    --crad-radius-card: 14px;
-    --crad-radius-control: 10px;
+    --crad-radius-card: var(--sms-radius);
+    --crad-radius-control: var(--sms-radius-sm);
     --crad-space-card: 1.15rem;
     --crad-space-grid: 1rem;
     --crad-table-head: var(--sms-surface-muted);

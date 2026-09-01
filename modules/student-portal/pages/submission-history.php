@@ -21,7 +21,7 @@ renderBreadcrumbs($breadcrumbs);
         <?php chapterRenderUnavailableNotice(); ?>
     <?php else: ?>
     <section class="glass-panel p-4">
-        <h5 class="mb-3"><i class="fas fa-history me-2 text-primary"></i>Submission History</h5>
+        <h5 class="mb-3"><?= smsIcon('history', ['class' => 'me-2 text-primary']) ?>Submission History</h5>
         <?php if (!$history): ?><div class="text-center text-muted py-5">No chapter submission history yet.</div>
         <?php else: ?><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Time</th><th>Chapter</th><th>Version</th><th>Status</th><th>Action</th><th>Actor</th><th>Detail</th></tr></thead><tbody>
             <?php foreach ($history as $event): ?><tr><td><?= e(chapterFormatDate((string) $event['created_at'])) ?></td><td><?= e(chapterLabel((int) $event['chapter_number'])) ?></td><td>Version <?= (int) $event['version_number'] ?></td><td><span class="badge text-bg-<?= e(chapterStatusClass((string) $event['status'])) ?>"><?= e($event['status']) ?></span></td><td><?= e(ucwords(str_replace('_', ' ', (string) $event['event_type']))) ?></td><td><?= e($event['actor_name'] ?: '-') ?></td><td><?= e($event['detail'] ?: '-') ?></td></tr><?php endforeach; ?>

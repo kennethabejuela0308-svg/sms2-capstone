@@ -8,9 +8,12 @@
     'use strict';
 
     function eyeIcon(show) {
+        if (window.smsIconHtml) {
+            return window.smsIconHtml(show ? 'eye-off' : 'eye', '', { 'aria-hidden': 'true' });
+        }
         return show
-            ? '<i class="fas fa-eye-slash" aria-hidden="true"></i>'
-            : '<i class="fas fa-eye" aria-hidden="true"></i>';
+            ? '<i class="ti ti-eye-off" aria-hidden="true"></i>'
+            : '<i class="ti ti-eye" aria-hidden="true"></i>';
     }
 
     function findPasswordInput(btn) {
@@ -208,51 +211,6 @@
         wireExportButtons(root);
     }
 
-    function ensureConfirmModal() {
-        if (document.getElementById('smsConfirmModal')) return;
-        var wrap = document.createElement('div');
-        wrap.innerHTML =
-            '<div class="modal fade" id="smsConfirmModal" tabindex="-1" aria-hidden="true">' +
-            '<div class="modal-dialog modal-dialog-centered">' +
-            '<div class="modal-content sms-confirm-modal">' +
-            '<div class="modal-header">' +
-            '<h5 class="modal-title" id="smsConfirmTitle">Are you sure?</h5>' +
-            '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>' +
-            '</div>' +
-            '<div class="modal-body">' +
-            '<p class="mb-0" id="smsConfirmMsg">Please confirm this action.</p>' +
-            '</div>' +
-            '<div class="modal-footer">' +
-            '<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>' +
-            '<button type="button" class="btn btn-danger" id="smsConfirmOk">Yes, continue</button>' +
-            '</div></div></div></div>';
-        document.body.appendChild(wrap.firstChild);
-    }
-
-    function smsConfirm(message, onOk, opts) {
-        opts = opts || {};
-        ensureConfirmModal();
-        var modalEl = document.getElementById('smsConfirmModal');
-        var titleEl = document.getElementById('smsConfirmTitle');
-        var msgEl = document.getElementById('smsConfirmMsg');
-        var okBtn = document.getElementById('smsConfirmOk');
-        if (titleEl) titleEl.textContent = opts.title || 'Are you sure?';
-        if (msgEl) msgEl.textContent = message || 'Please confirm this action.';
-        if (okBtn) {
-            okBtn.className = 'btn ' + (opts.okClass || 'btn-danger');
-            okBtn.textContent = opts.okText || 'Yes, continue';
-            var next = okBtn.cloneNode(true);
-            okBtn.parentNode.replaceChild(next, okBtn);
-            okBtn = next;
-        }
-        var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-        okBtn.addEventListener('click', function () {
-            modal.hide();
-            if (typeof onOk === 'function') onOk();
-        }, { once: true });
-        modal.show();
-    }
-
     function wireConfirmHooks(root) {
         (root || document).querySelectorAll('[data-sms-confirm]').forEach(function (el) {
             if (el.dataset.smsConfirmBound === '1') return;
@@ -267,7 +225,9 @@
                 var msg = el.getAttribute('data-sms-confirm') || 'Are you sure you want to continue?';
                 var title = el.getAttribute('data-sms-confirm-title') || 'Are you sure?';
                 var okText = el.getAttribute('data-sms-confirm-ok') || 'Yes, continue';
-                smsConfirm(msg, function () {
+                var confirmFn = window.smsConfirm;
+                if (typeof confirmFn !== 'function') return;
+                confirmFn(msg, function () {
                     if (el.tagName === 'BUTTON' && el.type === 'submit' && el.form) {
                         el.dataset.smsConfirmSkip = '1';
                         if (typeof el.form.requestSubmit === 'function') el.form.requestSubmit(el);
@@ -280,7 +240,7 @@
                     }
                     var form = el.closest('form');
                     if (form) form.submit();
-                }, { title: title, okText: okText });
+                }, { title: title, okText: okText, type: el.getAttribute('data-sms-confirm-type') || 'danger' });
             });
         });
 
@@ -296,10 +256,12 @@
                 var msg = form.getAttribute('data-sms-confirm-submit') || 'Are you sure you want to continue?';
                 var title = form.getAttribute('data-sms-confirm-title') || 'Are you sure?';
                 var okText = form.getAttribute('data-sms-confirm-ok') || 'Yes, continue';
-                smsConfirm(msg, function () {
+                var confirmFn = window.smsConfirm;
+                if (typeof confirmFn !== 'function') return;
+                confirmFn(msg, function () {
                     form.dataset.smsConfirmSkip = '1';
                     form.submit();
-                }, { title: title, okText: okText });
+                }, { title: title, okText: okText, type: form.getAttribute('data-sms-confirm-type') || 'danger' });
             });
         });
     }
@@ -370,12 +332,15 @@
         enhanceAll(document);
     }
 
-    window.smsConfirm = smsConfirm;
     window.smsSecurityUi = {
         enhance: enhanceAll,
         enhancePasswords: enhancePasswords,
         enhanceOtps: enhanceOtps,
         exportTableCsv: exportTableCsv,
-        confirm: smsConfirm
+        confirm: function () {
+            if (typeof window.smsConfirm === 'function') {
+                return window.smsConfirm.apply(null, arguments);
+            }
+        }
     };
 })();

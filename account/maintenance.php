@@ -24,7 +24,7 @@ if (!smsIsSystemInMaintenance()) {
 }
 
 // Admins should manage settings, not sit on the lockout screen
-if (isAuthenticated() && getCurrentUserRoleKey() === 'admin') {
+if (isAuthenticated() && smsCanBypassSystemControls()) {
     header('Location: ' . BASE_URL . '/modules/user-management/pages/system-settings.php');
     exit;
 }
@@ -170,7 +170,7 @@ body.maintenance-lock-page {
 <main class="maint-stage" role="main" aria-labelledby="maintTitle">
     <div class="maint-logo" aria-hidden="true">
         <div class="maint-logo__plate">
-            <img src="<?= BASE_URL ?>/images/bcp-logo-source.png?v=crest-maint" alt="" width="72" height="72">
+            <img src="<?= e(smsBrandLogoUrl()) ?>?v=crest-maint" alt="" width="72" height="72">
         </div>
         <span class="maint-logo__badge" title="Under maintenance">🛠️</span>
     </div>

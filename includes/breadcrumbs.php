@@ -13,7 +13,7 @@ function renderBreadcrumbs(array $breadcrumbs): void
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
             <li class="breadcrumb-item">
-                <a href="<?= BASE_URL ?>/dashboard/index.php"><i class="fas fa-home"></i></a>
+                <a href="<?= BASE_URL ?>/dashboard/index.php"><?= smsIcon('home') ?></a>
             </li>
             <?php foreach ($breadcrumbs as $index => $crumb): ?>
                 <?php if ($index === array_key_last($breadcrumbs)): ?>
@@ -77,16 +77,16 @@ function renderModulePageBanner(array $breadcrumbs): void
     $hasCradProcessDescription = $activeModule === 'crad'
         && !empty($GLOBALS['cradProcess']['description']);
     ?>
-    <section class="module-page-banner" aria-label="<?= htmlspecialchars($pageTitle) ?> header">
+    <section class="module-page-banner sms-page-header" aria-label="<?= htmlspecialchars($pageTitle) ?> header">
         <div class="module-page-banner__title">
-            <h1><i class="fas <?= htmlspecialchars($moduleIcon) ?>"></i><?= htmlspecialchars($pageTitle) ?></h1>
+            <h1><?= smsIcon($moduleIcon) ?><?= htmlspecialchars($pageTitle) ?></h1>
             <?php if (!$hasCradProcessDescription): ?>
                 <p><?= htmlspecialchars($description) ?></p>
             <?php endif; ?>
         </div>
         <?php if ($backUrl !== ''): ?>
             <a class="module-page-banner__action" href="<?= htmlspecialchars($backUrl) ?>">
-                <i class="fas fa-arrow-left"></i>
+                <?= smsIcon('arrow-left') ?>
                 <?= htmlspecialchars($backLabel !== '' ? $backLabel : 'Back') ?>
             </a>
         <?php endif; ?>

@@ -76,7 +76,7 @@ $exports = count(array_filter($logs, static fn($l) => $l['action'] === 'export')
 <link href="<?= BASE_URL ?>/modules/user-management/assets/css/user-management.css" rel="stylesheet">
 
 <?php
-$pageBannerIcon        = 'fa-history';
+$pageBannerIcon        = 'history';
 $pageBannerDescription = 'Full Super Admin audit trail across all modules. Module Security shows each module\'s own logs separately.';
 renderBreadcrumbs($breadcrumbs);
 ?>
@@ -87,21 +87,21 @@ renderBreadcrumbs($breadcrumbs);
             data-sms-export-csv="#adminLogTable"
             data-sms-export-rows="tbody tr.log-row"
             data-sms-export-filename="sms2-activity-logs.csv">
-        <i class="fas fa-file-export me-2"></i>Export CSV
+        <?= smsIcon('file-export', ['class' => 'me-2']) ?>Export CSV
     </button>
 </div>
 
 <div class="row g-3 mb-4 dashboard-stats">
     <?php foreach ([
-        ['label' => 'Total Events', 'value' => $total,   'icon' => 'fa-list-alt',    'type' => 'primary'],
-        ['label' => 'Login Events', 'value' => $logins,  'icon' => 'fa-sign-in-alt', 'type' => 'info'],
-        ['label' => 'Data Changes', 'value' => $changes, 'icon' => 'fa-database',    'type' => 'warning'],
-        ['label' => 'Exports',      'value' => $exports, 'icon' => 'fa-file-export', 'type' => 'success'],
+        ['label' => 'Total Events', 'value' => $total,   'icon' => 'list',        'type' => 'primary'],
+        ['label' => 'Login Events', 'value' => $logins,  'icon' => 'login',     'type' => 'info'],
+        ['label' => 'Data Changes', 'value' => $changes, 'icon' => 'database',  'type' => 'warning'],
+        ['label' => 'Exports',      'value' => $exports, 'icon' => 'file-export', 'type' => 'success'],
     ] as $sc): ?>
         <div class="col-6 col-xl-3">
             <section class="card stat-card <?= $sc['type'] ?>">
                 <div class="card-body d-flex align-items-center">
-                    <div class="stat-icon me-3"><i class="fas <?= $sc['icon'] ?>"></i></div>
+                    <div class="stat-icon me-3"><?= smsIcon($sc['icon']) ?></div>
                     <div>
                         <h6 class="text-muted mb-0 small"><?= $sc['label'] ?></h6>
                         <h4 class="mb-0 fw-bold"><?= $sc['value'] ?></h4>
@@ -128,7 +128,7 @@ renderBreadcrumbs($breadcrumbs);
             <div class="col-md-6 col-xl-3">
                 <label class="form-label small mb-1" for="logUserFilter">User</label>
                 <div class="input-group input-group-sm">
-                    <span class="input-group-text"><i class="fas fa-search" style="font-size:.72rem;"></i></span>
+                    <span class="input-group-text"><?= smsIcon('search', ['style' => 'font-size:.72rem;']) ?></span>
                     <input type="text" id="logUserFilter" class="form-control" placeholder="Name…">
                 </div>
             </div>
@@ -204,7 +204,7 @@ renderBreadcrumbs($breadcrumbs);
                                 </td>
                                 <td>
                                     <span class="log-action-badge <?= e((string) $log['action']) ?>">
-                                        <i class="fas <?= e($icon) ?>"></i>
+                                        <?= smsIcon($icon) ?>
                                         <?= e(ucfirst(str_replace('_', ' ', (string) $log['action']))) ?>
                                     </span>
                                 </td>
@@ -224,5 +224,5 @@ renderBreadcrumbs($breadcrumbs);
     </div>
 </section>
 
-<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js?v=20260723c"></script>
+<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js?v=20260831"></script>
 <?php require_once __DIR__ . '/../../../includes/layout-end.php'; ?>

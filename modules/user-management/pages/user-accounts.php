@@ -19,7 +19,11 @@ if ($isArchiveView) {
 
 require_once __DIR__ . '/../../../includes/breadcrumbs.php';
 require_once __DIR__ . '/../../../includes/layout-start.php';
+require_once ROOT_PATH . '/includes/security-ui.php';
+require_once ROOT_PATH . '/includes/security-workflow.php';
 requireSuperAdmin();
+
+$minPasswordLen = (int) smsSetting('min_password_length', '8');
 
 $users = [];
 $archivedCount = 0;
@@ -34,11 +38,39 @@ if ($pdo) {
                 ('admin', 'Super Admin', 'Legacy super admin access', 1),
                 ('sms_admin', 'Admin', 'General administrator account', 1),
                 ('research_coordinator', 'Research Coordinator', 'Research coordination access', 1),
+                ('department_chair', 'Department Chair', 'Grant approval department chair sign-off', 1),
+                ('research_office', 'Research Office', 'Grant approval research office sign-off', 1),
+                ('vpaa', 'VPAA', 'Grant approval VPAA sign-off', 1),
                 ('adviser', 'Adviser', 'Research adviser faculty account', 1),
                 ('research_director', 'Research Director', 'Research defense scheduling director account', 1),
                 ('grammarian', 'Grammarian', 'Research grammar and manuscript evaluation account', 1),
                 ('panel', 'Panel Member', 'Research defense panel account', 1),
-                ('research_grant', 'CRAD Officer', 'Research grant management access', 1)"
+                ('research_grant', 'CRAD Officer', 'Research grant management access', 1),
+                ('review_committee', 'Review Committee', 'Grant proposal review and rubric evaluation', 1)"
+        )->execute();
+        $pdo->prepare(
+            "INSERT INTO role_permissions (role_key, module_key, granted)
+             VALUES ('department_chair', 'crad', 1)
+             ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
+        )->execute();
+        $pdo->prepare(
+            "INSERT INTO role_permissions (role_key, module_key, granted)
+             VALUES ('research_office', 'crad', 1)
+             ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
+        )->execute();
+        $pdo->prepare(
+            "INSERT INTO role_permissions (role_key, module_key, granted)
+             VALUES ('vpaa', 'accreditation', 1)
+             ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
+        )->execute();
+        $pdo->prepare(
+            "UPDATE users SET role_key = 'department_chair' WHERE username = 'deptchair' LIMIT 1"
+        )->execute();
+        $pdo->prepare(
+            "UPDATE users SET role_key = 'research_office' WHERE username = 'researchoffice' LIMIT 1"
+        )->execute();
+        $pdo->prepare(
+            "UPDATE users SET role_key = 'vpaa' WHERE username = 'vpaa' LIMIT 1"
         )->execute();
         $pdo->prepare(
             "UPDATE roles
@@ -79,12 +111,12 @@ if ($pdo) {
              VALUES
                 (?, ?, ?, ?, ?, NULL, 'active', ?, NOW(), 0, 0, NULL)"
         );
-        $seedFaculty->execute(['rsantos', 'rsantos@bestlink.edu.ph', $facultyHash, 'Dr. Roberto M. Santos', 'adviser', 'Research Adviser']);
-        $seedFaculty->execute(['researchdirector', 'research.director@bestlink.edu.ph', $facultyHash, 'Research Director', 'research_director', 'Research Director']);
-        $seedFaculty->execute(['grammarian', 'grammarian@bestlink.edu.ph', password_hash('@grammarian123', PASSWORD_DEFAULT), 'Grammarian', 'grammarian', 'Research grammar and manuscript evaluator']);
-        $seedFaculty->execute(['jobert.valentino', 'jobert.valentino@bestlink.edu.ph', password_hash('@panel123', PASSWORD_DEFAULT), 'Dr. Jobert Valentino', 'panel', 'Panel Member']);
-        $seedFaculty->execute(['jonathan.estrada', 'jonathan.estrada@bestlink.edu.ph', password_hash('@panel123', PASSWORD_DEFAULT), 'Dr. Jonathan Estrada', 'panel', 'Panel Member']);
-        $seedFaculty->execute(['michelle.guevarra', 'michelle.guevarra@bestlink.edu.ph', password_hash('@panel123', PASSWORD_DEFAULT), 'Dr. Michelle Guevarra', 'panel', 'Panel Member']);
+        $seedFaculty->execute(['rsantos', 'rsantos@bestlink.edu.ph', password_hash('@Adviser123', PASSWORD_DEFAULT), 'Dr. Roberto M. Santos', 'adviser', 'Research Adviser']);
+        $seedFaculty->execute(['researchdirector', 'researchdirector@bestlink.edu.ph', password_hash('@Director123', PASSWORD_DEFAULT), 'Research Director', 'research_director', 'Research Director']);
+        $seedFaculty->execute(['grammarian', 'grammarian@bestlink.edu.ph', password_hash('@Grammarian123', PASSWORD_DEFAULT), 'Grammarian', 'grammarian', 'Research grammar and manuscript evaluator']);
+        $seedFaculty->execute(['jobertvalentino', 'jobertvalentino@bestlink.edu.ph', password_hash('@Adviser123', PASSWORD_DEFAULT), 'Dr. Jobert Valentino', 'panel', 'Panel Member']);
+        $seedFaculty->execute(['jonathanestrada', 'jonathanestrada@bestlink.edu.ph', password_hash('@Adviser123', PASSWORD_DEFAULT), 'Dr. Jonathan Estrada', 'panel', 'Panel Member']);
+        $seedFaculty->execute(['michelleguevarra', 'michelleguevarra@bestlink.edu.ph', password_hash('@Adviser123', PASSWORD_DEFAULT), 'Dr. Michelle Guevarra', 'panel', 'Panel Member']);
         $insFacultyPerm = $pdo->prepare(
             "INSERT INTO role_permissions (role_key, module_key, granted)
              VALUES (?, 'faculty', 1)
@@ -95,7 +127,7 @@ if ($pdo) {
         }
 
         // Research Grant account (CRAD Officer role)
-        $rgHash = password_hash('@researchgrant123', PASSWORD_DEFAULT);
+        $rgHash = password_hash('@Grant123', PASSWORD_DEFAULT);
         $pdo->prepare(
             "INSERT IGNORE INTO users
                 (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
@@ -105,6 +137,20 @@ if ($pdo) {
         $pdo->prepare(
             "INSERT INTO role_permissions (role_key, module_key, granted)
              VALUES ('research_grant', 'crad_grant', 1)
+             ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
+        )->execute();
+
+        // Review Committee account (grant proposal evaluator)
+        $rcHash = password_hash('@Committee123', PASSWORD_DEFAULT);
+        $pdo->prepare(
+            "INSERT IGNORE INTO users
+                (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
+             VALUES
+                ('reviewcommittee', 'reviewcommittee@bestlink.edu.ph', ?, 'Review Committee Member', 'review_committee', NULL, 'active', NOW(), 0, 0, NULL)"
+        )->execute([$rcHash]);
+        $pdo->prepare(
+            "INSERT INTO role_permissions (role_key, module_key, granted)
+             VALUES ('review_committee', 'crad_grant', 1)
              ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
         )->execute();
     } catch (Throwable $e) {
@@ -184,6 +230,9 @@ foreach ($users as &$u) {
     if ($u['role'] === 'panel') {
         $u['roleLabel'] = 'Panel Member';
     }
+    if ($u['role'] === 'review_committee') {
+        $u['roleLabel'] = 'Review Committee';
+    }
 }
 unset($u);
 
@@ -199,8 +248,12 @@ function umRoleBadgeClass(string $role, string $label = ''): string
         'admissionoffice' => 'admission',
         'admission_office' => 'admission',
         'crad_officer' => 'crad',
-        'research_grant' => 'crad',
+        'research_grant' => 'research_grant',
+        'review_committee' => 'review_committee',
         'research_coordinator' => 'research_coordinator',
+        'department_chair' => 'department_chair',
+        'research_office' => 'research_office',
+        'vpaa' => 'vpaa',
         'research_director' => 'research_director',
         'grammarian' => 'grammarian',
         'panel' => 'panel',
@@ -223,7 +276,7 @@ $archiveUrl  = $accountsUrl . '?view=archive';
 $currentUserId = (int) getCurrentUserId();
 ?>
 
-<link href="<?= BASE_URL ?>/modules/user-management/assets/css/user-management.css?v=research-grant-role-1" rel="stylesheet">
+<link href="<?= BASE_URL ?>/modules/user-management/assets/css/user-management.css?v=grant-role-badges-1" rel="stylesheet">
 <meta name="csrf-token" content="<?= e($csrf) ?>">
 
 <?php
@@ -241,7 +294,7 @@ renderBreadcrumbs($breadcrumbs);
     <div class="d-flex flex-wrap gap-2 align-items-center">
         <?php if ($isArchiveView): ?>
             <a href="<?= e($accountsUrl) ?>" class="um-archive-btn um-archive-btn--back">
-                <i class="fas fa-users"></i>
+                <?= smsIcon('users') ?>
                 <span>Active Accounts</span>
                 <?php if ($activeCount > 0): ?>
                     <span class="um-archive-count"><?= $activeCount ?></span>
@@ -249,7 +302,7 @@ renderBreadcrumbs($breadcrumbs);
             </a>
         <?php else: ?>
             <a href="<?= e($archiveUrl) ?>" class="um-archive-btn">
-                <i class="fas fa-archive"></i>
+                <?= smsIcon('archive') ?>
                 <span>User Archive</span>
                 <?php if ($archivedCount > 0): ?>
                     <span class="um-archive-count"><?= $archivedCount ?></span>
@@ -258,7 +311,7 @@ renderBreadcrumbs($breadcrumbs);
             <button type="button" class="btn btn-sms-primary"
                     data-bs-toggle="modal" data-bs-target="#umUserModal"
                     data-um-action="add">
-                <i class="fas fa-user-plus me-2"></i>Add User
+                <?= smsIcon('user-plus', ['class' => 'me-2']) ?>Add User
             </button>
         <?php endif; ?>
     </div>
@@ -271,16 +324,16 @@ renderBreadcrumbs($breadcrumbs);
     $active = count(array_filter($users, fn($u) => $u['status'] === 'active'));
     $locked = count(array_filter($users, fn($u) => $u['status'] === 'locked'));
     $statCards = [
-        ['label' => 'Active List', 'value' => $total,         'icon' => 'fa-users',      'type' => 'primary'],
-        ['label' => 'Active',      'value' => $active,        'icon' => 'fa-user-check', 'type' => 'success'],
-        ['label' => 'Locked Out',  'value' => $locked,        'icon' => 'fa-user-lock',  'type' => 'info'],
-        ['label' => 'In Archive',  'value' => $archivedCount, 'icon' => 'fa-archive',    'type' => 'warning'],
+        ['label' => 'Active List', 'value' => $total,         'icon' => 'users',      'type' => 'primary'],
+        ['label' => 'Active',      'value' => $active,        'icon' => 'user-check', 'type' => 'success'],
+        ['label' => 'Locked Out',  'value' => $locked,        'icon' => 'lock',       'type' => 'info'],
+        ['label' => 'In Archive',  'value' => $archivedCount, 'icon' => 'archive',    'type' => 'warning'],
     ];
     foreach ($statCards as $sc): ?>
         <div class="col-6 col-xl-3">
             <section class="card stat-card <?= $sc['type'] ?>">
                 <div class="card-body d-flex align-items-center">
-                    <div class="stat-icon me-3"><i class="fas <?= $sc['icon'] ?>"></i></div>
+                    <div class="stat-icon me-3"><?= smsIcon($sc['icon']) ?></div>
                     <div>
                         <h6 class="text-muted mb-0 small"><?= $sc['label'] ?></h6>
                         <h4 class="mb-0 fw-bold"><?= $sc['value'] ?></h4>
@@ -292,56 +345,53 @@ renderBreadcrumbs($breadcrumbs);
 </div>
 <?php endif; ?>
 
-<!-- Filter bar -->
-<section class="card mb-3">
-    <div class="card-body py-3">
-        <div class="um-filter-bar">
-            <div class="flex-grow-1" style="min-width:180px;max-width:320px;">
-                <div class="input-group input-group-sm">
-                    <span class="input-group-text"><i class="fas fa-search" style="font-size:.72rem;"></i></span>
-                    <input type="text" id="umSearch" class="form-control form-control-sm"
-                           placeholder="<?= $isArchiveView ? 'Search archived users…' : 'Search name, username or email…' ?>"
-                           style="max-width:unset;">
-                </div>
-            </div>
-            <?php if (!$isArchiveView): ?>
-            <select id="umRoleFilter" class="form-select form-select-sm">
-                <option value="">All Roles</option>
-                <option value="superadmin">Super Admin</option>
-                <option value="sms_admin">Admin</option>
-                <option value="admission">Admission</option>
-                <option value="registrar">Registrar</option>
-                <option value="finance">Finance</option>
-                <option value="hr">Dean</option>
-                <option value="adviser">Adviser</option>
-                <option value="research_director">Research Director</option>
-                <option value="panel">Panel Member</option>
-                <option value="it_office">IT Office</option>
-                <option value="osa">OSA</option>
-                <option value="qa">QA Office</option>
-                <option value="crad">CRAD Officer</option>
-                <option value="research_coordinator">Research Coordinator</option>
-                <option value="research_grant">Research Grant</option>
-                <option value="student">Student</option>
-            </select>
-            <select id="umStatusFilter" class="form-select form-select-sm">
-                <option value="">All Status</option>
-                <option value="active">Active</option>
-                <option value="locked">Locked</option>
-            </select>
-            <?php endif; ?>
-            <span class="ms-auto text-muted" style="font-size:.78rem;white-space:nowrap;">
-                <?= $total ?> <?= $isArchiveView ? 'archived' : 'users' ?>
-            </span>
-        </div>
-    </div>
-</section>
-
 <!-- User table -->
-<section class="card">
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table submodule-table align-middle mb-0">
+<section class="sms-table-wrap mb-3">
+    <div class="sms-table-toolbar um-filter-bar">
+        <div class="flex-grow-1" style="min-width:180px;max-width:320px;">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text"><?= smsIcon('search', ['style' => 'font-size:.72rem;']) ?></span>
+                <input type="text" id="umSearch" class="form-control form-control-sm"
+                       placeholder="<?= $isArchiveView ? 'Search archived users…' : 'Search name, username or email…' ?>"
+                       style="max-width:unset;">
+            </div>
+        </div>
+        <?php if (!$isArchiveView): ?>
+        <select id="umRoleFilter" class="form-select form-select-sm">
+            <option value="">All Roles</option>
+            <option value="superadmin">Super Admin</option>
+            <option value="sms_admin">Admin</option>
+            <option value="admission">Admission</option>
+            <option value="registrar">Registrar</option>
+            <option value="finance">Finance</option>
+            <option value="hr">Dean</option>
+            <option value="adviser">Adviser</option>
+            <option value="research_director">Research Director</option>
+            <option value="panel">Panel Member</option>
+            <option value="it_office">IT Office</option>
+            <option value="osa">OSA</option>
+            <option value="qa">QA Office</option>
+            <option value="crad">CRAD Officer</option>
+            <option value="research_coordinator">Research Coordinator</option>
+            <option value="department_chair">Department Chair</option>
+            <option value="research_office">Research Office</option>
+            <option value="vpaa">VPAA</option>
+            <option value="research_grant">Research Grant</option>
+            <option value="review_committee">Review Committee</option>
+            <option value="student">Student</option>
+        </select>
+        <select id="umStatusFilter" class="form-select form-select-sm">
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="locked">Locked</option>
+        </select>
+        <?php endif; ?>
+        <span class="ms-auto text-muted" style="font-size:.78rem;white-space:nowrap;">
+            <?= $total ?> <?= $isArchiveView ? 'archived' : 'users' ?>
+        </span>
+    </div>
+    <div class="table-responsive sms-table--responsive">
+        <table class="table submodule-table align-middle mb-0">
                 <thead>
                     <tr>
                         <th style="padding-left:1.2rem;">User</th>
@@ -358,10 +408,10 @@ renderBreadcrumbs($breadcrumbs);
                         <tr>
                             <td colspan="7" class="text-center py-5 text-muted">
                                 <?php if ($isArchiveView): ?>
-                                    <i class="fas fa-archive fa-2x mb-2 d-block opacity-50"></i>
+                                    <?= smsIcon('archive', ['class' => 'um-empty-icon mb-2 d-block opacity-50']) ?>
                                     Archive is empty. Archived users from User Accounts will appear here.
                                 <?php else: ?>
-                                    <i class="fas fa-users fa-2x mb-2 d-block opacity-50"></i>
+                                    <?= smsIcon('users', ['class' => 'um-empty-icon mb-2 d-block opacity-50']) ?>
                                     No active users yet.
                                 <?php endif; ?>
                             </td>
@@ -416,7 +466,7 @@ renderBreadcrumbs($breadcrumbs);
                                                 data-status="active"
                                                 data-um-confirm-type="warning"
                                                 data-um-confirm="Restore <?= e($u['name']) ?> back to User Accounts?">
-                                            <i class="fas fa-undo" style="font-size:.7rem;"></i>
+                                            <?= smsIcon('undo', ['style' => 'font-size:.7rem;']) ?>
                                         </button>
                                         <?php if ((int) $u['id'] !== $currentUserId): ?>
                                         <button type="button"
@@ -424,7 +474,7 @@ renderBreadcrumbs($breadcrumbs);
                                                 title="Permanently delete"
                                                 data-uid="<?= (int) $u['id'] ?>"
                                                 data-um-confirm="Permanently delete <?= e($u['name']) ?> from the archive? This cannot be undone.">
-                                            <i class="fas fa-trash" style="font-size:.7rem;"></i>
+                                            <?= smsIcon('trash', ['style' => 'font-size:.7rem;']) ?>
                                         </button>
                                         <?php endif; ?>
                                     <?php else: ?>
@@ -440,7 +490,7 @@ renderBreadcrumbs($breadcrumbs);
                                                 data-email="<?= htmlspecialchars($u['email']) ?>"
                                                 data-role="<?= htmlspecialchars($u['role']) ?>"
                                                 data-status="<?= htmlspecialchars($u['status']) ?>">
-                                            <i class="fas fa-pen" style="font-size:.7rem;"></i>
+                                            <?= smsIcon('pen', ['style' => 'font-size:.7rem;']) ?>
                                         </button>
                                         <?php if ($u['status'] === 'locked'): ?>
                                         <button type="button"
@@ -450,7 +500,7 @@ renderBreadcrumbs($breadcrumbs);
                                                 data-status="active"
                                                 data-um-confirm-type="warning"
                                                 data-um-confirm="Unlock <?= e($u['name']) ?>?">
-                                            <i class="fas fa-unlock" style="font-size:.7rem;"></i>
+                                            <?= smsIcon('unlock', ['style' => 'font-size:.7rem;']) ?>
                                         </button>
                                         <?php endif; ?>
                                         <button type="button"
@@ -460,7 +510,7 @@ renderBreadcrumbs($breadcrumbs);
                                                 data-status="inactive"
                                                 data-um-confirm-type="warning"
                                                 data-um-confirm="Move <?= e($u['name']) ?> to User Archive? They leave this list and can be restored later.">
-                                            <i class="fas fa-archive" style="font-size:.7rem;"></i>
+                                            <?= smsIcon('archive', ['style' => 'font-size:.7rem;']) ?>
                                         </button>
                                     <?php endif; ?>
                                 </div>
@@ -472,17 +522,16 @@ renderBreadcrumbs($breadcrumbs);
                 </tbody>
             </table>
             <tr id="umNoResults" style="display:none;">
-                <td colspan="7" class="text-center py-5 text-muted">
-                    <i class="fas fa-search-minus fa-2x mb-2 d-block opacity-50"></i>No users match your filters.
+                <td colspan="7" class="text-center py-5 text-muted sms-table-empty">
+                    <?= smsIcon('search-minus', ['class' => 'um-empty-icon mb-2 d-block opacity-50']) ?>No users match your filters.
                 </td>
             </tr>
         </div>
-    </div>
 </section>
 
 <?php if (!$isArchiveView): ?>
 <!-- ── Add / Edit User Modal ─────────────────────────────────── -->
-<div class="modal fade" id="umUserModal" tabindex="-1" aria-labelledby="umModalTitle" aria-hidden="true">
+<div class="modal fade sms-form-modal um-user-modal" id="umUserModal" tabindex="-1" aria-labelledby="umModalTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
@@ -512,8 +561,15 @@ renderBreadcrumbs($breadcrumbs);
                             <input type="email" class="form-control" name="email" placeholder="user@bestlink.edu.ph" required>
                         </div>
                         <div class="col-md-6 um-pw-row">
-                            <label class="form-label fw-semibold">Password <span class="text-danger">*</span></label>
-                            <input type="password" class="form-control" name="password" placeholder="••••••••" autocomplete="new-password">
+                            <label class="form-label fw-semibold um-pw-label">Password <span class="text-danger um-pw-required">*</span></label>
+                            <?= smsPasswordInput([
+                                'id' => 'um_password',
+                                'name' => 'password',
+                                'placeholder' => '••••••••',
+                                'required' => true,
+                                'minlength' => $minPasswordLen,
+                                'autocomplete' => 'new-password',
+                            ]) ?>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Role <span class="text-danger">*</span></label>
@@ -534,9 +590,16 @@ renderBreadcrumbs($breadcrumbs);
                                 <option value="qa">QA Office</option>
                                 <option value="crad">CRAD Officer</option>
                                 <option value="research_coordinator">Research Coordinator</option>
+            <option value="department_chair">Department Chair</option>
+            <option value="research_office">Research Office</option>
+            <option value="vpaa">VPAA</option>
                                 <option value="research_grant">Research Grant (CRAD Officer)</option>
+                                <option value="review_committee">Review Committee</option>
                                 <option value="student">Student</option>
                             </select>
+                        </div>
+                        <div class="col-12 um-pw-strength-row">
+                            <?= smsPasswordStrengthMarkup('um_password') ?>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Status</label>
@@ -554,7 +617,7 @@ renderBreadcrumbs($breadcrumbs);
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-sms-primary">
-                        <i class="fas fa-save me-2"></i>Save User
+                        <?= smsIcon('save', ['class' => 'me-2']) ?>Save User
                     </button>
                 </div>
             </form>
@@ -563,7 +626,7 @@ renderBreadcrumbs($breadcrumbs);
 </div>
 <?php endif; ?>
 
-<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js"></script>
+<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js?v=20260831"></script>
 <script>
 (function () {
     var ENDPOINT = '<?= BASE_URL ?>/modules/user-management/includes/save-user.php';
@@ -580,12 +643,35 @@ renderBreadcrumbs($breadcrumbs);
         }).then(function (r) { return r.json(); });
     }
 
+    function passwordMeetsPolicy(form, password) {
+        if (!password) return false;
+        var box = form.querySelector('.pw-strength');
+        var minLen = box ? parseInt(box.getAttribute('data-pw-min') || '8', 10) : 8;
+        return password.length >= minLen
+            && /[A-Z]/.test(password)
+            && /[a-z]/.test(password)
+            && /[0-9]/.test(password)
+            && /[^A-Za-z0-9]/.test(password);
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         var form = document.getElementById('umUserForm');
         if (form) {
             form.addEventListener('submit', function (e) {
                 e.preventDefault();
                 var fd = new FormData(form);
+                var userId = fd.get('user_id') || '';
+                var password = fd.get('password') || '';
+                if (!userId && !password) {
+                    if (typeof umShowToast === 'function') umShowToast('Password is required for new users.', 'danger');
+                    else alert('Password is required for new users.');
+                    return;
+                }
+                if ((!userId || password) && password && !passwordMeetsPolicy(form, password)) {
+                    if (typeof umShowToast === 'function') umShowToast('Password does not meet security requirements.', 'danger');
+                    else alert('Password does not meet security requirements.');
+                    return;
+                }
                 var payload = {
                     action: 'save',
                     user_id: fd.get('user_id') || '',

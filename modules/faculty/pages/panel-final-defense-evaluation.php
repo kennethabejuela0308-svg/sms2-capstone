@@ -60,10 +60,10 @@ $rows = $crad instanceof PDO ? finalDefenseRows($crad, $showHistory) : [];
         <?php if (!$defense): ?>
             <section class="glass-panel p-4">
                 <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
-                    <h5 class="mb-0"><i class="fas fa-clipboard-check me-2 text-primary"></i>Final Defenses for Evaluation</h5>
+                    <h5 class="mb-0"><?= smsIcon('clipboard-check', ['class' => 'me-2 text-primary']) ?>Final Defenses for Evaluation</h5>
                     <div class="d-flex gap-2 align-items-center">
                         <a class="btn btn-sm btn-outline-primary" href="<?= BASE_URL ?>/modules/faculty/pages/panel-final-defense-evaluation.php<?= $showHistory ? '' : '?history=1' ?>">
-                            <i class="fas fa-history me-1"></i><?= $showHistory ? 'Pending Evaluations' : 'Evaluation History' ?>
+                            <?= smsIcon('history', ['class' => 'me-1']) ?><?= $showHistory ? 'Pending Evaluations' : 'Evaluation History' ?>
                         </a>
                         <span class="badge text-bg-primary"><?= count($rows) ?> Records</span>
                     </div>
@@ -83,7 +83,7 @@ $rows = $crad instanceof PDO ? finalDefenseRows($crad, $showHistory) : [];
                                     <span class="badge text-bg-success"><?= e((string) ($row['panel_result'] ?? 'Submitted')) ?></span>
                                     <div class="small text-muted mt-1"><?= e((string) ($row['panel_score'] ?? '')) ?></div>
                                 <?php else: ?>
-                                    <a class="btn btn-sm btn-primary" href="<?= BASE_URL ?>/modules/faculty/pages/panel-final-defense-evaluation.php?id=<?= (int) $row['id'] ?>"><i class="fas fa-pen me-1"></i>Evaluate</a>
+                                    <a class="btn btn-sm btn-primary" href="<?= BASE_URL ?>/modules/faculty/pages/panel-final-defense-evaluation.php?id=<?= (int) $row['id'] ?>"><?= smsIcon('pen', ['class' => 'me-1']) ?>Evaluate</a>
                                 <?php endif; ?></td>
                             </tr>
                         <?php endforeach; ?></tbody>
@@ -110,7 +110,7 @@ $rows = $crad instanceof PDO ? finalDefenseRows($crad, $showHistory) : [];
                     <?php endforeach; ?>
                     <div class="mb-3"><label class="form-label">Remarks</label><textarea class="form-control" name="remarks" rows="4"></textarea></div>
                     <div class="mb-3"><label class="form-label">Result</label><select class="form-select" name="result" required><option value="">Select result...</option><option value="APPROVED">APPROVED</option><option value="APPROVED WITH REVISION">APPROVED WITH REVISION</option><option value="FAILED">FAILED</option></select></div>
-                    <div class="d-flex gap-2"><button type="submit" class="btn btn-primary"><i class="fas fa-check me-1"></i>Submit Final Defense Evaluation</button><a class="btn btn-outline-secondary" href="<?= BASE_URL ?>/modules/faculty/pages/panel-final-defense-evaluation.php">Back</a></div>
+                    <div class="d-flex gap-2"><button type="submit" class="btn btn-primary"><?= smsIcon('check', ['class' => 'me-1']) ?>Submit Final Defense Evaluation</button><a class="btn btn-outline-secondary" href="<?= BASE_URL ?>/modules/faculty/pages/panel-final-defense-evaluation.php">Back</a></div>
                 </form>
             </section>
         <?php endif; ?>

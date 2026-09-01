@@ -9,6 +9,8 @@
  */
 declare(strict_types=1);
 
+require_once __DIR__ . '/icons.php';
+
 function smsCaptchaEnabled(): bool
 {
     return smsSetting('login_captcha_enabled', '1') === '1';
@@ -261,10 +263,10 @@ function smsCaptchaMarkup(): string
         . 'data-captcha-api="' . $api . '" aria-pressed="false" aria-label="Verify you are human">'
         . '<span class="sms-cf-box" id="smsCaptchaBox" aria-hidden="true">'
         . '<span class="sms-cf-spinner" hidden></span>'
-        . '<span class="sms-cf-check" hidden><i class="fas fa-check"></i></span>'
+        . '<span class="sms-cf-check" hidden>' . smsIcon('check') . '</span>'
         . '</span>'
         . '<span class="sms-cf-label">Verify you are human</span>'
-        . '<span class="sms-cf-brand"><i class="fas fa-shield-alt" aria-hidden="true"></i>BCP</span>'
+        . '<span class="sms-cf-brand">' . smsIcon('shield-alt', ['aria-hidden' => 'true']) . 'BCP</span>'
         . '</button>'
         . '</div>'
         . '<script src="' . e(BASE_URL . '/assets/js/sms-captcha.js?v=3') . '"></script>';

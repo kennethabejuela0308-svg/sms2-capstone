@@ -7,6 +7,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/security.php';
 require_once __DIR__ . '/audit.php';
+require_once __DIR__ . '/icons.php';
 
 /**
  * Ensure security-related tables exist (safe to call repeatedly).
@@ -519,14 +520,19 @@ function smsPasswordStrengthMarkup(string $inputId = 'password'): string
     $items = '';
     foreach ($policy['rules'] as $key => $label) {
         $items .= '<li class="pw-rule" data-rule="' . htmlspecialchars($key, ENT_QUOTES, 'UTF-8') . '">'
-            . '<i class="fas fa-circle pw-rule-icon" aria-hidden="true"></i> '
-            . '<span>' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</span>'
+            . smsIcon('circle', ['class' => 'pw-rule-icon', 'aria-hidden' => 'true'])
+            . ' <span>' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</span>'
             . '</li>';
     }
 
     return '<div class="pw-strength mt-2" data-pw-input="' . htmlspecialchars($inputId, ENT_QUOTES, 'UTF-8') . '" data-pw-min="' . (int) $policy['min'] . '">'
-        . '<div class="small fw-semibold mb-1">Password requirements</div>'
-        . '<ul class="pw-rules list-unstyled small mb-0">' . $items . '</ul>'
+        . '<div class="pw-strength-head">'
+        . '<span class="pw-strength-label">Password strength</span>'
+        . '<span class="pw-strength-score" data-pw-score>—</span>'
+        . '</div>'
+        . '<div class="pw-strength-bar" aria-hidden="true"><span class="pw-strength-bar-fill"></span></div>'
+        . '<div class="pw-strength-rules-title">Requirements</div>'
+        . '<ul class="pw-rules list-unstyled mb-0">' . $items . '</ul>'
         . '</div>';
 }
 
@@ -548,7 +554,7 @@ function smsUsersForModuleReset(string $moduleKey): array
 
     $roles = array_values(array_filter(
         smsRolesForModule($moduleKey),
-        static fn(string $r): bool => !in_array($r, ['superadmin', 'admin'], true)
+        static fn(string $r): bool => !smsIsGrantedAdminRole($r)
     ));
     if ($roles === []) {
         return [];
@@ -588,12 +594,16 @@ function smsPrimaryModuleForRole(string $roleKey): string
 
     $map = [
         'superadmin'   => 'user-management',
+        'sms_admin'    => 'enrollment',
         'admin'        => 'user-management',
         'admission'    => 'enrollment',
         'registrar'    => 'registrar',
         'crad_officer' => 'crad',
         'research_coordinator' => 'crad',
+        'department_chair' => 'crad',
+        'research_office' => 'crad',
         'research_grant' => 'crad_grant',
+        'review_committee' => 'crad_grant',
         'finance'      => 'payment',
         'hr'           => 'faculty',
         'adviser'      => 'faculty',
@@ -603,6 +613,7 @@ function smsPrimaryModuleForRole(string $roleKey): string
         'it_office'    => 'lms',
         'osa'          => 'cocurricular',
         'qa'           => 'accreditation',
+        'vpaa'         => 'accreditation',
         'student'      => 'student_portal',
     ];
     return $map[$roleKey] ?? 'System';
@@ -641,22 +652,22 @@ function smsRolesForModule(string $moduleKey): array
     }
 
     $map = [
-        'enrollment'         => ['admission', 'registrar', 'superadmin', 'admin'],
-        'registrar'          => ['registrar', 'superadmin', 'admin'],
-        'curriculum'         => ['registrar', 'superadmin', 'admin'],
-        'scheduling'         => ['registrar', 'superadmin', 'admin'],
-        'payment'            => ['finance', 'superadmin', 'admin'],
-        'faculty'            => ['hr', 'adviser', 'panel', 'grammarian', 'superadmin', 'admin'],
-        'cocurricular'       => ['osa', 'superadmin', 'admin'],
-        'lms'                => ['it_office', 'superadmin', 'admin'],
-        'crad'               => ['crad_officer', 'research_coordinator', 'superadmin', 'admin'],
-        'crad_grant'         => ['research_grant', 'superadmin', 'admin'],
-        'accreditation'      => ['qa', 'superadmin', 'admin'],
-        'reports-analytics'  => ['superadmin', 'admin', 'registrar', 'finance', 'hr', 'it_office', 'osa', 'qa', 'crad_officer', 'research_coordinator'],
-        'user-management'    => ['superadmin', 'admin'],
-        'student_portal'     => ['student', 'superadmin'],
+        'enrollment'         => ['admission', 'registrar', 'superadmin', 'sms_admin'],
+        'registrar'          => ['registrar', 'superadmin', 'sms_admin'],
+        'curriculum'         => ['registrar', 'superadmin', 'sms_admin'],
+        'scheduling'         => ['registrar', 'superadmin', 'sms_admin'],
+        'payment'            => ['finance', 'superadmin', 'sms_admin'],
+        'faculty'            => ['hr', 'adviser', 'panel', 'grammarian', 'superadmin', 'sms_admin'],
+        'cocurricular'       => ['osa', 'superadmin', 'sms_admin'],
+        'lms'                => ['it_office', 'superadmin', 'sms_admin'],
+        'crad'               => ['crad_officer', 'research_coordinator', 'superadmin', 'sms_admin'],
+        'crad_grant'         => ['research_grant', 'review_committee', 'superadmin', 'sms_admin'],
+        'accreditation'      => ['qa', 'superadmin', 'sms_admin'],
+        'reports-analytics'  => ['superadmin', 'sms_admin', 'registrar', 'finance', 'hr', 'it_office', 'osa', 'qa', 'crad_officer', 'research_coordinator'],
+        'user-management'    => ['superadmin', 'sms_admin'],
+        'student_portal'     => ['student'],
     ];
-    return $map[$moduleKey] ?? ['superadmin', 'admin'];
+    return $map[$moduleKey] ?? ['superadmin', 'sms_admin'];
 }
 
 /**

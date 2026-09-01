@@ -15,20 +15,21 @@ require_once __DIR__ . '/../includes/grant-helpers.php';
 
 requireAuth();
 
-$roleKey = getCurrentUserRoleKey();
-if (!in_array($roleKey, ['crad_officer', 'superadmin', 'admin'], true)) {
-    header('Location: ' . BASE_URL . '/dashboard/index.php');
-    exit;
-}
+grantRequireViewAccess();
+
+$canManage = grantUserCanManage();
+$canApply  = grantUserCanApply();
 
 $pageTitle             = 'Grant Opportunities';
-$activeModule          = 'crad';
+$activeModule          = grantActiveModuleKey();
 $activePage            = 'grant-opportunities';
 $pageBannerIcon        = 'fa-hand-holding-usd';
-$pageBannerDescription = 'Manage published grant calls and submit research grant proposals.';
+$pageBannerDescription = $canManage
+    ? 'Publish grant calls and monitor applications from researchers.'
+    : 'Browse published grant calls and submit your research grant proposal.';
 
 $breadcrumbs = [
-    ['label' => 'CRAD',               'url' => BASE_URL . '/modules/crad/index.php'],
+    ['label' => grantBreadcrumbModuleLabel(), 'url' => grantBreadcrumbModuleUrl()],
     ['label' => 'Grant Opportunities', 'url' => null],
 ];
 
@@ -109,26 +110,32 @@ renderBreadcrumbs($breadcrumbs);
 
 <?php if ($dbError !== ''): ?>
 <div class="mpl-alert" role="alert" style="background:rgba(239,68,68,.08);color:#b91c1c;margin-bottom:1rem;">
-    <i class="fas fa-exclamation-triangle me-1"></i><?= $dbError ?>
+    <?= smsIcon('exclamation-triangle', ['class' => 'me-1']) ?><?= $dbError ?>
 </div>
 <?php endif; ?>
 
-<div class="mpl" data-mpl data-grant-opp-page>
+<div class="mpl" data-mpl data-grant-opp-page data-grant-live="1"
+     data-can-apply="<?= $canApply ? '1' : '0' ?>"
+     data-can-manage="<?= $canManage ? '1' : '0' ?>">
 
 <!-- PAGE HEADER -->
 <div class="go-page-header">
     <div class="go-page-header-text">
         <h1>
-            <i class="fas fa-hand-holding-usd me-2" style="color:var(--sms-primary);font-size:1.1rem;" aria-hidden="true"></i>
+            <?= smsIcon('hand-holding-usd', ['class' => 'me-2', 'aria-hidden' => 'true', 'style' => 'color:var(--sms-primary);font-size:1.1rem;']) ?>
             Grant Opportunities &amp; Funding Programs
         </h1>
-        <p>Internal institutional grants and external funding calls &mdash; CHED, DOST, industry, and institutional programs.</p>
+        <p><?= $canManage
+            ? 'Publish institutional grant calls. Researchers see open calls in their Student Portal or Faculty workspace.'
+            : 'Internal institutional grants and external funding calls — apply to open grant opportunities in real time.' ?></p>
     </div>
+    <?php if ($canManage): ?>
     <div class="go-page-header-actions">
         <button type="button" class="mpl-btn mpl-btn-primary" id="btnOpenPublishForm">
-            <i class="fas fa-plus" aria-hidden="true"></i>Publish New Grant Call
+            <?= smsIcon('plus', ['aria-hidden' => 'true']) ?>Publish New Grant Call
         </button>
     </div>
+    <?php endif; ?>
 </div>
 
 <?php if ($dbError === ''): ?>
@@ -136,19 +143,19 @@ renderBreadcrumbs($breadcrumbs);
 <!-- STAT BADGES -->
 <div class="go-stat-row" aria-label="Grant opportunity summary">
     <div class="go-stat-badge total">
-        <span class="go-stat-badge-icon"><i class="fas fa-layer-group"></i></span>
+        <span class="go-stat-badge-icon"><?= smsIcon('layer-group') ?></span>
         Total&nbsp;<strong><?= $total ?></strong>
     </div>
     <div class="go-stat-badge open">
-        <span class="go-stat-badge-icon"><i class="fas fa-door-open"></i></span>
+        <span class="go-stat-badge-icon"><?= smsIcon('door-open') ?></span>
         Open&nbsp;<strong><?= $cntOpen ?></strong>
     </div>
     <div class="go-stat-badge closed">
-        <span class="go-stat-badge-icon"><i class="fas fa-lock"></i></span>
+        <span class="go-stat-badge-icon"><?= smsIcon('lock') ?></span>
         Closed&nbsp;<strong><?= $cntClosed ?></strong>
     </div>
     <div class="go-stat-badge expired">
-        <span class="go-stat-badge-icon"><i class="fas fa-calendar-times"></i></span>
+        <span class="go-stat-badge-icon"><?= smsIcon('calendar-times') ?></span>
         Expired&nbsp;<strong><?= $cntExpired ?></strong>
     </div>
 </div>
@@ -167,7 +174,7 @@ renderBreadcrumbs($breadcrumbs);
         <?php endforeach; ?>
     </div>
     <label class="go-filter-search" for="goSearch">
-        <i class="fas fa-search" aria-hidden="true"></i>
+        <?= smsIcon('search', ['aria-hidden' => 'true']) ?>
         <input type="search" id="goSearch" placeholder="Search grant titles…" autocomplete="off" aria-label="Search grant titles or eligibility">
     </label>
 </div>
@@ -178,19 +185,21 @@ renderBreadcrumbs($breadcrumbs);
         Showing <strong><?= $total ?></strong> grant<?= $total !== 1 ? 's' : '' ?>
     </span>
     <a class="mpl-btn mpl-btn-ghost mpl-btn-sm" href="?" aria-label="Refresh list">
-        <i class="fas fa-sync-alt" aria-hidden="true"></i>&nbsp;Refresh
+        <?= smsIcon('sync-alt', ['aria-hidden' => 'true']) ?>&nbsp;Refresh
     </a>
 </div>
 
 <?php if (empty($opportunities)): ?>
 <!-- EMPTY STATE -->
 <div class="go-empty-state">
-    <div class="go-empty-icon"><i class="fas fa-hand-holding-usd" aria-hidden="true"></i></div>
+    <div class="go-empty-icon"><?= smsIcon('hand-holding-usd', ['aria-hidden' => 'true']) ?></div>
     <h3>No Grant Opportunities Yet</h3>
     <p>Publish a new grant call to make research funding opportunities available to eligible researchers.</p>
+    <?php if ($canManage): ?>
     <button type="button" class="mpl-btn mpl-btn-primary" id="btnOpenPublishFormEmpty">
-        <i class="fas fa-plus" aria-hidden="true"></i>Publish First Grant Call
+        <?= smsIcon('plus', ['aria-hidden' => 'true']) ?>Publish First Grant Call
     </button>
+    <?php endif; ?>
 </div>
 
 <?php else: ?>
@@ -222,7 +231,7 @@ renderBreadcrumbs($breadcrumbs);
     <div class="go-card-stripe" aria-hidden="true"></div>
     <div class="go-card-header">
         <span class="go-card-cat-tag">
-            <i class="fas <?= $catIcon ?>" aria-hidden="true"></i> <?= htmlspecialchars($catLabel) ?>
+            <?= smsIcon($catIcon, ['aria-hidden' => 'true']) ?> <?= htmlspecialchars($catLabel) ?>
         </span>
         <span class="go-card-app-count" title="<?= $appCount ?> application<?= $appCount !== 1 ? 's' : '' ?> submitted">
             <span class="count-num"><?= $appCount ?></span>&nbsp;Applied
@@ -247,7 +256,7 @@ renderBreadcrumbs($breadcrumbs);
             <div class="go-card-meta-row">
                 <span class="go-card-meta-label">Application Deadline</span>
                 <span class="go-card-meta-value<?= $isPast ? ' deadline-past' : '' ?>">
-                    <?php if ($isPast): ?><i class="fas fa-exclamation-circle" aria-hidden="true" style="font-size:.78em;margin-right:2px;"></i><?php endif; ?>
+                    <?php if ($isPast): ?><?= smsIcon('exclamation-circle', ['aria-hidden' => 'true', 'style' => 'font-size:.78em;margin-right:2px;']) ?><?php endif; ?>
                     <?= htmlspecialchars($deadlineFmt) ?>
                 </span>
             </div>
@@ -265,7 +274,7 @@ renderBreadcrumbs($breadcrumbs);
                 <br><span style="font-size:.68rem;opacity:.75;">by <?= htmlspecialchars($publishedBy) ?></span>
             <?php endif; ?>
         </div>
-        <?php if ($isOpen): ?>
+        <?php if ($canApply && $isOpen): ?>
             <button type="button" class="go-btn-apply"
                     data-grant-id="<?= (int) $opp['id'] ?>"
                     data-grant-title="<?= htmlspecialchars((string) $opp['funding_title']) ?>"
@@ -274,18 +283,22 @@ renderBreadcrumbs($breadcrumbs);
                     data-grant-eligibility="<?= htmlspecialchars((string) $opp['eligibility']) ?>"
                     data-grant-deadline="<?= htmlspecialchars($deadlineFmt) ?>"
                     aria-label="Apply for <?= htmlspecialchars((string) $opp['funding_title']) ?>">
-                <i class="fas fa-paper-plane" aria-hidden="true"></i>Apply Now
+                <?= smsIcon('paper-plane', ['aria-hidden' => 'true']) ?>Apply Now
             </button>
-        <?php else: ?>
+        <?php elseif ($canApply): ?>
             <button type="button" class="go-btn-apply go-btn-disabled" disabled
                     aria-label="<?= htmlspecialchars($statusRaw) ?> — applications not accepted"
                     title="<?= htmlspecialchars($statusRaw) ?>">
                 <?php if ($statusRaw === 'Expired'): ?>
-                    <i class="fas fa-clock" aria-hidden="true"></i>Expired
+                    <?= smsIcon('clock', ['aria-hidden' => 'true']) ?>Expired
                 <?php else: ?>
-                    <i class="fas fa-lock" aria-hidden="true"></i>Closed
+                    <?= smsIcon('lock', ['aria-hidden' => 'true']) ?>Closed
                 <?php endif; ?>
             </button>
+        <?php elseif ($canManage): ?>
+            <span class="go-card-published" style="text-align:right;font-size:.75rem;">
+                <strong><?= (int) $appCount ?></strong> application<?= $appCount !== 1 ? 's' : '' ?> received
+            </span>
         <?php endif; ?>
     </div>
 </article>
@@ -302,6 +315,7 @@ renderBreadcrumbs($breadcrumbs);
      Full-screen scrollable modal. Opens when user clicks Apply Now.
      grant_opportunity_id is injected from the card's data-grant-id attribute.
      ══════════════════════════════════════════════════════════════════════════ -->
+<?php if ($canApply): ?>
 <div class="modal fade" id="proposalModal" tabindex="-1"
      aria-labelledby="proposalModalTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl"
@@ -314,7 +328,7 @@ renderBreadcrumbs($breadcrumbs);
                 <div>
                     <h5 class="modal-title fw-bold" id="proposalModalTitle"
                         style="color:#fff;font-size:1.05rem;margin:0;line-height:1.2;">
-                        <i class="fas fa-file-alt me-2" aria-hidden="true"></i>
+                        <?= smsIcon('file-alt', ['class' => 'me-2', 'aria-hidden' => 'true']) ?>
                         Submit Research Grant Proposal
                     </h5>
                     <div style="color:rgba(255,255,255,.75);font-size:.78rem;margin-top:.2rem;">
@@ -338,7 +352,7 @@ renderBreadcrumbs($breadcrumbs);
 
             <!-- ── Form body ──────────────────────────────────────────────── -->
             <div class="modal-body" style="padding:1.15rem 1.5rem .5rem;">
-                <form id="proposalForm" novalidate autocomplete="off" enctype="multipart/form-data">
+                <form id="proposalForm" novalidate autocomplete="off" enctype="multipart/form-data" data-no-loader>
                     <input type="hidden" id="propGrantId"    name="grant_opportunity_id" value="">
                     <input type="hidden" id="propApplyToken" name="apply_token"           value="">
 
@@ -432,7 +446,7 @@ renderBreadcrumbs($breadcrumbs);
                     <div style="border-top:1px solid var(--sms-border,#e2e8f0);margin:.3rem 0 1rem;
                                 font-size:.7rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;
                                 color:var(--sms-text-muted);padding-top:.7rem;">
-                        <i class="fas fa-paperclip me-1" aria-hidden="true"></i>Document Attachments
+                        <?= smsIcon('paperclip', ['class' => 'me-1', 'aria-hidden' => 'true']) ?>Document Attachments
                     </div>
 
                     <!-- ROW 6: Proposal PDF (required) -->
@@ -493,7 +507,7 @@ renderBreadcrumbs($breadcrumbs);
                         data-bs-dismiss="modal">Cancel</button>
                 <button type="submit" form="proposalForm" id="btnProposalSubmit"
                         class="btn btn-sms-primary btn-sm px-4">
-                    <i class="fas fa-paper-plane me-1"></i>Submit Proposal
+                    <?= smsIcon('paper-plane', ['class' => 'me-1']) ?>Submit Proposal
                 </button>
             </div>
 
@@ -509,7 +523,7 @@ renderBreadcrumbs($breadcrumbs);
             <div class="modal-header border-0 pb-0"
                  style="background:rgba(5,150,105,.06);border-bottom:1px solid rgba(16,185,129,.15)!important;padding:.9rem 1.5rem;">
                 <h6 class="modal-title fw-bold" style="color:#065f46;">
-                    <i class="fas fa-check-circle me-2" style="color:#059669;font-size:1.1rem;"></i>
+                    <?= smsIcon('check-circle', ['class' => 'me-2', 'style' => 'color:#059669;font-size:1.1rem;']) ?>
                     Proposal Submitted Successfully
                 </h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -543,15 +557,17 @@ renderBreadcrumbs($breadcrumbs);
                         data-bs-dismiss="modal">Close</button>
                 <a href="<?= BASE_URL ?>/modules/crad/pages/proposals-applications.php"
                    class="btn btn-sms-primary btn-sm px-4">
-                    <i class="fas fa-file-alt me-1"></i>View Proposals &amp; Applications
+                    <?= smsIcon('file-alt', ['class' => 'me-1']) ?>View Proposals &amp; Applications
                 </a>
             </div>
         </div>
     </div>
 </div>
+<?php endif; ?>
 
 
-<!-- PUBLISH NEW GRANT CALL MODAL (unchanged) -->
+<!-- PUBLISH NEW GRANT CALL MODAL (officer only) -->
+<?php if ($canManage): ?>
 <div class="modal fade" id="publishFormModal" tabindex="-1" aria-labelledby="publishFormTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered" style="max-width:600px;width:min(600px,95vw);">
         <div class="modal-content" style="border-radius:14px;overflow:hidden;">
@@ -559,7 +575,7 @@ renderBreadcrumbs($breadcrumbs);
                  style="background:var(--sms-primary,#2563eb);border-bottom:none;padding:1rem 1.5rem;">
                 <h5 class="modal-title fw-bold" id="publishFormTitle"
                     style="color:#fff;font-size:1rem;margin:0;">
-                    <i class="fas fa-hand-holding-usd me-2" aria-hidden="true"></i>
+                    <?= smsIcon('hand-holding-usd', ['class' => 'me-2', 'aria-hidden' => 'true']) ?>
                     Publish New Funding Program Call
                 </h5>
                 <button type="button" class="btn-close btn-close-white" id="btnClosePublishForm"
@@ -568,7 +584,7 @@ renderBreadcrumbs($breadcrumbs);
             <div id="publishFormAlert" class="mpl-alert"
                  style="display:none;margin:1rem 1.5rem 0;border-radius:8px;" role="alert"></div>
             <div class="modal-body" style="padding:1.25rem 1.5rem .5rem;">
-                <form id="publishGrantForm" novalidate autocomplete="off">
+                <form id="publishGrantForm" novalidate autocomplete="off" data-no-loader method="post">
                     <input type="hidden" id="publishToken" name="token" value="">
                     <div class="go-form-group mb-3">
                         <label for="fundingTitle" class="go-form-label">Funding Title <span class="go-required">*</span></label>
@@ -611,7 +627,7 @@ renderBreadcrumbs($breadcrumbs);
             <div class="modal-footer border-0" style="padding:.75rem 1.5rem 1.25rem;justify-content:flex-end;gap:.5rem;">
                 <button type="button" class="btn btn-outline-secondary btn-sm px-4" data-bs-dismiss="modal">Cancel</button>
                 <button type="submit" form="publishGrantForm" id="btnPublishSubmit" class="btn btn-sms-primary btn-sm px-4">
-                    <i class="fas fa-paper-plane me-1"></i>Publish Grant Call
+                    <?= smsIcon('paper-plane', ['class' => 'me-1']) ?>Publish Grant Call
                 </button>
             </div>
         </div>
@@ -624,7 +640,7 @@ renderBreadcrumbs($breadcrumbs);
         <div class="modal-content shadow" style="border-radius:14px;overflow:hidden;">
             <div class="modal-header border-0 pb-1">
                 <h6 class="modal-title fw-bold">
-                    <i class="fas fa-hand-holding-usd me-2" style="color:var(--sms-primary);"></i>Publish Grant Call?
+                    <?= smsIcon('hand-holding-usd', ['class' => 'me-2', 'style' => 'color:var(--sms-primary);']) ?>Publish Grant Call?
                 </h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -637,13 +653,13 @@ renderBreadcrumbs($breadcrumbs);
             <div class="modal-footer border-0 justify-content-center gap-2 pt-0 pb-4">
                 <button type="button" class="btn btn-outline-secondary btn-sm px-4" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-sms-primary btn-sm px-4" id="btnConfirmPublish">
-                    <i class="fas fa-paper-plane me-1"></i>Yes, Publish Grant Call
+                    <?= smsIcon('paper-plane', ['class' => 'me-1']) ?>Yes, Publish Grant Call
                 </button>
             </div>
         </div>
     </div>
 </div>
-
+<?php endif; ?>
 
 <style>
 .go-form-group  { display:flex; flex-direction:column; gap:.3rem; }
@@ -732,7 +748,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!total && grid) {
             if (!noRes) {
                 noRes = document.createElement('div'); noRes.className='go-no-results';
-                noRes.innerHTML='<i class="fas fa-search"></i><p>No grants match your filters.<br><small>Try a different category or search.</small></p>';
+                noRes.innerHTML='<?= smsIcon('search') ?><p>No grants match your filters.<br><small>Try a different category or search.</small></p>';
                 grid.appendChild(noRes);
             }
             noRes.style.display='';
@@ -750,7 +766,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!dis && !act) b.addEventListener('click', function(){ currentPage=pg; renderPage(); if(grid)grid.scrollIntoView({behavior:'smooth',block:'start'}); });
             return b;
         }
-        pagination.appendChild(btn('<i class="fas fa-chevron-left"></i>',currentPage-1,currentPage===1,false));
+        pagination.appendChild(btn('<?= smsIcon('chevron-left') ?>',currentPage-1,currentPage===1,false));
         var range=[];
         if (pages<=7){for(var i=1;i<=pages;i++)range.push(i);}
         else{
@@ -767,7 +783,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 sp.textContent='…';pagination.appendChild(sp);}
             else pagination.appendChild(btn(item,item,false,item===currentPage));
         });
-        pagination.appendChild(btn('<i class="fas fa-chevron-right"></i>',currentPage+1,currentPage===pages,false));
+        pagination.appendChild(btn('<?= smsIcon('chevron-right') ?>',currentPage+1,currentPage===pages,false));
     }
 
     if (filterBar) {
@@ -785,6 +801,7 @@ document.addEventListener('DOMContentLoaded', function () {
     /* ═══════════════════════════════════════════════════════════════════════
        SUBMIT RESEARCH GRANT PROPOSAL MODAL
        ════════════════════════════════════════════════════════════════════ */
+    <?php if ($canApply): ?>
     // Lazy: create the Bootstrap Modal instance only when first needed.
     var _propModalInstance = null;
     function getPropModal() {
@@ -853,7 +870,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (propLeadEl) propLeadEl.value = <?= json_encode($sessionUserName) ?>;
         var submitBtn = document.getElementById('btnProposalSubmit');
         submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>Submit Proposal';
+        submitBtn.innerHTML = '<?= smsIcon('paper-plane', ['class' => 'me-1']) ?>Submit Proposal';
 
         fetchApplyToken();
         propModal.show();
@@ -875,6 +892,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (proposalFormEl) {
         proposalFormEl.addEventListener('submit', function(e){
             e.preventDefault();
+            if (window.SMS2Loader) window.SMS2Loader.forceHide();
             document.getElementById('proposalAlert').style.display = 'none';
 
             var grantId      = document.getElementById('propGrantId').value;
@@ -924,14 +942,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 } else {
                     showPropAlert(data.message||'Submission failed. Please try again.');
                     submitBtn.disabled = false;
-                    submitBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>Submit Proposal';
+                    submitBtn.innerHTML = '<?= smsIcon('paper-plane', ['class' => 'me-1']) ?>Submit Proposal';
                     fetchApplyToken();
                 }
             })
             .catch(function(){
                 showPropAlert('Network error. Please check your connection and try again.');
                 submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>Submit Proposal';
+                submitBtn.innerHTML = '<?= smsIcon('paper-plane', ['class' => 'me-1']) ?>Submit Proposal';
             });
         });
     }
@@ -941,7 +959,7 @@ document.addEventListener('DOMContentLoaded', function () {
         el.style.display = '';
         el.style.background = 'rgba(239,68,68,.08)';
         el.style.color      = '#b91c1c';
-        el.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>' + escHtml(msg);
+        el.innerHTML = '<?= smsIcon('exclamation-triangle', ['class' => 'me-1']) ?>' + escHtml(msg);
     }
 
     function _incrementCardCount(grantId){
@@ -952,9 +970,11 @@ document.addEventListener('DOMContentLoaded', function () {
             if (numEl) numEl.textContent = (parseInt(numEl.textContent,10)||0)+1;
         });
     }
+    <?php endif; ?>
 
+    <?php if ($canManage): ?>
     /* ═══════════════════════════════════════════════════════════════════════
-       PUBLISH NEW GRANT CALL (logic unchanged)
+       PUBLISH NEW GRANT CALL
        ════════════════════════════════════════════════════════════════════ */
     function fetchPublishToken(){
         fetch(apiBase+'?action=generate_token',{credentials:'same-origin',cache:'no-store',headers:{'Accept':'application/json'}})
@@ -979,11 +999,11 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('collegeProgramGroup').style.display='none';
         document.getElementById('collegeProgram').required=false;
         var b=document.getElementById('btnPublishSubmit');
-        b.disabled=false; b.innerHTML='<i class="fas fa-paper-plane me-1"></i>Publish Grant Call';
+        b.disabled=false; b.innerHTML='<?= smsIcon('paper-plane', ['class' => 'me-1']) ?>Publish Grant Call';
         fetchPublishToken(); getPublishModal().show();
     }
 
-    document.getElementById('btnOpenPublishForm').addEventListener('click', openPublishForm);
+    document.getElementById('btnOpenPublishForm')?.addEventListener('click', openPublishForm);
     var btnEmpty = document.getElementById('btnOpenPublishFormEmpty');
     if (btnEmpty) btnEmpty.addEventListener('click', openPublishForm);
 
@@ -997,6 +1017,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.getElementById('publishGrantForm').addEventListener('submit',function(e){
         e.preventDefault();
+        if (window.SMS2Loader) window.SMS2Loader.forceHide();
         document.getElementById('publishFormAlert').style.display='none';
         var title=document.getElementById('fundingTitle').value.trim();
         var cap=parseFloat(document.getElementById('maxFundingCap').value);
@@ -1021,23 +1042,29 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function doPublish(){
         if (!pendingPublish) return;
+        if (window.SMS2Loader) window.SMS2Loader.forceHide();
         var btn=document.getElementById('btnPublishSubmit');
         btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Publishing…';
         fetch(apiBase,{method:'POST',credentials:'same-origin',body:pendingPublish})
-        .then(function(r){return r.json();})
+        .then(function(r){
+            if (!r.ok) {
+                return r.json().catch(function(){ return { success: false, message: 'Server error (' + r.status + ').' }; });
+            }
+            return r.json();
+        })
         .then(function(data){
-            if (data.success) { window.location.reload(); }
+            if (data && data.success) { window.location.reload(); }
             else {
                 getPublishModal().show();
                 showPubAlert(data.message||'Failed to publish. Please try again.');
-                btn.disabled=false; btn.innerHTML='<i class="fas fa-paper-plane me-1"></i>Publish Grant Call';
+                btn.disabled=false; btn.innerHTML='<?= smsIcon('paper-plane', ['class' => 'me-1']) ?>Publish Grant Call';
                 fetchPublishToken(); pendingPublish=null;
             }
         })
         .catch(function(){
             getPublishModal().show();
             showPubAlert('Network error. Please check your connection and try again.');
-            btn.disabled=false; btn.innerHTML='<i class="fas fa-paper-plane me-1"></i>Publish Grant Call';
+            btn.disabled=false; btn.innerHTML='<?= smsIcon('paper-plane', ['class' => 'me-1']) ?>Publish Grant Call';
             pendingPublish=null;
         });
     }
@@ -1045,10 +1072,12 @@ document.addEventListener('DOMContentLoaded', function () {
     function showPubAlert(msg){
         var el=document.getElementById('publishFormAlert');
         el.style.display=''; el.style.background='rgba(239,68,68,.08)'; el.style.color='#b91c1c';
-        el.innerHTML='<i class="fas fa-exclamation-triangle me-1"></i>'+escHtml(msg);
+        el.innerHTML='<?= smsIcon('exclamation-triangle', ['class' => 'me-1']) ?>'+escHtml(msg);
     }
+    <?php endif; ?>
 
 }); // end DOMContentLoaded
 </script>
+<script src="<?= BASE_URL ?>/assets/js/grant-opportunities-live.js?v=1"></script>
 
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>

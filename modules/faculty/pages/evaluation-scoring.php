@@ -58,7 +58,7 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
 
     <?php if (!$submission): ?>
         <section class="glass-panel p-4">
-            <h5 class="mb-3"><i class="fas fa-list me-2 text-primary"></i>Select Submission</h5>
+            <h5 class="mb-3"><?= smsIcon('list', ['class' => 'me-2 text-primary']) ?>Select Submission</h5>
             <?php if (!$queue): ?><div class="text-center text-muted py-5">No chapter submissions are currently waiting for scoring.</div>
             <?php else: ?><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Group</th><th>Title</th><th>Chapter</th><th>Version</th><th>Status</th><th></th></tr></thead><tbody>
                 <?php foreach ($queue as $row): ?><tr><td><?= e($row['group_name']) ?></td><td><?= e($row['research_title']) ?></td><td><?= e(chapterLabel((int) $row['chapter_number'])) ?></td><td>Version <?= (int) $row['version_number'] ?></td><td><span class="badge text-bg-<?= e(chapterStatusClass((string) $row['status'])) ?>"><?= e($row['status']) ?></span></td><td><a class="btn btn-sm btn-sms-primary" href="?id=<?= (int) $row['id'] ?>">Open</a></td></tr><?php endforeach; ?>
@@ -68,7 +68,7 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
         <div class="row g-4">
             <div class="col-lg-4">
                 <section class="glass-panel p-4 h-100">
-                    <h5 class="mb-3"><i class="fas fa-info-circle me-2 text-primary"></i>Research Information</h5>
+                    <h5 class="mb-3"><?= smsIcon('info-circle', ['class' => 'me-2 text-primary']) ?>Research Information</h5>
                     <div class="mb-2"><small class="text-muted">Group</small><div class="fw-bold"><?= e($submission['group_name']) ?> · <?= e($submission['group_number']) ?></div></div>
                     <div class="mb-2"><small class="text-muted">Research Title</small><div class="fw-bold"><?= e($submission['research_title']) ?></div></div>
                     <div class="mb-2"><small class="text-muted">Chapter</small><div><?= e(chapterLabel((int) $submission['chapter_number'])) ?> · Version <?= (int) $submission['version_number'] ?></div></div>
@@ -76,8 +76,8 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
                     <div class="mb-3"><small class="text-muted">Submitted Date</small><div><?= e(chapterFormatDate((string) $submission['submitted_at'])) ?></div></div>
                     <span class="badge text-bg-<?= e(chapterStatusClass((string) $submission['status'])) ?>"><?= e($submission['status']) ?></span>
                     <hr>
-                    <a class="btn btn-outline-primary w-100 mb-2" href="<?= e(chapterDocumentUrl((int) $submission['id'])) ?>" target="_blank" rel="noopener noreferrer"><i class="fas fa-eye me-2"></i>View/Open Document</a>
-                    <a class="btn btn-outline-secondary w-100" href="<?= e(chapterDocumentUrl((int) $submission['id'])) ?>&download=1"><i class="fas fa-download me-2"></i>Download Document</a>
+                    <a class="btn btn-outline-primary w-100 mb-2" href="<?= e(chapterDocumentUrl((int) $submission['id'])) ?>" target="_blank" rel="noopener noreferrer"><?= smsIcon('eye', ['class' => 'me-2']) ?>View/Open Document</a>
+                    <a class="btn btn-outline-secondary w-100" href="<?= e(chapterDocumentUrl((int) $submission['id'])) ?>&download=1"><?= smsIcon('download', ['class' => 'me-2']) ?>Download Document</a>
                 </section>
             </div>
             <div class="col-lg-8">
@@ -89,9 +89,9 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
                     <?php elseif ((string) $submission['status'] === 'Submitted'): ?>
                         <h5 class="mb-3">Start Review</h5>
                         <p class="text-muted">Start the review to update the student-facing status to Under Review.</p>
-                        <form method="post" data-once-form><?= csrfField() ?><input type="hidden" name="submission_id" value="<?= (int) $submission['id'] ?>"><input type="hidden" name="action" value="start_review"><button class="btn btn-sms-primary" data-submit-once><i class="fas fa-play me-2"></i>Start Review</button></form>
+                        <form method="post" data-once-form><?= csrfField() ?><input type="hidden" name="submission_id" value="<?= (int) $submission['id'] ?>"><input type="hidden" name="action" value="start_review"><button class="btn btn-sms-primary" data-submit-once><?= smsIcon('play', ['class' => 'me-2']) ?>Start Review</button></form>
                     <?php else: ?>
-                        <h5 class="mb-3"><i class="fas fa-star-half-alt me-2 text-primary"></i>Evaluation</h5>
+                        <h5 class="mb-3"><?= smsIcon('star-half-alt', ['class' => 'me-2 text-primary']) ?>Evaluation</h5>
                         <form method="post" data-once-form>
                             <?= csrfField() ?><input type="hidden" name="submission_id" value="<?= (int) $submission['id'] ?>"><input type="hidden" name="action" value="submit_evaluation">
                             <?php foreach ([['content','Content'],['methodology','Methodology'],['references','References'],['format','Format']] as [$key, $label]): ?>
@@ -102,7 +102,7 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
                             <?php endforeach; ?>
                             <div class="mb-3"><label class="form-label" for="overallFeedback">General Evaluation Feedback</label><textarea id="overallFeedback" class="form-control" name="overall_feedback" rows="4"></textarea></div>
                             <div class="mb-3"><label class="form-label" for="evaluationResult">Result</label><select id="evaluationResult" class="form-select" name="result" required><option value="">Select result...</option><option value="APPROVED">APPROVED</option><option value="APPROVED WITH REVISION">APPROVED WITH REVISION</option></select></div>
-                            <button class="btn btn-sms-primary" data-submit-once><i class="fas fa-check me-2"></i>Submit Evaluation</button>
+                            <button class="btn btn-sms-primary" data-submit-once><?= smsIcon('check', ['class' => 'me-2']) ?>Submit Evaluation</button>
                         </form>
                     <?php endif; ?>
                 </section>

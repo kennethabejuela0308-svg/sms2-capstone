@@ -296,7 +296,7 @@ renderBreadcrumbs($breadcrumbs);
 
 <div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-2">
     <div></div>
-    <span class="placeholder-badge"><i class="fas fa-lock me-1"></i>Superadmin Only</span>
+    <span class="placeholder-badge"><?= smsIcon('lock', ['class' => 'me-1']) ?>Superadmin Only</span>
 </div>
 
 <?php if ($flashSuccess || $saved === 'security' || $saved === 'notifications'): ?>
@@ -315,7 +315,7 @@ renderBreadcrumbs($breadcrumbs);
         <section class="card mb-4 settings-form">
             <div class="card-body">
                 <div class="settings-section-head">
-                    <div class="settings-icon"><i class="fas fa-university"></i></div>
+                    <div class="settings-icon"><?= smsIcon('university') ?></div>
                     <div>
                         <h6>Application Identity</h6>
                         <p>System name, institution, and branding settings.</p>
@@ -341,7 +341,7 @@ renderBreadcrumbs($breadcrumbs);
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Base URL</label>
-                        <input type="text" class="form-control" value="/SMS2_system">
+                        <input type="text" class="form-control" value="<?= htmlspecialchars(BASE_URL !== '' ? BASE_URL : '/sms2_system') ?>">
                         <div class="form-text">Change if deployed under a different folder.</div>
                     </div>
                 </div>
@@ -350,7 +350,7 @@ renderBreadcrumbs($breadcrumbs);
                 <button type="button" class="btn btn-outline-secondary btn-sm">Reset</button>
                 <button type="button" class="btn btn-sms-primary btn-sm"
                         onclick="window.umShowToast('Application identity saved.','success')">
-                    <i class="fas fa-save me-2"></i>Save Changes
+                    <?= smsIcon('save', ['class' => 'me-2']) ?>Save Changes
                 </button>
             </div>
         </section>
@@ -360,7 +360,7 @@ renderBreadcrumbs($breadcrumbs);
             <div class="card-body">
                 <div class="settings-section-head">
                     <div class="settings-icon" style="background:linear-gradient(145deg,#059669,#34d399);">
-                        <i class="fas fa-calendar-alt"></i>
+                        <?= smsIcon('calendar-alt') ?>
                     </div>
                     <div>
                         <h6>Academic Calendar</h6>
@@ -398,7 +398,7 @@ renderBreadcrumbs($breadcrumbs);
                 <button type="button" class="btn btn-outline-secondary btn-sm">Reset</button>
                 <button type="button" class="btn btn-sms-primary btn-sm"
                         onclick="window.umShowToast('Academic calendar saved.','success')">
-                    <i class="fas fa-save me-2"></i>Save Changes
+                    <?= smsIcon('save', ['class' => 'me-2']) ?>Save Changes
                 </button>
             </div>
         </section>
@@ -411,7 +411,7 @@ renderBreadcrumbs($breadcrumbs);
                 <div class="card-body">
                     <div class="settings-section-head">
                         <div class="settings-icon" style="background:linear-gradient(145deg,#dc2626,#f87171);">
-                            <i class="fas fa-lock"></i>
+                            <?= smsIcon('lock') ?>
                         </div>
                         <div>
                             <h6>Security &amp; Sessions</h6>
@@ -473,7 +473,7 @@ renderBreadcrumbs($breadcrumbs);
 
                         <div class="col-12"><hr class="my-1"></div>
                         <div class="col-12">
-                            <h6 class="fw-bold mb-1"><i class="fas fa-robot text-sms-primary me-1"></i>Login CAPTCHA</h6>
+                            <h6 class="fw-bold mb-1"><?= smsIcon('robot', ['class' => 'text-sms-primary me-1']) ?>Login CAPTCHA</h6>
                             <p class="small text-muted mb-2">
                                 One-click check (Cloudflare / Discord style) before password and 2FA.
                                 With Turnstile keys, Cloudflare’s widget is used.
@@ -521,7 +521,7 @@ renderBreadcrumbs($breadcrumbs);
                 <div class="settings-save-bar">
                     <a href="<?= BASE_URL ?>/modules/user-management/pages/system-settings.php" class="btn btn-outline-secondary btn-sm">Reset</a>
                     <button type="submit" class="btn btn-sms-primary btn-sm">
-                        <i class="fas fa-save me-2"></i>Save Changes
+                        <?= smsIcon('save', ['class' => 'me-2']) ?>Save Changes
                     </button>
                 </div>
             </form>
@@ -537,7 +537,7 @@ renderBreadcrumbs($breadcrumbs);
             <div class="card-body">
                 <div class="settings-section-head">
                     <div class="settings-icon" style="background:linear-gradient(145deg,#7c3aed,#a78bfa);">
-                        <i class="fas fa-toggle-on"></i>
+                        <?= smsIcon('toggle-on') ?>
                     </div>
                     <div>
                         <h6>Feature Toggles</h6>
@@ -597,7 +597,7 @@ renderBreadcrumbs($breadcrumbs);
                     </div>
                     <div class="settings-save-bar mt-2 px-0">
                         <button type="submit" class="btn btn-sms-primary btn-sm w-100">
-                            <i class="fas fa-save me-2"></i>Save Maintenance Settings
+                            <?= smsIcon('save', ['class' => 'me-2']) ?>Save Maintenance Settings
                         </button>
                     </div>
                 </form>
@@ -605,7 +605,7 @@ renderBreadcrumbs($breadcrumbs);
             <div class="settings-save-bar">
                 <button type="button" class="btn btn-outline-secondary btn-sm w-100"
                         onclick="window.umShowToast('Other feature toggles are not wired yet.','info')">
-                    <i class="fas fa-save me-2"></i>Save Other Toggles
+                    <?= smsIcon('save', ['class' => 'me-2']) ?>Save Other Toggles
                 </button>
             </div>
         </section>
@@ -615,7 +615,7 @@ renderBreadcrumbs($breadcrumbs);
             <div class="card-body">
                 <div class="settings-section-head">
                     <div class="settings-icon" style="background:linear-gradient(145deg,#d97706,#fbbf24);">
-                        <i class="fas fa-bell"></i>
+                        <?= smsIcon('bell') ?>
                     </div>
                     <div>
                         <h6>Notifications / Email</h6>
@@ -683,7 +683,7 @@ renderBreadcrumbs($breadcrumbs);
                     </div>
                     <div class="settings-save-bar mt-3">
                         <button type="submit" class="btn btn-sms-primary btn-sm">
-                            <i class="fas fa-save me-2"></i>Save Email Settings
+                            <?= smsIcon('save', ['class' => 'me-2']) ?>Save Email Settings
                         </button>
                     </div>
                 </form>
@@ -698,7 +698,7 @@ renderBreadcrumbs($breadcrumbs);
                     </div>
                     <div class="col-auto">
                         <button type="submit" class="btn btn-outline-secondary btn-sm">
-                            <i class="fas fa-paper-plane me-1"></i>Test
+                            <?= smsIcon('paper-plane', ['class' => 'me-1']) ?>Test
                         </button>
                     </div>
                 </form>
@@ -710,7 +710,7 @@ renderBreadcrumbs($breadcrumbs);
             <div class="card-body">
                 <div class="settings-section-head">
                     <div class="settings-icon" style="background:linear-gradient(145deg,#0f766e,#2dd4bf);">
-                        <i class="fas fa-shield-alt"></i>
+                        <?= smsIcon('shield-alt') ?>
                     </div>
                     <div>
                         <h6>Encrypted database backup</h6>
@@ -733,7 +733,7 @@ renderBreadcrumbs($breadcrumbs);
                     </div>
                     <div class="col-12">
                         <button type="submit" class="btn btn-sms-primary btn-sm">
-                            <i class="fas fa-download me-2"></i>Create &amp; download encrypted backup
+                            <?= smsIcon('download', ['class' => 'me-2']) ?>Create &amp; download encrypted backup
                         </button>
                         <p class="text-muted small mt-2 mb-0">
                             CLI alternative:
@@ -749,7 +749,7 @@ renderBreadcrumbs($breadcrumbs);
             <div class="card-body">
                 <div class="settings-section-head">
                     <div class="settings-icon" style="background:linear-gradient(145deg,#dc2626,#f87171);">
-                        <i class="fas fa-exclamation-triangle"></i>
+                        <?= smsIcon('exclamation-triangle') ?>
                     </div>
                     <div>
                         <h6 style="color:var(--sms-danger);">Danger Zone</h6>
@@ -760,11 +760,11 @@ renderBreadcrumbs($breadcrumbs);
                     <button type="button" class="btn btn-outline-warning btn-sm text-start"
                             data-um-confirm-type="warning"
                             data-um-confirm="Archive old activity logs? Prefer exporting first. This is a retention action, not a routine delete.">
-                        <i class="fas fa-archive me-2"></i>Archive Old Activity Logs
+                        <?= smsIcon('archive', ['class' => 'me-2']) ?>Archive Old Activity Logs
                     </button>
                     <button type="button" class="btn btn-outline-warning btn-sm text-start"
                             data-um-confirm="Reset all user passwords to default? This cannot be undone.">
-                        <i class="fas fa-key me-2"></i>Reset All User Passwords
+                        <?= smsIcon('key', ['class' => 'me-2']) ?>Reset All User Passwords
                     </button>
                     <?php if ($systemMaintenance): ?>
                     <form method="POST" class="m-0">
@@ -775,7 +775,7 @@ renderBreadcrumbs($breadcrumbs);
                         <button type="submit" class="btn btn-outline-success btn-sm text-start w-100"
                                 data-um-confirm-type="warning"
                                 data-um-confirm="Turn off maintenance mode? Users will be able to sign in again.">
-                            <i class="fas fa-unlock me-2"></i>Disable Maintenance Mode
+                            <?= smsIcon('unlock', ['class' => 'me-2']) ?>Disable Maintenance Mode
                         </button>
                     </form>
                     <?php else: ?>
@@ -786,7 +786,7 @@ renderBreadcrumbs($breadcrumbs);
                         <input type="hidden" name="system_maintenance_msg" value="<?= e($systemMaintenanceMsg) ?>">
                         <button type="submit" class="btn btn-outline-danger btn-sm text-start w-100"
                                 data-um-confirm="Enable maintenance mode? All non-admin users will be locked out immediately.">
-                            <i class="fas fa-tools me-2"></i>Enable Maintenance Mode
+                            <?= smsIcon('tools', ['class' => 'me-2']) ?>Enable Maintenance Mode
                         </button>
                     </form>
                     <?php endif; ?>
@@ -797,5 +797,5 @@ renderBreadcrumbs($breadcrumbs);
     </div><!-- /right col -->
 </div><!-- /row -->
 
-<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js"></script>
+<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js?v=20260831"></script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>

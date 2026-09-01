@@ -33,12 +33,12 @@ try {
         throw new Exception('Research Progress module not installed.');
     }
 } catch (Throwable $e) {
-    echo '<div class="alert alert-warning">
-        <i class="fas fa-exclamation-triangle me-2"></i>
-        <strong>Module Not Installed</strong><br>
-        The Research Progress module database tables are not yet installed.
-        Please contact your system administrator.
-    </div>';
+    echo '<div class="alert alert-warning">'
+        . smsIcon('exclamation-triangle', ['class' => 'me-2'])
+        . '<strong>Module Not Installed</strong><br>'
+        . 'The Research Progress module database tables are not yet installed.'
+        . ' Please contact your system administrator.'
+        . '</div>';
     require_once ROOT_PATH . '/includes/layout-end.php';
     exit;
 }
@@ -50,14 +50,12 @@ $studentUserId = (int) ($_SESSION['user_id'] ?? 0);
 $researchGroup = rpGetRegisteredResearchGroup($crad, $studentId, $studentUserId);
 
 if (!$researchGroup) {
-    echo '<div class="alert alert-info">
-        <i class="fas fa-info-circle me-2"></i>
-        <strong>Research Development is not yet available.</strong><br>
-        Your research group must be officially registered in the
-        Capstone Group/Student Registry before you can access this section.
-        Please ensure your title approval is fully signed and your adviser
-        and coordinator assignments are in place.
-    </div>';
+    echo '<div class="alert alert-info">'
+        . smsIcon('info-circle', ['class' => 'me-2'])
+        . '<strong>Research Development is not yet available.</strong><br>'
+        . 'Your research group must be officially registered in the Capstone Group/Student Registry before you can access this section.'
+        . ' Please ensure your title approval is fully signed and your adviser and coordinator assignments are in place.'
+        . '</div>';
     require_once ROOT_PATH . '/includes/layout-end.php';
     exit;
 }
@@ -112,7 +110,7 @@ $overallProgress = (float) $plan['overall_progress'];
         <!-- Action Row -->
         <div class="d-flex justify-content-end gap-2 mb-3">
             <a href="<?= BASE_URL ?>/modules/student-portal/pages/progress-updates.php" class="btn btn-primary">
-                <i class="fas fa-plus-circle me-2"></i>Submit Progress Update
+                <?= smsIcon('plus-circle', ['class' => 'me-2']) ?>Submit Progress Update
             </a>
         </div>
 
@@ -125,7 +123,7 @@ $overallProgress = (float) $plan['overall_progress'];
                             <?= htmlspecialchars($researchGroup['research_title']) ?>
                         </h6>
                         <p class="text-muted mb-0" style="font-size:0.85rem;">
-                            <i class="fas fa-users me-2"></i><?= htmlspecialchars($researchGroup['group_number']) ?> - <?= htmlspecialchars($researchGroup['group_name']) ?>
+                            <?= smsIcon('users', ['class' => 'me-2']) ?><?= htmlspecialchars($researchGroup['group_number']) ?> - <?= htmlspecialchars($researchGroup['group_name']) ?>
                         </p>
                     </div>
                     <div class="col-md-4 text-end">
@@ -170,7 +168,7 @@ $overallProgress = (float) $plan['overall_progress'];
                                 <div style="flex:1;">
                                     <div class="d-flex align-items-center mb-2">
                                         <div style="width:32px;height:32px;border-radius:8px;background:<?= $config['bg'] ?>;display:flex;align-items:center;justify-content:center;margin-right:12px;">
-                                            <i class="fas <?= $config['icon'] ?>" style="color:<?= $config['color'] ?>;font-size:1rem;"></i>
+                                            <?= smsIcon($config['icon'], ['style' => 'color:' . $config['color'] . ';font-size:1rem;']) ?>
                                         </div>
                                         <div>
                                             <h6 class="mb-0" style="font-weight:800;color:var(--sms-heading);">
@@ -219,7 +217,7 @@ $overallProgress = (float) $plan['overall_progress'];
                             <?php if ($milestone['target_date']): ?>
                                 <div class="mb-3" style="font-size:0.85rem;">
                                     <span class="text-muted">
-                                        <i class="fas fa-calendar me-2"></i>Target: 
+                                        <?= smsIcon('calendar', ['class' => 'me-2']) ?>Target: 
                                     </span>
                                     <strong style="color:var(--sms-heading);">
                                         <?= date('M d, Y', strtotime($milestone['target_date'])) ?>
@@ -237,7 +235,7 @@ $overallProgress = (float) $plan['overall_progress'];
                                         <?= htmlspecialchars($milestone['latest_update_title'] ?? '') ?>
                                     </div>
                                     <div style="font-size:0.75rem;color:var(--sms-text-muted);">
-                                        <i class="fas fa-clock me-1"></i>
+                                        <?= smsIcon('clock', ['class' => 'me-1']) ?>
                                         <?= date('M d, Y g:i A', strtotime($milestone['latest_update_date'])) ?>
                                         by <?= htmlspecialchars($milestone['latest_update_by'] ?? '') ?>
                                     </div>
@@ -248,7 +246,7 @@ $overallProgress = (float) $plan['overall_progress'];
                             <?php if (!empty($milestone['adviser_remarks'])): ?>
                                 <div class="p-3 mb-3" style="border-radius:8px;background:rgba(59,130,246,0.05);border-left:3px solid #3b82f6;">
                                     <div style="font-size:0.75rem;font-weight:700;color:#3b82f6;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">
-                                        <i class="fas fa-user-tie me-1"></i> Adviser Remarks
+                                        <?= smsIcon('user-tie', ['class' => 'me-1']) ?> Adviser Remarks
                                     </div>
                                     <div style="font-size:0.85rem;color:var(--sms-text);line-height:1.5;">
                                         <?= nl2br(htmlspecialchars($milestone['adviser_remarks'])) ?>
@@ -264,7 +262,7 @@ $overallProgress = (float) $plan['overall_progress'];
                                  <?= empty($milestone['panel_remarks']) ? 'style="display:none;"' : '' ?>>
                                 <div class="p-3 mb-3" style="border-radius:8px;background:rgba(16,185,129,0.05);border-left:3px solid #10b981;">
                                     <div style="font-size:0.75rem;font-weight:700;color:#10b981;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">
-                                        <i class="fas fa-users me-1"></i> Panel Remarks
+                                        <?= smsIcon('users', ['class' => 'me-1']) ?> Panel Remarks
                                     </div>
                                     <div style="font-size:0.85rem;color:var(--sms-text);line-height:1.5;" data-milestone-panel-remarks-text>
                                         <?= nl2br(htmlspecialchars((string) ($milestone['panel_remarks'] ?? ''))) ?>
@@ -276,7 +274,7 @@ $overallProgress = (float) $plan['overall_progress'];
                             <?php if (!empty($milestone['researcher_notes'])): ?>
                                 <div class="p-3 mb-3" style="border-radius:8px;background:rgba(148,163,184,0.05);border-left:3px solid #94a3b8;">
                                     <div style="font-size:0.75rem;font-weight:700;color:var(--sms-text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">
-                                        <i class="fas fa-sticky-note me-1"></i> My Notes
+                                        <?= smsIcon('sticky-note', ['class' => 'me-1']) ?> My Notes
                                     </div>
                                     <div style="font-size:0.85rem;color:var(--sms-text);line-height:1.5;">
                                         <?= nl2br(htmlspecialchars($milestone['researcher_notes'])) ?>
@@ -288,7 +286,7 @@ $overallProgress = (float) $plan['overall_progress'];
                             <div class="d-grid">
                                 <a href="<?= BASE_URL ?>/modules/student-portal/pages/progress-updates.php?milestone_id=<?= $milestone['id'] ?>" 
                                    class="btn btn-primary">
-                                    <i class="fas fa-arrow-up me-2"></i>Submit Progress Update
+                                    <?= smsIcon('arrow-up', ['class' => 'me-2']) ?>Submit Progress Update
                                 </a>
                             </div>
 
@@ -301,7 +299,7 @@ $overallProgress = (float) $plan['overall_progress'];
         <?php if (empty($milestones)): ?>
             <div class="glass-panel">
                 <div class="glass-panel-body text-center py-5">
-                    <i class="fas fa-tasks" style="font-size:3rem;color:var(--sms-border);margin-bottom:1rem;"></i>
+                    <?= smsIcon('tasks', ['style' => 'font-size:3rem;color:var(--sms-border);margin-bottom:1rem;']) ?>
                     <p class="text-muted mb-0">No milestones found. Please contact your administrator.</p>
                 </div>
             </div>
@@ -310,7 +308,7 @@ $overallProgress = (float) $plan['overall_progress'];
         <!-- Last Refresh Indicator -->
         <div class="text-center mt-4">
             <small class="text-muted" data-last-refresh>
-                <i class="fas fa-sync-alt me-1"></i>
+                <?= smsIcon('sync-alt', ['class' => 'me-1']) ?>
                 Last updated: <?= date('g:i:s A') ?>
             </small>
         </div>

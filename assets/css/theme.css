@@ -1,7 +1,7 @@
 /**
  * SMS 2 – Theme Variables & Base Styles
  * Bestlink College of the Philippines
- * Light + Dark glassmorphism design tokens
+ * Light + Dark academic admin design tokens
  */
 
 /* ============================================================
@@ -26,8 +26,8 @@
 
     /* Sidebar */
     --sms-sidebar-bg:      #f1f5fb;
-    --sms-sidebar-hover:   rgba(30, 64, 175, 0.08);
-    --sms-sidebar-active:  rgba(30, 64, 175, 0.14);
+    --sms-sidebar-hover:   rgba(30, 64, 175, 0.10);
+    --sms-sidebar-active:  rgba(30, 64, 175, 0.16);
     --sms-sidebar-border:  #dbe3f0;
     --sms-sidebar-text:    #0f172a;
     --sms-sidebar-text-muted: #334155;
@@ -37,20 +37,17 @@
     --sms-sidebar-collapsed-width: 76px;
 
     /* Layout */
-    --sms-navbar-height:   58px;
-    --sms-body-bg:         #eef2f9;
-    --sms-body-bg-image:
-        radial-gradient(ellipse 80% 50% at 10% -10%, rgba(59,130,246,0.12), transparent 55%),
-        radial-gradient(ellipse 60% 40% at 90% 0%, rgba(14,165,233,0.10), transparent 50%),
-        linear-gradient(180deg, #eef2f9 0%, #e8eef8 100%);
+    --sms-navbar-height:   56px;
+    --sms-body-bg:         #f4f7fb;
+    --sms-body-bg-image:   none;
 
-    /* Surfaces (glass) */
-    --sms-surface:         rgba(255,255,255,0.78);
+    /* Surfaces (solid academic) */
+    --sms-surface:         #ffffff;
     --sms-surface-solid:   #ffffff;
-    --sms-surface-elevated: rgba(255,255,255,0.92);
+    --sms-surface-elevated: #ffffff;
     --sms-surface-muted:   #f8fafc;
-    --sms-glass-blur:      blur(18px) saturate(1.2);
-    --sms-glass-border:    rgba(255,255,255,0.65);
+    --sms-glass-blur:      none;
+    --sms-glass-border:    #e2e8f0;
 
     /* Text */
     --sms-text:            #334155;
@@ -95,11 +92,11 @@
     --sms-chart-doughnut-border: #ffffff;
 
     /* Misc */
-    --sms-radius:          14px;
+    --sms-radius:          10px;
     --sms-radius-sm:       8px;
-    --sms-radius-lg:       18px;
-    --sms-surface-radius:  14px;
-    --sms-surface-inner-radius: 10px;
+    --sms-radius-lg:       12px;
+    --sms-surface-radius:  10px;
+    --sms-surface-inner-radius: 8px;
     --sms-surface-padding: 1.15rem;
     --sms-surface-gap:     1rem;
     --sms-transition:      all 0.22s ease;
@@ -126,8 +123,8 @@
     --sms-info:            #38bdf8;
 
     --sms-sidebar-bg:      #070d1a;
-    --sms-sidebar-hover:   rgba(255,255,255,0.08);
-    --sms-sidebar-active:  rgba(96,165,250,0.16);
+    --sms-sidebar-hover:   rgba(255,255,255,0.10);
+    --sms-sidebar-active:  rgba(96,165,250,0.20);
     --sms-sidebar-border:  rgba(255,255,255,0.08);
     --sms-sidebar-text:    #f8fafc;
     --sms-sidebar-text-muted: #cbd5e1;
@@ -135,18 +132,14 @@
     --sms-sidebar-active-accent: #60a5fa;
 
     --sms-body-bg:         #0b1224;
-    --sms-body-bg-image:
-        radial-gradient(ellipse 90% 60% at 15% -5%, rgba(56,189,248,0.16), transparent 50%),
-        radial-gradient(ellipse 70% 50% at 85% 5%, rgba(99,102,241,0.14), transparent 48%),
-        radial-gradient(ellipse 50% 40% at 50% 100%, rgba(30,64,175,0.20), transparent 55%),
-        linear-gradient(165deg, #0a1020 0%, #0d1630 45%, #0b1428 100%);
+    --sms-body-bg-image:   none;
 
-    --sms-surface:         rgba(18,28,52,0.72);
+    --sms-surface:         #121c34;
     --sms-surface-solid:   #121c34;
-    --sms-surface-elevated: rgba(24,36,64,0.88);
-    --sms-surface-muted:   rgba(15,23,42,0.55);
-    --sms-glass-blur:      blur(20px) saturate(1.35);
-    --sms-glass-border:    rgba(255,255,255,0.10);
+    --sms-surface-elevated: #182440;
+    --sms-surface-muted:   #0f172a;
+    --sms-glass-blur:      none;
+    --sms-glass-border:    rgba(148,163,184,0.18);
 
     --sms-text:            #cbd5e1;
     --sms-text-strong:     #f1f5f9;
@@ -206,6 +199,12 @@ body {
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     transition: background 0.25s ease, color 0.2s ease;
+}
+
+@media (max-width: 991.98px) {
+    body.sms-app {
+        background-attachment: scroll;
+    }
 }
 
 /* ============================================================
@@ -651,8 +650,8 @@ a.btn:active {
     font-weight: 650;
     border-width: 1.5px;
     background: var(--sms-surface);
-    backdrop-filter: var(--sms-glass-blur);
-    -webkit-backdrop-filter: var(--sms-glass-blur);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 
 /* ============================================================
@@ -700,8 +699,8 @@ a.btn:active {
     background: var(--sms-dropdown-bg);
     border: 1px solid var(--sms-dropdown-border);
     box-shadow: var(--sms-dropdown-shadow);
-    backdrop-filter: var(--sms-glass-blur);
-    -webkit-backdrop-filter: var(--sms-glass-blur);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 .dropdown-item { color: var(--sms-text); }
 .dropdown-item:hover,
@@ -714,8 +713,8 @@ a.btn:active {
     background: var(--sms-surface-elevated);
     color: var(--sms-text);
     border: 1px solid var(--sms-glass-border);
-    backdrop-filter: var(--sms-glass-blur);
-    -webkit-backdrop-filter: var(--sms-glass-blur);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 .modal-header,
 .modal-footer { border-color: var(--sms-border); }
@@ -734,8 +733,8 @@ a.btn:active {
 /* alerts */
 .alert { border-color: var(--sms-border); }
 [data-theme="dark"] .alert {
-    backdrop-filter: var(--sms-glass-blur);
-    -webkit-backdrop-filter: var(--sms-glass-blur);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 
 /* outline buttons */
@@ -856,12 +855,12 @@ hr { border-color: var(--sms-border); opacity: 1; }
    Base Card (glass)
    ============================================================ */
 .card {
-    border: 1px solid var(--sms-glass-border);
+    border: 1px solid var(--sms-border);
     border-radius: var(--sms-surface-radius);
     box-shadow: var(--sms-shadow-xs);
-    background: var(--sms-surface);
-    backdrop-filter: var(--sms-glass-blur);
-    -webkit-backdrop-filter: var(--sms-glass-blur);
+    background: var(--sms-surface-solid);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
     color: var(--sms-text);
     transition: var(--sms-transition);
 }
@@ -875,14 +874,14 @@ hr { border-color: var(--sms-border); opacity: 1; }
    Stat Cards  (dashboard top row)
    ============================================================ */
 .stat-card {
-    border: 1px solid var(--sms-glass-border);
+    border: 1px solid var(--sms-border);
     border-radius: var(--sms-surface-radius);
     overflow: hidden;
     position: relative;
-    box-shadow: var(--sms-shadow-sm);
-    background: var(--sms-surface);
-    backdrop-filter: var(--sms-glass-blur);
-    -webkit-backdrop-filter: var(--sms-glass-blur);
+    box-shadow: var(--sms-shadow-xs);
+    background: var(--sms-surface-solid);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
     transition: var(--sms-transition);
 }
 .stat-card:hover {
@@ -1021,9 +1020,17 @@ hr { border-color: var(--sms-border); opacity: 1; }
     color: var(--sms-text-muted);
     font-size: 0.8rem;
     font-weight: 600;
-    backdrop-filter: var(--sms-glass-blur);
-    -webkit-backdrop-filter: var(--sms-glass-blur);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
     white-space: nowrap;
+}
+
+.dash-period.glass-period-filter {
+    padding-right: 0.65rem;
+}
+
+.dash-period .glass-period-btn {
+    color: var(--sms-text-muted);
 }
 .dash-section-head {
     display: flex;
@@ -1245,13 +1252,17 @@ hr { border-color: var(--sms-border); opacity: 1; }
 }
 
 @media (max-width: 767.98px) {
-    .dashboard-page-header { align-items: stretch; }
+    .dashboard-page-header { align-items: stretch; flex-direction: column; }
     .dash-period {
         width: 100%;
         justify-content: center;
         white-space: normal;
         text-align: center;
         line-height: 1.35;
+    }
+    .academic-notices-panel,
+    .ai-insight-panel {
+        grid-template-columns: auto minmax(0, 1fr);
     }
     .dashboard-analytics .chart-stage { min-height: 150px; }
     .dashboard-shell .stat-card h4 {
@@ -1334,13 +1345,11 @@ hr { border-color: var(--sms-border); opacity: 1; }
    Module index page cards — glass menu buttons
    ============================================================ */
 .module-card {
-    border: 1px solid var(--sms-glass-border);
-    border-radius: 14px;
+    border: 1px solid var(--sms-border);
+    border-radius: var(--sms-radius);
     transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
     color: var(--sms-text);
-    background: var(--sms-surface);
-    backdrop-filter: var(--sms-glass-blur);
-    -webkit-backdrop-filter: var(--sms-glass-blur);
+    background: var(--sms-surface-solid);
     box-shadow: var(--sms-shadow-xs);
 }
 .module-card .card-body {
@@ -1348,10 +1357,10 @@ hr { border-color: var(--sms-border); opacity: 1; }
 }
 .module-card:hover {
     border-color: rgba(96, 165, 250, 0.35);
-    transform: translateY(-3px);
-    box-shadow: var(--sms-shadow-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--sms-shadow-sm);
     color: var(--sms-heading);
-    background: var(--sms-hover-tint);
+    background: var(--sms-surface-solid);
 }
 .module-card h6 {
     color: var(--sms-heading);
@@ -1408,8 +1417,8 @@ hr { border-color: var(--sms-border); opacity: 1; }
     font-weight: 550;
     font-size: 0.9rem;
     transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
-    backdrop-filter: var(--sms-glass-blur);
-    -webkit-backdrop-filter: var(--sms-glass-blur);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 .module-link-btn i {
     width: 18px;
@@ -1589,18 +1598,18 @@ hr { border-color: var(--sms-border); opacity: 1; }
     align-items: center;
     justify-content: center;
     flex: 0 0 auto;
-    min-width: 7.25rem;
-    height: 36px;
-    padding: 0.35rem 0.7rem;
-    border-radius: 10px;
+    min-width: 7rem;
+    height: 34px;
+    padding: 0.3rem 0.65rem;
+    border-radius: 9px;
     border: 1px solid rgba(255, 255, 255, 0.22);
     background: rgba(255, 255, 255, 0.12);
     color: #ffffff !important;
     -webkit-text-fill-color: #ffffff;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     font-weight: 700;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.02em;
     line-height: 1;
     white-space: nowrap;
     user-select: none;
@@ -1623,12 +1632,12 @@ hr { border-color: var(--sms-border); opacity: 1; }
    Theme toggle button
    ============================================================ */
 .theme-toggle {
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 10px;
+    border-radius: 8px;
     border: 1px solid rgba(255,255,255,0.18);
     background: rgba(255,255,255,0.10);
     color: rgba(255,255,255,0.9) !important;
@@ -1650,63 +1659,7 @@ hr { border-color: var(--sms-border); opacity: 1; }
 [data-theme="dark"] .theme-toggle .theme-icon-sun { display: inline-block; }
 [data-theme="dark"] .theme-toggle .theme-icon-moon { display: none; }
 
-.dropdown-item[data-theme-set].active {
-    background: var(--sms-dropdown-hover);
-    color: var(--sms-primary);
-    font-weight: 600;
-}
-.dropdown-item[data-theme-set].active::after {
-    content: '\f00c';
-    font-family: 'Font Awesome 6 Free';
-    font-weight: 900;
-    float: right;
-    opacity: 0.85;
-}
-
-/* ============================================================
-   Welcome Page
-   ============================================================ */
-.welcome-page {
-    min-height: 100vh;
-    min-height: calc(var(--vh,1vh)*100);
-    background: linear-gradient(135deg,#0f2158 0%,#1e40af 50%,#2563eb 100%);
-    display: flex;
-    flex-direction: column;
-}
-.welcome-hero {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem;
-}
-.welcome-card {
-    background: rgba(255,255,255,0.97);
-    border-radius: var(--sms-radius-lg);
-    padding: 3rem;
-    max-width: 600px;
-    width: 100%;
-    text-align: center;
-    box-shadow: 0 24px 60px rgba(0,0,0,0.22);
-}
-.welcome-logo {
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    background: linear-gradient(135deg,var(--sms-primary),var(--sms-accent));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 1.5rem;
-    color: #fff;
-    font-size: 2.5rem;
-    box-shadow: 0 8px 24px rgba(30,64,175,0.35);
-}
-.welcome-footer {
-    padding: 1.5rem;
-    text-align: center;
-    color: rgba(255,255,255,0.75);
-}
+/* Welcome page styles — see assets/css/welcome.css (.sms-welcome-* classes) */
 
 /* ============================================================
    Login Page
@@ -1743,7 +1696,7 @@ hr { border-color: var(--sms-border); opacity: 1; }
     color: #fff;
     background-image:
         linear-gradient(180deg,rgba(4,23,55,0.08) 0%,rgba(4,20,50,0.78) 100%),
-        url("../../images/school1.png");
+        linear-gradient(135deg, #0b2a6b 0%, #1e40af 55%, #2563eb 100%);
     background-size: cover;
     background-position: center;
 }
@@ -1882,8 +1835,8 @@ hr { border-color: var(--sms-border); opacity: 1; }
     padding: 0.6rem 0.85rem; border: 1px solid var(--sms-glass-border); border-radius: 999px;
     background: var(--sms-surface); color: var(--sms-primary); font-size: 0.85rem; font-weight: 700;
     box-shadow: var(--sms-shadow-xs); white-space: nowrap;
-    backdrop-filter: var(--sms-glass-blur);
-    -webkit-backdrop-filter: var(--sms-glass-blur);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 .student-profile-card { text-align: center; }
 .student-avatar {
@@ -1923,6 +1876,175 @@ hr { border-color: var(--sms-border); opacity: 1; }
 .student-id-card p { margin-bottom: 1rem; opacity: 0.9; }
 .student-id-number { display: inline-flex; padding: 0.45rem 0.85rem; border-radius: 999px; background: rgba(255,255,255,0.16); font-weight: 800; }
 
+/* Student profile page */
+.sp-profile-hero {
+    overflow: hidden;
+    border: 1px solid var(--sms-border);
+    background:
+        linear-gradient(135deg, rgba(30, 64, 175, 0.08), rgba(14, 165, 233, 0.05)),
+        var(--sms-surface);
+}
+.sp-profile-hero .card-body { padding: 1.35rem 1.4rem; }
+.sp-profile-hero__main {
+    display: flex;
+    align-items: center;
+    gap: 1.15rem;
+    min-width: 0;
+}
+.sp-profile-hero__avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 88px;
+    height: 88px;
+    border-radius: 22px;
+    background: linear-gradient(135deg, #1e40af, #2563eb);
+    color: #fff;
+    font-size: 1.65rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    box-shadow: 0 12px 28px rgba(30, 64, 175, 0.24);
+}
+.sp-profile-hero__copy { min-width: 0; }
+.sp-profile-kicker {
+    display: inline-flex;
+    margin-bottom: 0.3rem;
+    color: var(--sms-primary);
+    font-size: 0.74rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+.sp-profile-hero__name {
+    margin: 0;
+    color: var(--sms-heading);
+    font-size: clamp(1.2rem, 2.4vw, 1.55rem);
+    font-weight: 800;
+    line-height: 1.2;
+}
+.sp-profile-hero__program {
+    margin: 0.35rem 0 0.8rem;
+    color: var(--sms-text-muted);
+    font-size: 0.92rem;
+    font-weight: 600;
+    line-height: 1.45;
+}
+.sp-profile-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+.sp-profile-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 0.28rem 0.72rem;
+    border: 1px solid var(--sms-border);
+    border-radius: 999px;
+    background: var(--sms-surface-muted);
+    color: var(--sms-text);
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+.sp-profile-badge--success {
+    border-color: rgba(22, 163, 74, 0.22);
+    background: rgba(22, 163, 74, 0.1);
+    color: var(--sms-success);
+}
+.sp-profile-section {
+    border: 1px solid var(--sms-border);
+    overflow: hidden;
+}
+.sp-profile-section__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.15rem;
+    border-bottom: 1px solid var(--sms-border);
+    background: var(--sms-surface-muted);
+}
+.sp-profile-section__head h5 {
+    color: var(--sms-heading);
+    font-size: 1rem;
+    font-weight: 700;
+}
+.sp-profile-section__head p {
+    margin-top: 0.2rem;
+    color: var(--sms-text-muted);
+    font-size: 0.82rem;
+}
+.sp-profile-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+.sp-profile-field {
+    min-width: 0;
+    padding: 0.85rem 0.95rem;
+    border: 1px solid var(--sms-border);
+    border-radius: 12px;
+    background: var(--sms-surface-muted);
+}
+.sp-profile-field--wide { grid-column: 1 / -1; }
+.sp-profile-field__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--sms-text-muted);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.sp-profile-field__label .ti { font-size: 0.9em; opacity: 0.85; }
+.sp-profile-field__value {
+    display: block;
+    margin-top: 0.35rem;
+    color: var(--sms-heading);
+    font-size: 0.92rem;
+    font-weight: 700;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+.sp-profile-actions .card-body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.sp-profile-actions__copy { max-width: 42rem; }
+.sp-profile-actions__copy h5 {
+    color: var(--sms-heading);
+    font-size: 1rem;
+    font-weight: 700;
+}
+.sp-profile-actions__copy p {
+    color: var(--sms-text-muted);
+    font-size: 0.86rem;
+}
+[data-theme="dark"] .sp-profile-hero {
+    background:
+        linear-gradient(135deg, rgba(30, 58, 138, 0.34), rgba(15, 23, 42, 0.72)),
+        var(--sms-surface);
+}
+[data-theme="dark"] .sp-profile-badge {
+    background: rgba(15, 23, 42, 0.45);
+    border-color: rgba(148, 163, 184, 0.22);
+}
+[data-theme="dark"] .sp-profile-badge--success {
+    background: rgba(16, 185, 129, 0.12);
+    border-color: rgba(52, 211, 153, 0.24);
+    color: #6ee7b7;
+}
+[data-theme="dark"] .sp-profile-field,
+[data-theme="dark"] .sp-profile-section__head {
+    background: rgba(15, 23, 42, 0.42);
+    border-color: rgba(148, 163, 184, 0.2);
+}
+
 /* ============================================================
    Submodule Process Pages
    ============================================================ */
@@ -1943,6 +2065,10 @@ hr { border-color: var(--sms-border); opacity: 1; }
     .student-term-badge { margin-top: 0.85rem; }
     .student-record-grid { grid-template-columns: 1fr; }
     .student-process-bar .btn, .submodule-action-bar .btn { width: 100%; }
+    .sp-profile-hero__main { align-items: flex-start; flex-direction: column; }
+    .sp-profile-fields { grid-template-columns: 1fr; }
+    .sp-profile-actions .card-body { align-items: flex-start; }
+    .sp-profile-actions .student-process-bar { width: 100%; }
 }
 
 /* Reduced motion */

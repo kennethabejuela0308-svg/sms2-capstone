@@ -81,10 +81,104 @@ if (!function_exists('sms2_detect_base_url')) {
     }
 }
 
+if (!function_exists('sms2_normalize_base_url')) {
+    /**
+     * Canonical lowercase path for the local XAMPP install folder.
+     */
+    function sms2_normalize_base_url(string $url): string
+    {
+        $url = rtrim($url, '/');
+        if ($url === '' || $url === '/') {
+            return '';
+        }
+
+        $segments = explode('/', trim($url, '/'));
+        $lastIndex = count($segments) - 1;
+        if ($lastIndex >= 0 && strcasecmp((string) $segments[$lastIndex], 'sms2_system') === 0) {
+            $segments[$lastIndex] = 'sms2_system';
+            return '/' . implode('/', $segments);
+        }
+
+        return $url;
+    }
+}
+
 // Auto-detect the folder name so the app still works when copied to another
 // XAMPP htdocs directory. Set SMS2_BASE_URL or APP_BASE_URL to override.
 if (!defined('BASE_URL')) {
-    define('BASE_URL', rtrim((string) sms2_env('SMS2_BASE_URL', sms2_env('APP_BASE_URL', sms2_detect_base_url())), '/'));
+    $baseUrlCandidate = defined('SMS2_LOCAL_BASE_URL')
+        ? (string) SMS2_LOCAL_BASE_URL
+        : (string) sms2_env('SMS2_BASE_URL', sms2_env('APP_BASE_URL', sms2_detect_base_url()));
+    define('BASE_URL', sms2_normalize_base_url(rtrim($baseUrlCandidate, '/')));
+}
+
+if (!function_exists('smsBrandLogoUrl')) {
+    function smsBrandLogoUrl(): string
+    {
+        static $url = null;
+        if ($url !== null) {
+            return $url;
+        }
+
+        $png = ROOT_PATH . '/images/bcp-logo-source.png';
+        $url = is_readable($png)
+            ? BASE_URL . '/images/bcp-logo-source.png'
+            : BASE_URL . '/images/sms-brand.svg';
+
+        return $url;
+    }
+}
+
+if (!function_exists('smsWelcomeHeroImageUrl')) {
+    function smsWelcomeHeroImageUrl(): string
+    {
+        static $url = null;
+        if ($url !== null) {
+            return $url;
+        }
+
+        $candidates = [
+            '/images/school1.png',
+            '/images/bcp-campus.jpg',
+            '/images/bcp-campus.png',
+        ];
+
+        foreach ($candidates as $path) {
+            if (is_readable(ROOT_PATH . $path)) {
+                $url = BASE_URL . $path;
+                return $url;
+            }
+        }
+
+        $url = BASE_URL . '/images/school1.png';
+        return $url;
+    }
+}
+
+if (!function_exists('smsLoginHeroImageUrl')) {
+    function smsLoginHeroImageUrl(): string
+    {
+        static $url = null;
+        if ($url !== null) {
+            return $url;
+        }
+
+        $candidates = [
+            '/images/school2.png',
+            '/images/bcp-campus.jpg',
+            '/images/bcp-campus.png',
+        ];
+
+        foreach ($candidates as $path) {
+            if (is_readable(ROOT_PATH . $path)) {
+                $url = BASE_URL . $path;
+                return $url;
+            }
+        }
+
+        $url = BASE_URL . '/images/school2.png';
+        return $url;
+    }
 }
 
 date_default_timezone_set('Asia/Manila');
@@ -228,6 +322,10 @@ $MODULES = [
             'Reports' => [
                 'accreditation-reports-analytics',
             ],
+            'Review & Workflow' => [
+                'reviewer-evaluation',
+                'approval-workflows',
+            ],
         ],
         'pages' => [
             ['slug' => 'accreditation-document-repository', 'title' => 'Accreditation Document Repository'],
@@ -240,6 +338,8 @@ $MODULES = [
             ['slug' => 'physical-facilities-monitoring', 'title' => 'Physical Facilities Monitoring'],
             ['slug' => 'continuous-improvement-action-planning', 'title' => 'Continuous Improvement Action Planning'],
             ['slug' => 'accreditation-reports-analytics', 'title' => 'Accreditation Reports & Analytics'],
+            ['slug' => 'reviewer-evaluation', 'title' => 'Reviewer Evaluation'],
+            ['slug' => 'approval-workflows', 'title' => 'Approval Workflows'],
         ],
     ],
     'payment' => [
@@ -264,6 +364,10 @@ $MODULES = [
                 'collection-reporting-analytics',
                 'audit-access-control',
             ],
+            'Review & Workflow' => [
+                'reviewer-evaluation',
+                'approval-workflows',
+            ],
         ],
         'pages' => [
             ['slug' => 'student-billing-invoicing', 'title' => 'Student Billing & Invoicing'],
@@ -276,6 +380,8 @@ $MODULES = [
             ['slug' => 'accounts-receivable-management', 'title' => 'Accounts Receivable Management'],
             ['slug' => 'penalty-due-date-management', 'title' => 'Penalty & Due Date Management'],
             ['slug' => 'audit-access-control', 'title' => 'Audit & Access Control'],
+            ['slug' => 'reviewer-evaluation', 'title' => 'Reviewer Evaluation'],
+            ['slug' => 'approval-workflows', 'title' => 'Approval Workflows'],
         ],
     ],
     'faculty' => [
@@ -428,12 +534,24 @@ $MODULES = [
                 'research-coordinator-management',
                 'research-defense-scheduling',
                 'capstone-group-student-registry',
-                'research-collaboration-portal',
             ],
             'Core System' => [
                 'dashboard-analytics',
                 'grant-opportunities',
                 'proposals-applications',
+            ],
+            'Review & Workflow' => [
+                'reviewer-evaluation',
+                'approval-workflows',
+            ],
+            'Financial & Tracking' => [
+                'approved-funded',
+                'budget-disbursement',
+                'project-milestones',
+            ],
+            'Outputs & Records' => [
+                'publications-ip',
+                'document-repository',
             ],
             'Research Documents' => [
                 'documentation-publication-management',
@@ -457,13 +575,20 @@ $MODULES = [
             ['slug' => 'dashboard-analytics', 'title' => 'Dashboard & Analytics'],
             ['slug' => 'grant-opportunities', 'title' => 'Grant Opportunities'],
             ['slug' => 'proposals-applications', 'title' => 'Proposals & Applications'],
+            ['slug' => 'reviewer-evaluation', 'title' => 'Reviewer Evaluation'],
+            ['slug' => 'approval-workflows', 'title' => 'Approval Workflows'],
+            ['slug' => 'approved-funded', 'title' => 'Approved & Funded'],
+            ['slug' => 'funded-research', 'title' => 'Conduct Funded Research'],
+            ['slug' => 'budget-disbursement', 'title' => 'Budget & Disbursement'],
+            ['slug' => 'project-milestones', 'title' => 'Project Milestones'],
+            ['slug' => 'publications-ip', 'title' => 'Publications & IP'],
+            ['slug' => 'document-repository', 'title' => 'Document Repository'],
             ['slug' => 'documentation-publication-management', 'title' => 'Documentation & Publication Management'],
             ['slug' => 'final-manuscript-review', 'title' => 'Final Manuscript Review'],
             ['slug' => 'revision-compliance', 'title' => 'Revision & Compliance'],
             ['slug' => 'final-manuscript-approval', 'title' => 'Final Manuscript Approval'],
             ['slug' => 'publication-create', 'title' => 'Create Publication Record'],
             ['slug' => 'research-repository', 'title' => 'Research Repository'],
-            ['slug' => 'research-collaboration-portal', 'title' => 'Research Collaboration Portal'],
             ['slug' => 'research-analytics-reporting', 'title' => 'Research Analytics & Reporting'],
         ],
     ],
@@ -505,31 +630,32 @@ $MODULES = [
                 'post-publish-grant-call',
                 'grant-applications',
             ],
+            'Review & Workflow' => [
+                'reviewer-evaluation',
+            ],
             'Proposal Evaluation' => [
                 'for-evaluation',
                 'evaluation-scoring',
                 'evaluation-history',
             ],
             'Approval Workflow' => [
-                'pending-approvals',
-                'approval-status',
-                'approval-history',
+                'approval-workflows',
             ],
             'Funding Management' => [
                 'approved-funded',
+                'budget-disbursement',
+                'project-milestones',
                 'fund-release',
                 'disbursement-records',
                 'funding-status',
             ],
             'Research Monitoring' => [
                 'funded-research',
-                'project-milestones',
                 'progress-tracking',
             ],
-            'Research Output' => [
-                'final-outputs',
-                'publications',
-                'publications-ip-repository',
+            'Outputs & Records' => [
+                'publications-ip',
+                'document-repository',
             ],
             'Reports' => [
                 'grant-reports',
@@ -541,22 +667,24 @@ $MODULES = [
             ['slug' => 'grant-opportunities',       'title' => 'Grant Opportunities'],
             ['slug' => 'post-publish-grant-call',   'title' => 'Post / Publish Grant Call'],
             ['slug' => 'grant-applications',        'title' => 'Grant Applications'],
+            ['slug' => 'reviewer-evaluation',       'title' => 'Reviewer Evaluation'],
             ['slug' => 'for-evaluation',            'title' => 'For Evaluation'],
             ['slug' => 'evaluation-scoring',        'title' => 'Evaluation & Scoring'],
             ['slug' => 'evaluation-history',        'title' => 'Evaluation History'],
+            ['slug' => 'approval-workflows',         'title' => 'Approval Workflows'],
             ['slug' => 'pending-approvals',         'title' => 'Pending Approvals'],
             ['slug' => 'approval-status',           'title' => 'Approval Status'],
             ['slug' => 'approval-history',          'title' => 'Approval History'],
             ['slug' => 'approved-funded',           'title' => 'Approved & Funded'],
+            ['slug' => 'budget-disbursement',       'title' => 'Budget & Disbursement'],
             ['slug' => 'fund-release',              'title' => 'Fund Release'],
             ['slug' => 'disbursement-records',      'title' => 'Disbursement Records'],
             ['slug' => 'funding-status',            'title' => 'Funding Status'],
             ['slug' => 'funded-research',           'title' => 'Funded Research'],
             ['slug' => 'project-milestones',        'title' => 'Project Milestones'],
             ['slug' => 'progress-tracking',         'title' => 'Progress Tracking'],
-            ['slug' => 'final-outputs',             'title' => 'Final Outputs'],
-            ['slug' => 'publications',              'title' => 'Publications'],
-            ['slug' => 'publications-ip-repository','title' => 'Publications & IP Repository'],
+            ['slug' => 'publications-ip',           'title' => 'Publications & IP'],
+            ['slug' => 'document-repository',      'title' => 'Document Repository'],
             ['slug' => 'grant-reports',             'title' => 'Grant Reports'],
             ['slug' => 'funding-reports',           'title' => 'Funding Reports'],
             ['slug' => 'research-analytics',        'title' => 'Research Analytics'],
@@ -567,6 +695,7 @@ $MODULES = [
     'user-management' => [
         'label' => 'User Management',
         'icon'  => 'fa-users-cog',
+        'hide_overview' => true,
         'groups' => [
             'Accounts & Roles' => [
                 'user-accounts',

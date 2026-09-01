@@ -29,7 +29,7 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
 
 <div class="glass-dashboard">
     <section class="glass-panel p-4">
-        <h5 class="mb-3"><i class="fas fa-history me-2 text-primary"></i>Evaluation History</h5>
+        <h5 class="mb-3"><?= smsIcon('history', ['class' => 'me-2 text-primary']) ?>Evaluation History</h5>
         <?php if (!$rows): ?>
             <div class="text-center text-muted py-5">No completed evaluations available.</div>
         <?php else: ?>

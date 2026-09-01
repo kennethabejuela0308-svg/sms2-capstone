@@ -485,7 +485,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
             <div class="notification-view-head">
                 <div class="notification-view-title">
                     <div class="notification-view-icon">
-                        <i class="fas <?= htmlspecialchars((string) ($notificationViewData['icon'] ?? 'fa-bell')) ?>"></i>
+                        <?= smsIcon((string) ($notificationViewData['icon'] ?? 'bell')) ?>
                     </div>
                     <div>
                         <h1><?= htmlspecialchars((string) ($notificationViewData['title'] ?? 'Notification')) ?></h1>
@@ -515,7 +515,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                         <?php foreach ($notificationViewData['actions'] as $action): ?>
                             <a class="notification-view-action <?= htmlspecialchars((string) ($action['class'] ?? 'primary')) ?>"
                                href="<?= htmlspecialchars((string) ($action['url'] ?? '#')) ?>">
-                                <i class="fas <?= htmlspecialchars((string) ($action['icon'] ?? 'fa-arrow-right')) ?>"></i>
+                                <?= smsIcon((string) ($action['icon'] ?? 'arrow-right')) ?>
                                 <?= htmlspecialchars((string) ($action['label'] ?? 'Open')) ?>
                             </a>
                         <?php endforeach; ?>
@@ -525,7 +525,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
         <?php else: ?>
             <div class="notification-view-empty">
                 <div class="notification-view-icon mx-auto mb-3">
-                    <i class="fas fa-bell-slash"></i>
+                    <?= smsIcon('bell-slash') ?>
                 </div>
                 <h1 class="h5 fw-bold">Notification not found</h1>
                 <p class="text-muted mb-3">This notification may have been deleted or is not assigned to your account.</p>

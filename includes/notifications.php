@@ -312,6 +312,14 @@ function smsBackfillCradAssignmentNotificationForGroup(PDO $crad, array $group, 
 
 function smsMarkCurrentUserNotificationRead(int $notificationId): void
 {
+    if ($notificationId < -2000000) {
+        if (!function_exists('grantMarkProposalNotificationRead')) {
+            require_once ROOT_PATH . '/modules/crad/includes/grant-evaluation-helpers.php';
+        }
+        grantMarkProposalNotificationRead($notificationId);
+        return;
+    }
+
     if ($notificationId <= 0) {
         return;
     }
@@ -382,6 +390,35 @@ function smsMarkCurrentUserSyntheticNotificationRead(string $batchKey): void
         );
         $readKeys[] = $batchKey;
         $_SESSION['read_live_assignment_notifications'] = array_values(array_unique(array_filter($readKeys)));
+        return;
+    }
+
+    if (strpos($batchKey, 'grant-proposal:') === 0) {
+        $crad = cradDb();
+        if (!$crad) {
+            return;
+        }
+        try {
+            if (!function_exists('grantEnsureEvaluationTables')) {
+                require_once ROOT_PATH . '/modules/crad/includes/grant-evaluation-helpers.php';
+            }
+            grantEnsureEvaluationTables($crad);
+            $where = smsCurrentUserNotificationWhere();
+            $stmt = $crad->prepare(
+                "UPDATE grant_proposal_notifications
+                 SET is_read = 1
+                 WHERE event_key = :event_key
+                   AND {$where['sql']}
+                 LIMIT 1"
+            );
+            $stmt->bindValue(':event_key', $batchKey);
+            foreach ($where['params'] as $key => $value) {
+                $stmt->bindValue($key, $value);
+            }
+            $stmt->execute();
+        } catch (Throwable $e) {
+            error_log('Grant proposal notification mark-read failed: ' . $e->getMessage());
+        }
         return;
     }
 
@@ -530,7 +567,7 @@ function smsRenderCurrentAssignmentNotificationPanel(): void
     <section class="sms-assignment-notification" aria-label="Assignment notification details">
         <div class="sms-assignment-notification__head">
             <div class="sms-assignment-notification__title">
-                <i class="fas <?= $escape($notification['icon'] ?: 'fa-user-check') ?>"></i>
+                <?= smsIcon($notification['icon'] ?: 'user-check') ?>
                 <span>Status Dashboard: <?= $escape($notification['title'] ?: 'Assignment Notification') ?></span>
             </div>
             <time class="sms-assignment-notification__time"><?= $escape(date('M j, Y h:i A', $created)) ?></time>
@@ -883,6 +920,59 @@ function smsNotificationRequiredExpertise(string $title): string
     return $matches === [] ? 'General Research Methods' : implode(' / ', array_slice(array_unique($matches), 0, 2));
 }
 
+function smsGrantProposalNotificationsPayload(int $limit = 12): array
+{
+    if (!in_array((string) ($_SESSION['user_role_key'] ?? ''), ['student', 'adviser'], true)) {
+        return [];
+    }
+
+    if (!function_exists('grantProposalNotificationsForCurrentUser')) {
+        require_once ROOT_PATH . '/modules/crad/includes/grant-evaluation-helpers.php';
+    }
+
+    $rows = grantProposalNotificationsForCurrentUser($limit);
+    return array_map(static function (array $row): array {
+        $created = strtotime((string) ($row['created_at'] ?? '')) ?: time();
+        $status = (string) ($row['status'] ?? 'read');
+        $body = (string) ($row['body'] ?? '');
+        $batchKey = (string) ($row['batch_key'] ?? '');
+        $notifType = (string) ($row['type'] ?? '');
+        $isRevision = $notifType === 'grant_revision_required'
+            || str_contains($batchKey, 'grant_revision_required')
+            || str_contains($batchKey, 'grant_approval_return');
+        $isFundRelease = $notifType === 'grant_fund_release' || str_contains($batchKey, 'grant_fund_release');
+        $isMilestoneUpdate = $notifType === 'grant_milestone_update' || str_contains($batchKey, 'grant_milestone_update');
+        $isFinalOutput = in_array($notifType, ['grant_final_output_submitted', 'grant_final_output_verified', 'grant_final_output_returned'], true)
+            || str_contains($batchKey, 'final_output');
+        $isApprovedFunded = $notifType === 'grant_approved_funded' || str_contains($batchKey, 'grant_approved_funded');
+        $icon = (string) ($row['icon'] ?? 'fa-hand-holding-usd');
+        if ($isFundRelease) {
+            $icon = 'fa-money-bill-wave';
+        } elseif ($isMilestoneUpdate) {
+            $icon = 'fa-tasks';
+        } elseif ($isFinalOutput) {
+            $icon = 'fa-book-open';
+        } elseif ($isApprovedFunded) {
+            $icon = 'fa-check-circle';
+        } elseif ($isRevision) {
+            $icon = 'fa-edit';
+        }
+        return [
+            'id' => (int) ($row['id'] ?? 0),
+            'batch_key' => $batchKey,
+            'icon' => $icon,
+            'class' => $isRevision ? 'text-warning' : ($isFundRelease ? 'text-success' : ($isMilestoneUpdate ? 'text-info' : ($isFinalOutput ? 'text-primary' : 'text-primary'))),
+            'label' => (string) ($row['title'] ?? 'Grant Proposal Update'),
+            'body' => $body,
+            'preview' => smsNotificationPreviewText($body),
+            'status' => $status,
+            'is_unread' => $status === 'unread',
+            'time' => date('M j, Y h:i A', $created),
+            'url' => (string) ($row['url'] ?? '#'),
+        ];
+    }, $rows);
+}
+
 function smsNotificationPayloadForCurrentUser(): array
 {
     $rows = smsCurrentUserNotifications(50);
@@ -906,6 +996,7 @@ function smsNotificationPayloadForCurrentUser(): array
     }, $rows);
 
     return smsNotificationDedupe(array_merge(
+        smsGrantProposalNotificationsPayload(12),
         smsCurrentUserAssignmentNotifications(8),
         $items,
         smsStudentResearchStatusNotifications(),

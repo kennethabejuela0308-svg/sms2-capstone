@@ -596,7 +596,7 @@ function rdPanelRenderRows(array $rows): void
 {
     if (!$rows): ?>
         <div class="rdpa-empty">
-            <i class="fas fa-flask"></i>
+            <?= smsIcon('flask') ?>
             <strong>No Defense-Ready Research</strong>
             <span>Research groups will appear here when Chapter 1, 2, and 3 are accepted.</span>
         </div>
@@ -626,13 +626,13 @@ function rdPanelRenderResearchPicker(array $rows, string $emptyTitle = 'No Resea
 {
     if (!$rows): ?>
         <div class="rdpa-empty">
-            <i class="fas fa-flask"></i>
+            <?= smsIcon('flask') ?>
             <strong>No Defense-Ready Research</strong>
             <span>Research groups will appear here when Chapter 1, 2, and 3 are accepted.</span>
         </div>
     <?php return; endif; ?>
     <div class="rdpa-empty rdpa-empty--picker">
-        <i class="fas fa-search"></i>
+        <?= smsIcon('search') ?>
         <div>
             <strong><?= e($emptyTitle) ?></strong>
             <span>Please choose a Defense-Ready Research Group to continue.</span>
@@ -662,7 +662,7 @@ function rdPanelRenderSelectedResearchCard(array $group): void
 {
     ?>
     <div class="rdpa-inner-card">
-        <h4><i class="fas fa-flask me-2 text-primary"></i>Selected Research</h4>
+        <h4><?= smsIcon('flask', ['class' => 'me-2 text-primary']) ?>Selected Research</h4>
         <div class="rdpa-detail"><small>Group Number</small><strong><?= e((string) $group['group_number']) ?></strong></div>
         <div class="rdpa-detail"><small>Group Name</small><span><?= e((string) $group['group_name']) ?></span></div>
         <div class="rdpa-detail"><small>Research Title</small><strong><?= e((string) $group['research_title']) ?></strong></div>
@@ -689,17 +689,17 @@ function rdPanelRenderCheckAvailabilityContent(array $group, int $groupId, array
     $assignUrl = rdPanelSelectedUrl('assign-panel-members', $groupId, $selectedIds);
     ?>
     <div class="rdpa-stats">
-        <div class="rdpa-stat"><i class="fas fa-users"></i><div><strong><?= (int) $stats['selected'] ?></strong><span>Selected Panel Members</span></div></div>
-        <div class="rdpa-stat"><i class="fas fa-check-circle"></i><div><strong><?= (int) $stats['available'] ?></strong><span>Available</span></div></div>
-        <div class="rdpa-stat"><i class="fas fa-clock"></i><div><strong><?= (int) $stats['availability_pending'] ?></strong><span>Pending</span></div></div>
-        <div class="rdpa-stat"><i class="fas fa-ban"></i><div><strong><?= (int) $stats['unavailable'] ?></strong><span>Unavailable</span></div></div>
+        <div class="rdpa-stat"><?= smsIcon('users') ?><div><strong><?= (int) $stats['selected'] ?></strong><span>Selected Panel Members</span></div></div>
+        <div class="rdpa-stat"><?= smsIcon('check-circle') ?><div><strong><?= (int) $stats['available'] ?></strong><span>Available</span></div></div>
+        <div class="rdpa-stat"><?= smsIcon('clock') ?><div><strong><?= (int) $stats['availability_pending'] ?></strong><span>Pending</span></div></div>
+        <div class="rdpa-stat"><?= smsIcon('ban') ?><div><strong><?= (int) $stats['unavailable'] ?></strong><span>Unavailable</span></div></div>
     </div>
     <section class="rdpa-card">
-        <div class="rdpa-card-head"><h3><i class="fas fa-flask me-2 text-primary"></i>Selected Research</h3><span class="badge text-bg-success">Defense Ready</span></div>
+        <div class="rdpa-card-head"><h3><?= smsIcon('flask', ['class' => 'me-2 text-primary']) ?>Selected Research</h3><span class="badge text-bg-success">Defense Ready</span></div>
         <div class="p-3"><strong><?= e((string) $group['group_number']) ?></strong><small class="d-block text-muted"><?= e((string) $group['research_title']) ?></small></div>
     </section>
     <section class="rdpa-card">
-        <div class="rdpa-card-head"><h3><i class="fas fa-calendar-check me-2 text-primary"></i>Panel Availability</h3><span class="rdpa-sync">Live availability</span></div>
+        <div class="rdpa-card-head"><h3><?= smsIcon('calendar-check', ['class' => 'me-2 text-primary']) ?>Panel Availability</h3><span class="rdpa-sync">Live availability</span></div>
         <div class="table-responsive"><table class="table align-middle mb-0 rdpa-table"><thead><tr><th>Panel Member</th><th>Expertise</th><th>Current Assignments</th><th>Availability</th><th>Status</th><th>Action</th></tr></thead><tbody>
             <?php foreach ($selectedPanels as $panel): ?>
                 <?php
@@ -927,7 +927,7 @@ function renderResearchCoordinatorPanelAssignment(string $view): void
     <div class="rdpa-wrap" data-rd-panel-root data-endpoint="<?= e(rdPanelPageUrl('retrieve-defense-ready-research', ['ajax' => 'panel-assignment'])) ?>" data-context-endpoint="<?= e(rdPanelPageUrl('select-panel-members', ['ajax' => 'panel-context'])) ?>" data-selection-endpoint="<?= e(rdPanelPageUrl('select-panel-members', ['ajax' => 'panel-selection-state'])) ?>" data-check-endpoint="<?= e($group ? rdPanelSelectedUrl('check-panel-availability', $groupId, $selectedIds) . '&ajax=panel-availability' : '') ?>">
         <header class="rdpa-header">
             <div>
-                <h2><i class="fas <?= e($icon) ?> me-2 text-primary"></i><?= e($title) ?></h2>
+                <h2><?= smsIcon(e($icon), ['class' => 'me-2 text-primary']) ?><?= e($title) ?></h2>
                 <p><?= e($subtitle) ?></p>
             </div>
             <span class="rdpa-sync" data-rd-panel-sync>Synced <?= e(date('M j, Y h:i:s A')) ?></span>
@@ -937,14 +937,14 @@ function renderResearchCoordinatorPanelAssignment(string $view): void
 
         <?php if ($view === 'retrieve-defense-ready-research'): ?>
             <div class="rdpa-stats">
-                <div class="rdpa-stat"><i class="fas fa-layer-group"></i><div><strong><?= (int) $stats['total_ready'] ?></strong><span>Total Defense-Ready</span></div></div>
-                <div class="rdpa-stat"><i class="fas fa-clock"></i><div><strong><?= (int) $stats['pending_assignment'] ?></strong><span>Pending Panel Assignment</span></div></div>
-                <div class="rdpa-stat"><i class="fas fa-adjust"></i><div><strong><?= (int) $stats['partially_assigned'] ?></strong><span>Partially Assigned</span></div></div>
-                <div class="rdpa-stat"><i class="fas fa-check-circle"></i><div><strong><?= (int) $stats['fully_assigned'] ?></strong><span>Fully Assigned</span></div></div>
+                <div class="rdpa-stat"><?= smsIcon('layer-group') ?><div><strong><?= (int) $stats['total_ready'] ?></strong><span>Total Defense-Ready</span></div></div>
+                <div class="rdpa-stat"><?= smsIcon('clock') ?><div><strong><?= (int) $stats['pending_assignment'] ?></strong><span>Pending Panel Assignment</span></div></div>
+                <div class="rdpa-stat"><?= smsIcon('adjust') ?><div><strong><?= (int) $stats['partially_assigned'] ?></strong><span>Partially Assigned</span></div></div>
+                <div class="rdpa-stat"><?= smsIcon('check-circle') ?><div><strong><?= (int) $stats['fully_assigned'] ?></strong><span>Fully Assigned</span></div></div>
             </div>
             <section class="rdpa-card">
                 <div class="rdpa-card-head">
-                    <h3><i class="fas fa-list me-2 text-primary"></i>Defense-Ready Research</h3>
+                    <h3><?= smsIcon('list', ['class' => 'me-2 text-primary']) ?>Defense-Ready Research</h3>
                     <span class="rdpa-sync" data-rd-panel-sync-table>Live / Synced <?= e(date('M j, Y h:i:s A')) ?></span>
                 </div>
                 <div data-rd-panel-content><?php rdPanelRenderRows($readyRows); ?></div>
@@ -962,7 +962,7 @@ function renderResearchCoordinatorPanelAssignment(string $view): void
                 <div class="rdpa-grid">
                     <?php rdPanelRenderSelectedResearchCard($group); ?>
                     <div class="rdpa-inner-card">
-                        <h4><i class="fas fa-user-friends me-2 text-primary"></i>Eligible Panel Members</h4>
+                        <h4><?= smsIcon('user-friends', ['class' => 'me-2 text-primary']) ?>Eligible Panel Members</h4>
                         <form method="get" action="<?= e(rdPanelPageUrl('check-panel-availability')) ?>" data-rd-panel-select-form>
                             <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>" disabled>
                             <input type="hidden" name="group_id" value="<?= (int) $groupId ?>">
@@ -996,7 +996,7 @@ function renderResearchCoordinatorPanelAssignment(string $view): void
                 <section class="rdpa-card">
                     <div class="rdpa-grid">
                         <?php rdPanelRenderSelectedResearchCard($group); ?>
-                        <div class="rdpa-inner-card"><div class="rdpa-empty"><i class="fas fa-user-friends"></i><strong>No Panel Members Selected</strong><span>Please select Panel Members before checking availability.</span><a class="btn btn-sms-primary mt-2" href="<?= e(rdPanelPageUrl('select-panel-members', ['group_id' => $groupId])) ?>">Select Panel Members</a></div></div>
+                        <div class="rdpa-inner-card"><div class="rdpa-empty"><?= smsIcon('user-friends') ?><strong>No Panel Members Selected</strong><span>Please select Panel Members before checking availability.</span><a class="btn btn-sms-primary mt-2" href="<?= e(rdPanelPageUrl('select-panel-members', ['group_id' => $groupId])) ?>">Select Panel Members</a></div></div>
                     </div>
                 </section>
             <?php else: ?>
@@ -1011,7 +1011,7 @@ function renderResearchCoordinatorPanelAssignment(string $view): void
                         <?php rdPanelRenderSelectedResearchCard($group); ?>
                         <div class="rdpa-inner-card">
                             <?php if ($assignedPanels): ?>
-                                <h4><i class="fas fa-user-check me-2 text-primary"></i>Assigned Panel Members</h4>
+                                <h4><?= smsIcon('user-check', ['class' => 'me-2 text-primary']) ?>Assigned Panel Members</h4>
                                 <div class="rdpa-assigned-list">
                                     <?php foreach ($assignedPanels as $panel): ?>
                                         <?php $availability = (string) ($panel['availability_status'] ?? 'Assigned'); ?>
@@ -1028,20 +1028,20 @@ function renderResearchCoordinatorPanelAssignment(string $view): void
                                     <a class="btn btn-outline-primary" href="<?= e(rdPanelPageUrl('select-panel-members', ['group_id' => $groupId])) ?>">Update Selection</a>
                                 </div>
                             <?php else: ?>
-                                <div class="rdpa-empty"><i class="fas fa-user-friends"></i><strong>No Panel Members Ready to Assign</strong><span>Please select Panel Members and check their availability first.</span><div class="d-flex flex-wrap gap-2 justify-content-center mt-2"><a class="btn btn-sms-primary" href="<?= e(rdPanelPageUrl('select-panel-members', ['group_id' => $groupId])) ?>">Select Panel Members</a><a class="btn btn-outline-primary" href="<?= e(rdPanelPageUrl('check-panel-availability')) ?>">Check Panel Availability</a></div></div>
+                                <div class="rdpa-empty"><?= smsIcon('user-friends') ?><strong>No Panel Members Ready to Assign</strong><span>Please select Panel Members and check their availability first.</span><div class="d-flex flex-wrap gap-2 justify-content-center mt-2"><a class="btn btn-sms-primary" href="<?= e(rdPanelPageUrl('select-panel-members', ['group_id' => $groupId])) ?>">Select Panel Members</a><a class="btn btn-outline-primary" href="<?= e(rdPanelPageUrl('check-panel-availability')) ?>">Check Panel Availability</a></div></div>
                             <?php endif; ?>
                         </div>
                     </div>
                 </section>
             <?php else: ?>
                 <div class="rdpa-stats">
-                    <div class="rdpa-stat"><i class="fas fa-list"></i><div><strong><?= (int) $stats['selected'] ?></strong><span>Total</span></div></div>
-                    <div class="rdpa-stat"><i class="fas fa-clock"></i><div><strong><?= (int) $stats['availability_pending'] ?></strong><span>Pending</span></div></div>
-                    <div class="rdpa-stat"><i class="fas fa-check-circle"></i><div><strong><?= (int) $stats['available'] ?></strong><span>Available</span></div></div>
-                    <div class="rdpa-stat"><i class="fas fa-user-check"></i><div><strong><?= (int) $stats['fully_assigned'] ?></strong><span>Assigned</span></div></div>
+                    <div class="rdpa-stat"><?= smsIcon('list') ?><div><strong><?= (int) $stats['selected'] ?></strong><span>Total</span></div></div>
+                    <div class="rdpa-stat"><?= smsIcon('clock') ?><div><strong><?= (int) $stats['availability_pending'] ?></strong><span>Pending</span></div></div>
+                    <div class="rdpa-stat"><?= smsIcon('check-circle') ?><div><strong><?= (int) $stats['available'] ?></strong><span>Available</span></div></div>
+                    <div class="rdpa-stat"><?= smsIcon('user-check') ?><div><strong><?= (int) $stats['fully_assigned'] ?></strong><span>Assigned</span></div></div>
                 </div>
                 <section class="rdpa-card">
-                    <div class="rdpa-card-head"><h3><i class="fas fa-user-plus me-2 text-primary"></i>Assign Panel Members</h3></div>
+                    <div class="rdpa-card-head"><h3><?= smsIcon('user-plus', ['class' => 'me-2 text-primary']) ?>Assign Panel Members</h3></div>
                     <div class="rdpa-grid">
                         <div class="rdpa-inner-card"><h4>Selected Research</h4><div class="rdpa-detail"><small>Group Number</small><strong><?= e((string) $group['group_number']) ?></strong></div><div class="rdpa-detail"><small>Group Name</small><span><?= e((string) $group['group_name']) ?></span></div><div class="rdpa-detail"><small>Research Title</small><strong><?= e((string) $group['research_title']) ?></strong></div><div class="rdpa-detail"><small>Academic Year</small><span><?= e((string) $group['academic_year']) ?></span></div><div class="rdpa-detail"><small>Adviser</small><span><?= e((string) $group['adviser_name']) ?></span></div><span class="badge text-bg-success">Defense Ready</span></div>
                         <div class="rdpa-inner-card"><h4>Ready to Assign</h4><form method="post" data-rd-panel-assign-form><?= csrfField() ?><input type="hidden" name="research_group_id" value="<?= (int) $groupId ?>"><?php foreach ($selectedPanels as $panel): ?><input type="hidden" name="panel_ids[]" value="<?= (int) $panel['id'] ?>"><div class="rdpa-panel-card mb-2" style="cursor:default;"><strong><?= e((string) $panel['full_name']) ?></strong><span class="email"><?= e((string) $panel['email']) ?></span><div class="rdpa-detail"><small>Expertise</small><span><?= e((string) (($panel['expertise'] ?? '') ?: 'Not recorded')) ?></span></div><div class="rdpa-detail"><small>Availability</small><span class="badge text-bg-<?= e(rdPanelBadgeClass((string) $panel['availability_status'])) ?>"><?= e((string) $panel['availability_status']) ?></span></div><div class="rdpa-detail"><small>Current Assignment</small><span><?= (int) $panel['current_assignments'] ?></span></div><span class="badge text-bg-success">Selected</span></div><?php endforeach; ?><button type="button" class="btn btn-sms-primary mt-3" data-rd-panel-open-confirm>Assign Panel Members</button></form></div>
@@ -1052,7 +1052,7 @@ function renderResearchCoordinatorPanelAssignment(string $view): void
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title"><i class="fas fa-user-check me-2 text-primary"></i>Assign Panel Members</h5>
+                            <h5 class="modal-title"><?= smsIcon('user-check', ['class' => 'me-2 text-primary']) ?>Assign Panel Members</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
@@ -1066,7 +1066,7 @@ function renderResearchCoordinatorPanelAssignment(string $view): void
                 </div>
             </div>
         <?php else: ?>
-            <section class="rdpa-card"><div class="rdpa-empty"><i class="fas fa-paper-plane"></i><strong>Sent to Notification</strong><span>Panel assignment notifications are sent automatically after confirmed assignment.</span></div></section>
+            <section class="rdpa-card"><div class="rdpa-empty"><?= smsIcon('paper-plane') ?><strong>Sent to Notification</strong><span>Panel assignment notifications are sent automatically after confirmed assignment.</span></div></section>
         <?php endif; ?>
     </div>
     <script src="<?= BASE_URL ?>/assets/js/research-director-panel-assignment.js"></script>

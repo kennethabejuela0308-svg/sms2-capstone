@@ -9,14 +9,25 @@ if (!isset($MODULES)) {
 require_once __DIR__ . '/authentication.php';
 require_once __DIR__ . '/module-controls.php';
 require_once __DIR__ . '/nav-icons.php';
+require_once __DIR__ . '/navigation-context.php';
+require_once __DIR__ . '/grant-review-workflow-urls.php';
 
 $activeModule = $activeModule ?? '';
 $activePage   = $activePage ?? '';
 $roleKey = getCurrentUserRoleKey();
-$isStudentPortal = $activeModule === 'student_portal';
+$sidebarMode = smsSidebarMode($roleKey);
+$onDashboard = str_ends_with(
+    str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? '')),
+    '/dashboard/index.php'
+);
+$highlightModule = smsSidebarHighlightModule((string) $activeModule, $roleKey);
+$roleHomeUrl = smsRoleHomeUrl($roleKey);
+$roleHomeLabel = smsRoleHomeLabel($roleKey);
+$roleHomeActive = smsRoleHomeIsActive($roleKey, str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? '')), (string) $activePage);
+$showMainDashboard = smsShowsMainDashboard($roleKey);
 $visibleModules = getVisibleModules($MODULES);
 $securitySettingsModule = '';
-if (!in_array($roleKey, ['superadmin', 'admin'], true)) {
+if (!smsIsGrantedAdminRole($roleKey)) {
     foreach ($visibleModules as $securityModuleKey => $_securityModule) {
         if ($securityModuleKey !== 'user-management') {
             $securitySettingsModule = (string) $securityModuleKey;
@@ -37,7 +48,7 @@ if ($securitySettingsModule !== '' && isset($visibleModules[$securitySettingsMod
 // ── For students: check if Research Forum is paid ───────────────────────────
 $researchForumPaid = false;
 $studentReturnedTitleApprovalId = 0;
-if ($isStudentPortal) {
+if ($sidebarMode === 'student') {
     // If student-portal-page.php already computed this, use it.
     // Otherwise check independently from the payment data source.
     if (isset($researchForumPaid) && $researchForumPaid === true) {
@@ -111,7 +122,7 @@ $studentResearchDevelopmentItems = [
 
 // ── Check if student has an approved research group ──────────────────────────
 $studentHasResearchGroup = false;
-if ($isStudentPortal && isset($sidebarCrad) && $sidebarCrad instanceof PDO) {
+if ($sidebarMode === 'student' && isset($sidebarCrad) && $sidebarCrad instanceof PDO) {
     try {
         $checkGroupStmt = $sidebarCrad->prepare("
             SELECT COUNT(*) FROM research_groups 
@@ -157,6 +168,18 @@ $studentNavGroups = [
         ['slug' => 'submission-status', 'href' => BASE_URL . '/modules/student-portal/pages/submission-status.php', 'icon' => 'fa-chart-line', 'label' => 'Submission Status', 'locked' => false],
         ['slug' => 'submission-history', 'href' => BASE_URL . '/modules/student-portal/pages/submission-history.php', 'icon' => 'fa-history', 'label' => 'Submission History', 'locked' => false],
     ],
+    'Core System' => [
+        ['slug' => 'grant-opportunities', 'href' => BASE_URL . '/modules/crad/pages/grant-opportunities.php', 'icon' => 'fa-hand-holding-usd', 'label' => 'Grant Opportunities', 'locked' => false],
+        ['slug' => 'proposals-applications', 'href' => BASE_URL . '/modules/crad/pages/proposals-applications.php', 'icon' => 'fa-file-alt', 'label' => 'Proposals & Applications', 'locked' => false],
+        ['slug' => 'revisions-requested', 'href' => BASE_URL . '/modules/crad/pages/revisions-requested.php', 'icon' => 'fa-edit', 'label' => 'Revisions Requested', 'locked' => false],
+    ],
+    'Funded Research' => [
+        ['slug' => 'funded-research', 'href' => BASE_URL . '/modules/crad/pages/funded-research.php', 'icon' => 'fa-flask', 'label' => 'Funded Research', 'locked' => false],
+        ['slug' => 'project-milestones', 'href' => BASE_URL . '/modules/crad/pages/project-milestones.php', 'icon' => 'fa-tasks', 'label' => 'Project Milestones', 'locked' => false],
+    ],
+    'Outputs & Records' => [
+        ['slug' => 'publications-ip', 'href' => BASE_URL . '/modules/crad/pages/publications-ip.php', 'icon' => 'fa-book-open', 'label' => 'Publications & IP', 'locked' => false],
+    ],
     'System' => [
         ['slug' => 'security-settings', 'href' => BASE_URL . '/account/module-security.php?module=student_portal', 'icon' => 'fa-shield-alt', 'label' => 'Security Settings', 'locked' => false],
     ],
@@ -194,9 +217,6 @@ if ($studentHasResearchGroup && !isset($studentNavGroups['Research Development']
 }
 
 $facultyAccountNavGroups = [
-    'Dashboard' => [
-        ['slug' => '', 'href' => BASE_URL . '/modules/faculty/index.php', 'icon' => 'fa-th-large', 'label' => 'Overview'],
-    ],
     'Approved Research' => [
         ['slug' => 'approved-research', 'href' => BASE_URL . '/modules/faculty/pages/approved-research.php', 'icon' => 'fa-check-square', 'label' => 'View Approved Research'],
     ],
@@ -250,6 +270,61 @@ if ($roleKey === 'adviser' && isset($facultyAccountNavGroups['My Research'])) {
     unset($facultyAccountNavGroups['My Research']);
 }
 
+// ── Adviser: Core System grant pages (researchers apply to published calls) ──
+if ($roleKey === 'adviser') {
+    $coreSystemItems = [
+        ['slug' => 'grant-opportunities', 'href' => BASE_URL . '/modules/crad/pages/grant-opportunities.php', 'icon' => 'fa-hand-holding-usd', 'label' => 'Grant Opportunities'],
+        ['slug' => 'proposals-applications', 'href' => BASE_URL . '/modules/crad/pages/proposals-applications.php', 'icon' => 'fa-file-alt', 'label' => 'Proposals & Applications'],
+        ['slug' => 'revisions-requested', 'href' => BASE_URL . '/modules/crad/pages/revisions-requested.php', 'icon' => 'fa-edit', 'label' => 'Revisions Requested'],
+    ];
+    $fundedResearchItems = [
+        ['slug' => 'funded-research', 'href' => BASE_URL . '/modules/crad/pages/funded-research.php', 'icon' => 'fa-flask', 'label' => 'Funded Research'],
+        ['slug' => 'project-milestones', 'href' => BASE_URL . '/modules/crad/pages/project-milestones.php', 'icon' => 'fa-tasks', 'label' => 'Project Milestones'],
+    ];
+    $reviewWorkflowItems = grantReviewWorkflowSidebarItems('adviser');
+    $facultyInsert = [];
+    foreach ($facultyAccountNavGroups as $groupKey => $groupItems) {
+        if ($groupKey === 'System') {
+            $facultyInsert['Core System'] = $coreSystemItems;
+            $facultyInsert['Funded Research'] = $fundedResearchItems;
+            $facultyInsert['Review & Workflow'] = $reviewWorkflowItems;
+        }
+        $facultyInsert[$groupKey] = $groupItems;
+    }
+    if (!isset($facultyInsert['Core System'])) {
+        $facultyInsert['Core System'] = $coreSystemItems;
+    }
+    if (!isset($facultyInsert['Funded Research'])) {
+        $facultyInsert['Funded Research'] = $fundedResearchItems;
+    }
+    if (!isset($facultyInsert['Review & Workflow'])) {
+        $facultyInsert['Review & Workflow'] = $reviewWorkflowItems;
+    }
+    $facultyAccountNavGroups = $facultyInsert;
+}
+
+$deanFacultyBaseUrl = BASE_URL . '/modules/faculty/pages/';
+$deanGrantNavGroups = [
+    'Faculty Management' => [
+        ['slug' => 'faculty-profile', 'href' => $deanFacultyBaseUrl . 'faculty-profile.php', 'icon' => 'fa-id-badge', 'label' => 'Faculty Profile'],
+        ['slug' => 'subject-load-tracker', 'href' => $deanFacultyBaseUrl . 'subject-load-tracker.php', 'icon' => 'fa-tasks', 'label' => 'Subject Load Tracker'],
+        ['slug' => 'schedule-assignment', 'href' => $deanFacultyBaseUrl . 'schedule-assignment.php', 'icon' => 'fa-calendar-check', 'label' => 'Schedule Assignment'],
+        ['slug' => 'attendance-monitoring', 'href' => $deanFacultyBaseUrl . 'attendance-monitoring.php', 'icon' => 'fa-user-check', 'label' => 'Attendance Monitoring'],
+        ['slug' => 'leave-application-approval', 'href' => $deanFacultyBaseUrl . 'leave-application-approval.php', 'icon' => 'fa-plane-departure', 'label' => 'Leave Application & Approval'],
+        ['slug' => 'salary-grade-payroll-setup', 'href' => $deanFacultyBaseUrl . 'salary-grade-payroll-setup.php', 'icon' => 'fa-money-check-alt', 'label' => 'Salary Grade & Pay Set Up'],
+        ['slug' => 'teaching-history', 'href' => $deanFacultyBaseUrl . 'teaching-history.php', 'icon' => 'fa-history', 'label' => 'Teaching History'],
+        ['slug' => 'clearance-system', 'href' => $deanFacultyBaseUrl . 'clearance-system.php', 'icon' => 'fa-stamp', 'label' => 'Clearance System'],
+        ['slug' => 'evaluation-summary', 'href' => $deanFacultyBaseUrl . 'evaluation-summary.php', 'icon' => 'fa-star', 'label' => 'Evaluation Summary'],
+        ['slug' => 'faculty-directory', 'href' => $deanFacultyBaseUrl . 'faculty-directory.php', 'icon' => 'fa-address-book', 'label' => 'Faculty Directory'],
+    ],
+    'Review & Workflow' => grantReviewWorkflowSidebarItems('hr'),
+    'System' => [
+        ['slug' => 'security-settings', 'href' => BASE_URL . '/account/module-security.php?module=faculty', 'icon' => 'fa-shield-alt', 'label' => 'Security Settings'],
+    ],
+];
+
+$grantApprovalSidebarRoles = ['qa', 'vpaa', 'department_chair', 'research_office'];
+
 $grammarianNavGroups = [
     'Evaluation' => [
         ['slug' => 'for-evaluation', 'href' => BASE_URL . '/modules/faculty/pages/for-evaluation.php', 'icon' => 'fa-clipboard-check', 'label' => 'For Evaluation'],
@@ -274,7 +349,7 @@ $panelNavGroups = [
         ['slug' => 'availability', 'href' => BASE_URL . '/modules/faculty/pages/availability.php', 'icon' => 'fa-user-check', 'label' => 'Availability'],
     ],
     'System' => [
-        ['slug' => 'security-settings', 'href' => BASE_URL . '/account/module-security.php?module=faculty', 'icon' => 'fa-shield-alt', 'label' => 'Security Setting'],
+        ['slug' => 'security-settings', 'href' => BASE_URL . '/account/module-security.php?module=faculty', 'icon' => 'fa-shield-alt', 'label' => 'Security Settings'],
     ],
 ];
 
@@ -300,14 +375,42 @@ $researchDirectorNavGroups = [
     ],
 ];
 ?>
-<aside class="sms-sidebar <?= in_array($roleKey, ['superadmin', 'admin'], true) ? 'admin-sidebar' : '' ?> <?= ($roleKey === 'research_director' && $activeModule === 'faculty') ? 'research-director-sidebar' : '' ?>" id="smsSidebar" aria-label="Main navigation">
+<aside class="sms-sidebar <?= smsIsGrantedAdminRole($roleKey) ? 'admin-sidebar' : '' ?> admin-sidebar-collapsible <?= $sidebarMode === 'faculty_workspace' ? 'workspace-sidebar' : '' ?> <?= ($roleKey === 'research_director' && $sidebarMode === 'faculty_workspace') ? 'research-director-sidebar' : '' ?>" id="smsSidebar" aria-label="Main navigation">
     <nav class="sidebar-nav" id="smsSidebarAccordion">
         <ul class="nav flex-column">
-            <?php if ($isStudentPortal): ?>
+            <?php if ($sidebarMode === 'student'): ?>
                 <?php foreach ($studentNavGroups as $groupLabel => $groupItems): ?>
-                    <li class="nav-item sidebar-group-label">
-                        <span class="nav-link sidebar-group-heading"><?= htmlspecialchars($groupLabel) ?></span>
-                    </li>
+                    <?php
+                    $groupCollapseId = 'navGrp_' . preg_replace('/[^a-z0-9_]/', '_', strtolower((string) $groupLabel));
+                    $isGroupActive = false;
+                    $groupOverviewUrl = '';
+                    foreach ($groupItems as $groupItemProbe) {
+                        if (empty($groupItemProbe['locked']) && $groupOverviewUrl === '') {
+                            $groupOverviewUrl = (string) ($groupItemProbe['href'] ?? '');
+                        }
+                        if ($activeModule === 'student_portal' && ($activePage ?? '') === ($groupItemProbe['slug'] ?? '')) {
+                            $isGroupActive = true;
+                        }
+                    }
+                    $groupIcon = (string) ($groupItems[0]['icon'] ?? 'fa-folder');
+                    ?>
+                    <li class="nav-item admin-module-item">
+                        <button type="button"
+                                class="nav-link sidebar-parent admin-module-toggle <?= $isGroupActive ? 'active' : '' ?>"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#<?= htmlspecialchars($groupCollapseId) ?>"
+                                aria-expanded="<?= $isGroupActive ? 'true' : 'false' ?>"
+                                aria-controls="<?= htmlspecialchars($groupCollapseId) ?>"
+                                data-overview-url="<?= htmlspecialchars($groupOverviewUrl) ?>"
+                                data-title="<?= htmlspecialchars((string) $groupLabel) ?>"
+                                title="<?= htmlspecialchars((string) $groupLabel) ?>">
+                            <?= smsIcon($groupIcon, ['aria-hidden' => 'true']) ?>
+                            <span><?= htmlspecialchars((string) $groupLabel) ?></span>
+                            <?= smsIcon('chevron-down', ['class' => 'sidebar-chevron ms-auto', 'aria-hidden' => 'true']) ?>
+                        </button>
+                        <div class="collapse admin-module-body sidebar-submenu <?= $isGroupActive ? 'show' : '' ?>"
+                             id="<?= htmlspecialchars($groupCollapseId) ?>">
+                            <ul class="nav flex-column">
                     <?php foreach ($groupItems as $item): ?>
                         <?php
                         $isLocked  = !empty($item['locked']);
@@ -320,8 +423,8 @@ $researchDirectorNavGroups = [
                                       data-title="<?= htmlspecialchars($item['label']) ?> (Locked)"
                                       title="<?= htmlspecialchars($item['label']) ?> — Pay Research Forum to unlock"
                                       style="cursor:not-allowed;opacity:0.5;">
-                                    <i class="fas fa-lock me-1" aria-hidden="true" style="font-size:0.75rem;"></i>
-                                    <i class="fas <?= htmlspecialchars($item['icon']) ?>" aria-hidden="true"></i>
+                                    <?= smsIcon('lock', ['class' => 'me-1', 'aria-hidden' => 'true', 'style' => 'font-size:0.75rem;']) ?>
+                                    <?= smsIcon($item['icon'], ['aria-hidden' => 'true']) ?>
                                     <span><?= htmlspecialchars($item['label']) ?></span>
                                 </span>
                             <?php else: ?>
@@ -329,15 +432,18 @@ $researchDirectorNavGroups = [
                                    href="<?= htmlspecialchars($item['href']) ?>"
                                    data-title="<?= htmlspecialchars($item['label']) ?>"
                                    title="<?= htmlspecialchars($item['label']) ?>">
-                                    <i class="fas <?= htmlspecialchars($item['icon']) ?>" aria-hidden="true"></i>
+                                    <?= smsIcon($item['icon'], ['aria-hidden' => 'true']) ?>
                                     <span><?= htmlspecialchars($item['label']) ?></span>
                                 </a>
                             <?php endif; ?>
                         </li>
                     <?php endforeach; ?>
+                            </ul>
+                        </div>
+                    </li>
                 <?php endforeach; ?>
 
-            <?php elseif (in_array($roleKey, ['adviser', 'research_director', 'grammarian', 'panel'], true) && $activeModule === 'faculty'): ?>
+            <?php elseif ($sidebarMode === 'faculty_workspace'): ?>
                 <?php
                 $accountNavGroups = $facultyAccountNavGroups;
                 if ($roleKey === 'research_director') {
@@ -346,157 +452,341 @@ $researchDirectorNavGroups = [
                     $accountNavGroups = $grammarianNavGroups;
                 } elseif ($roleKey === 'panel') {
                     $accountNavGroups = $panelNavGroups;
+                } elseif ($roleKey === 'hr') {
+                    $accountNavGroups = $deanGrantNavGroups;
                 }
+                $facultyWorkspaceFirstGroup = true;
                 ?>
+                <li class="nav-item sidebar-home-item">
+                    <a class="nav-link sidebar-home-link <?= $roleHomeActive ? 'active' : '' ?>"
+                       href="<?= htmlspecialchars($roleHomeUrl) ?>"
+                       data-overview-url="<?= htmlspecialchars($roleHomeUrl) ?>"
+                       data-title="<?= htmlspecialchars($roleHomeLabel) ?>"
+                       title="<?= htmlspecialchars($roleHomeLabel) ?>">
+                        <?= smsIcon('home', ['aria-hidden' => 'true']) ?>
+                        <span><?= htmlspecialchars($roleHomeLabel) ?></span>
+                    </a>
+                </li>
                 <?php foreach ($accountNavGroups as $groupLabel => $groupItems): ?>
-                    <li class="nav-item sidebar-group-label">
-                        <span class="nav-link sidebar-group-heading"><?= htmlspecialchars($groupLabel) ?></span>
-                    </li>
+                    <?php
+                    $groupCollapseId = 'navGrp_' . preg_replace('/[^a-z0-9_]/', '_', strtolower((string) $groupLabel));
+                    $isGroupActive = false;
+                    $groupOverviewUrl = '';
+                    foreach ($groupItems as $groupItemProbe) {
+                        if ($groupOverviewUrl === '') {
+                            $groupOverviewUrl = (string) ($groupItemProbe['href'] ?? '');
+                        }
+                        if (($activePage ?? '') === ($groupItemProbe['slug'] ?? '')) {
+                            $isGroupActive = true;
+                        }
+                    }
+                    if ($facultyWorkspaceFirstGroup) {
+                        $facultyWorkspaceFirstGroup = false;
+                    }
+                    $groupIcon = (string) ($groupItems[0]['icon'] ?? 'fa-folder');
+                    ?>
+                    <li class="nav-item admin-module-item">
+                        <button type="button"
+                                class="nav-link sidebar-parent admin-module-toggle <?= $isGroupActive ? 'active' : '' ?>"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#<?= htmlspecialchars($groupCollapseId) ?>"
+                                aria-expanded="<?= $isGroupActive ? 'true' : 'false' ?>"
+                                aria-controls="<?= htmlspecialchars($groupCollapseId) ?>"
+                                data-overview-url="<?= htmlspecialchars($groupOverviewUrl) ?>"
+                                data-title="<?= htmlspecialchars((string) $groupLabel) ?>"
+                                title="<?= htmlspecialchars((string) $groupLabel) ?>">
+                            <?= smsIcon($groupIcon, ['aria-hidden' => 'true']) ?>
+                            <span><?= htmlspecialchars((string) $groupLabel) ?></span>
+                            <?= smsIcon('chevron-down', ['class' => 'sidebar-chevron ms-auto', 'aria-hidden' => 'true']) ?>
+                        </button>
+                        <div class="collapse admin-module-body sidebar-submenu <?= $isGroupActive ? 'show' : '' ?>"
+                             id="<?= htmlspecialchars($groupCollapseId) ?>">
+                            <ul class="nav flex-column">
                     <?php foreach ($groupItems as $item): ?>
-                        <?php $linkClass = ($activeModule === 'faculty' && $activePage === $item['slug']) ? 'active' : ''; ?>
+                        <?php $linkClass = ($activePage === $item['slug']) ? 'active' : ''; ?>
                         <li class="nav-item">
                             <a class="nav-link sidebar-sub <?= $linkClass ?>"
                                href="<?= htmlspecialchars($item['href']) ?>"
                                data-title="<?= htmlspecialchars($item['label']) ?>"
                                title="<?= htmlspecialchars($item['label']) ?>">
-                                <i class="fas <?= htmlspecialchars($item['icon']) ?>" aria-hidden="true"></i>
+                                <?= smsIcon($item['icon'], ['aria-hidden' => 'true']) ?>
                                 <span><?= htmlspecialchars($item['label']) ?></span>
                             </a>
                         </li>
                     <?php endforeach; ?>
+                            </ul>
+                        </div>
+                    </li>
                 <?php endforeach; ?>
 
             <?php else: ?>
-                <li class="nav-item sidebar-group-label">
-                    <span class="nav-link sidebar-group-heading">Dashboard</span>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link sidebar-sub <?= $activeModule === 'dashboard' ? 'active' : '' ?>"
+                <?php if ($showMainDashboard): ?>
+                <li class="nav-item sidebar-home-item">
+                    <a class="nav-link sidebar-home-link <?= $onDashboard ? 'active' : '' ?>"
                        href="<?= BASE_URL ?>/dashboard/index.php"
-                       data-title="Overview"
-                       title="Overview">
-                        <i class="fas fa-th-large" aria-hidden="true"></i>
-                        <span>Overview</span>
+                       data-overview-url="<?= BASE_URL ?>/dashboard/index.php"
+                       data-title="Dashboard"
+                       title="Dashboard">
+                        <?= smsIcon('layout-grid', ['aria-hidden' => 'true']) ?>
+                        <span>Dashboard</span>
                     </a>
                 </li>
+                <?php else: ?>
+                <li class="nav-item sidebar-home-item">
+                    <a class="nav-link sidebar-home-link <?= $roleHomeActive ? 'active' : '' ?>"
+                       href="<?= htmlspecialchars($roleHomeUrl) ?>"
+                       data-overview-url="<?= htmlspecialchars($roleHomeUrl) ?>"
+                       data-title="<?= htmlspecialchars($roleHomeLabel) ?>"
+                       title="<?= htmlspecialchars($roleHomeLabel) ?>">
+                        <?= smsIcon('home', ['aria-hidden' => 'true']) ?>
+                        <span><?= htmlspecialchars($roleHomeLabel) ?></span>
+                    </a>
+                </li>
+                <?php endif; ?>
+
+                <?php if ($sidebarMode === 'admin_modules' && in_array($roleKey, $grantApprovalSidebarRoles, true)): ?>
+                    <?php
+                    $grantApprovalSidebarItems = grantReviewWorkflowSidebarItems($roleKey);
+                    $gawActive = in_array(($activePage ?? ''), ['approval-workflows', 'reviewer-evaluation'], true);
+                    $gawCollapseId = 'navGrp_grant_approval_workflow';
+                    $gawOverviewUrl = $grantApprovalSidebarItems[0]['href'];
+                    ?>
+                    <li class="nav-item admin-module-item">
+                        <button type="button"
+                                class="nav-link sidebar-parent admin-module-toggle <?= $gawActive ? 'active' : '' ?>"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#<?= htmlspecialchars($gawCollapseId) ?>"
+                                aria-expanded="<?= $gawActive ? 'true' : 'false' ?>"
+                                aria-controls="<?= htmlspecialchars($gawCollapseId) ?>"
+                                data-overview-url="<?= htmlspecialchars($gawOverviewUrl) ?>"
+                                data-title="Review &amp; Workflow"
+                                title="Review &amp; Workflow">
+                            <?= smsIcon('clipboard-check', ['aria-hidden' => 'true']) ?>
+                            <span>Review &amp; Workflow</span>
+                            <?= smsIcon('chevron-down', ['class' => 'sidebar-chevron ms-auto', 'aria-hidden' => 'true']) ?>
+                        </button>
+                        <div class="collapse admin-module-body sidebar-submenu <?= $gawActive ? 'show' : '' ?>"
+                             id="<?= htmlspecialchars($gawCollapseId) ?>">
+                            <ul class="nav flex-column">
+                                <?php foreach ($grantApprovalSidebarItems as $gawItem): ?>
+                                <?php if ($roleKey === 'finance' && ($gawItem['slug'] ?? '') === 'reviewer-evaluation') { continue; } ?>
+                                <li class="nav-item">
+                                    <a class="nav-link sidebar-sub <?= (($activePage ?? '') === $gawItem['slug']) ? 'active' : '' ?>"
+                                       href="<?= htmlspecialchars($gawItem['href']) ?>"
+                                       data-title="<?= htmlspecialchars($gawItem['label']) ?>"
+                                       title="<?= htmlspecialchars($gawItem['label']) ?>">
+                                        <?= smsIcon($gawItem['icon'], ['aria-hidden' => 'true']) ?>
+                                        <span><?= htmlspecialchars($gawItem['label']) ?></span>
+                                    </a>
+                                </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        </div>
+                    </li>
+                <?php endif; ?>
 
                 <?php foreach ($visibleModules as $navModuleKey => $module): ?>
                     <?php
-                    $isModuleActive = ($activeModule === $navModuleKey);
-                    $moduleFolder = $navModuleKey === 'student_portal' ? 'student-portal' : $navModuleKey;
+                    $isModuleActive = ($highlightModule === $navModuleKey);
+                    $moduleFolder = match ($navModuleKey) {
+                        'student_portal' => 'student-portal',
+                        'crad_grant'     => 'crad',
+                        default          => $navModuleKey,
+                    };
                     $overviewUrl = BASE_URL . '/modules/' . $moduleFolder . '/index.php';
                     $moduleInMaint = smsIsModuleInMaintenance((string) $navModuleKey);
-                    ?>
-                    <li class="nav-item sidebar-group-label">
-                        <span class="nav-link sidebar-group-heading">
-                            <?= htmlspecialchars($module['label']) ?>
-                            <?php if ($moduleInMaint): ?>
-                                <span class="badge text-bg-warning ms-1" style="font-size:0.62rem;">Maint</span>
-                            <?php endif; ?>
-                        </span>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link sidebar-sub overview-link <?= ($isModuleActive && $activePage === '') ? 'active' : '' ?>"
-                           href="<?= htmlspecialchars($overviewUrl) ?>">
-                            <i class="fas fa-th-large" aria-hidden="true"></i>
-                            <span>Overview</span>
-                        </a>
-                    </li>
-                    <?php
-                    // Check if module has grouped sidebar sections
+                    $moduleIcon = (string) ($module['icon'] ?? 'fa-folder');
+                    $moduleCollapseId = 'adminMod_' . preg_replace('/[^a-z0-9_]/', '_', (string) $navModuleKey);
                     $hasGroups = !empty($module['groups']) && is_array($module['groups']);
-                    if ($hasGroups):
-                        // Build a lookup map from slug to page title
-                        $pageTitles = [];
-                        foreach ($module['pages'] as $p) {
-                            $pageTitles[$p['slug']] = $p['title'];
+                    $activeGroupLabel = null;
+                    if ($hasGroups && $isModuleActive && $activePage !== '') {
+                        foreach ($module['groups'] as $groupLabel => $groupSlugs) {
+                            if (in_array($activePage, $groupSlugs, true)) {
+                                $activeGroupLabel = (string) $groupLabel;
+                                break;
+                            }
                         }
-                        foreach ($module['groups'] as $groupLabel => $groupSlugs):
-                            $reportSidebarItems = null;
-                            if ($navModuleKey === 'crad' && $groupLabel === 'Reports') {
-                                $reportSidebarItems = [
-                                    ['slug' => 'capstone-analytics', 'label' => 'Capstone Analytics', 'icon' => 'fa-chart-pie'],
-                                    ['slug' => 'progress-reports', 'label' => 'Progress Reports', 'icon' => 'fa-chart-line'],
-                                    ['slug' => 'defense-reports', 'label' => 'Defense Reports', 'icon' => 'fa-gavel'],
-                                    ['slug' => 'adviser-reports', 'label' => 'Adviser Reports', 'icon' => 'fa-user-tie'],
-                                    ['slug' => 'completion-reports', 'label' => 'Completion Reports', 'icon' => 'fa-check-double'],
-                                    ['slug' => 'publication-reports', 'label' => 'Publication Reports', 'icon' => 'fa-book-open'],
-                                ];
-                            }
+                    }
+                    $pageTitles = [];
+                    foreach ($module['pages'] as $p) {
+                        $pageTitles[$p['slug']] = $p['title'];
+                    }
+                    $showModuleOverview = empty($module['hide_overview']);
+                    $onModuleOverview = ($activeModule === $navModuleKey && $activePage === '');
+                    $showModuleGroups = $hasGroups;
                     ?>
-                        <li class="nav-item sidebar-group-label">
-                            <span class="nav-link sidebar-group-heading"><?= htmlspecialchars($groupLabel) ?></span>
-                        </li>
-                        <?php foreach (($reportSidebarItems ?? array_map(static fn(string $slug): array => ['slug' => $slug], $groupSlugs)) as $sidebarItem): ?>
-                            <?php
-                            $slug = (string) ($sidebarItem['slug'] ?? '');
-                            if ($reportSidebarItems !== null) {
-                                $sidebarPageTitle = (string) ($sidebarItem['label'] ?? 'Report');
-                                $pageHref = BASE_URL . '/modules/crad/pages/research-analytics-reporting.php?report=' . rawurlencode($slug);
-                                $pageIcon = (string) ($sidebarItem['icon'] ?? 'fa-chart-bar');
-                                $isPageActive = $isModuleActive && $activePage === 'research-analytics-reporting' && (string) ($_GET['report'] ?? 'capstone-analytics') === $slug;
-                            } else {
-                            if (!isset($pageTitles[$slug])) { continue; }
-                            // CRAD Officer: hide Research Defense Scheduling from sidebar only.
-                            // The page, its files, database tables, and APIs are NOT removed.
-                            if ($roleKey === 'crad_officer' && $slug === 'research-defense-scheduling') { continue; }
-                            $isPageActive = ($isModuleActive && $activePage === $slug);
-                            $pageHref = BASE_URL . '/modules/' . $moduleFolder . '/pages/' . $slug . '.php';
-                            $sidebarPageTitle = $pageTitles[$slug];
-                            $pageIcon = smsNavPageIcon($slug);
-                            if ($slug === 'security-settings') {
-                                $pageHref = BASE_URL . '/account/module-security.php?module=' . urlencode((string) $navModuleKey);
-                            }
-                            }
-                            ?>
-                            <li class="nav-item">
-                                <a class="nav-link sidebar-sub <?= $isPageActive ? 'active' : '' ?>"
-                                   href="<?= htmlspecialchars($pageHref) ?>"
-                                   data-title="<?= htmlspecialchars($sidebarPageTitle) ?>"
-                                   title="<?= htmlspecialchars($sidebarPageTitle) ?>">
-                                    <i class="fas <?= htmlspecialchars($pageIcon) ?>" aria-hidden="true"></i>
-                                    <span><?= htmlspecialchars($sidebarPageTitle) ?></span>
-                                </a>
-                            </li>
-                        <?php endforeach; ?>
-                    <?php endforeach; ?>
-                    <?php else: ?>
-                        <?php foreach ($module['pages'] as $page): ?>
-                            <?php
-                            $isPageActive = ($isModuleActive && $activePage === $page['slug']);
-                            $pageHref = BASE_URL . '/modules/' . $moduleFolder . '/pages/' . $page['slug'] . '.php';
-                            // Module Security: keep CRAD/etc. focus when already inside a module.
-                            if ($navModuleKey === 'user-management' && $page['slug'] === 'module-security') {
-                                $secFocus = (string) ($_SESSION['um_sec_focus'] ?? '');
-                                if ($secFocus !== '' && ($activePage ?? '') === 'module-security' && empty($_GET['picker'])) {
-                                    $pageHref .= '?focus=' . rawurlencode($secFocus);
-                                } else {
-                                    $pageHref .= '?picker=1';
-                                }
-                            }
-                            ?>
-                            <li class="nav-item">
-                                <a class="nav-link sidebar-sub <?= $isPageActive ? 'active' : '' ?>"
-                                   href="<?= htmlspecialchars($pageHref) ?>"
-                                   data-title="<?= htmlspecialchars($page['title']) ?>"
-                                   title="<?= htmlspecialchars($page['title']) ?>">
-                                    <i class="fas <?= htmlspecialchars(smsNavPageIcon($page['slug'])) ?>" aria-hidden="true"></i>
-                                    <span><?= htmlspecialchars($page['title']) ?></span>
-                                </a>
-                            </li>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
+
+                    <li class="nav-item admin-module-item">
+                        <button type="button"
+                                class="nav-link sidebar-parent admin-module-toggle <?= $isModuleActive ? 'active' : '' ?>"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#<?= htmlspecialchars($moduleCollapseId) ?>"
+                                aria-expanded="<?= $isModuleActive ? 'true' : 'false' ?>"
+                                aria-controls="<?= htmlspecialchars($moduleCollapseId) ?>"
+                                data-overview-url="<?= htmlspecialchars($overviewUrl) ?>"
+                                data-title="<?= htmlspecialchars((string) $module['label']) ?>"
+                                title="<?= htmlspecialchars((string) $module['label']) ?>">
+                            <?= smsIcon($moduleIcon, ['aria-hidden' => 'true']) ?>
+                            <span><?= htmlspecialchars((string) $module['label']) ?></span>
+                            <?php if ($moduleInMaint): ?>
+                                <span class="badge text-bg-warning ms-1" style="font-size:0.58rem;">Maint</span>
+                            <?php endif; ?>
+                            <?= smsIcon('chevron-down', ['class' => 'sidebar-chevron ms-auto', 'aria-hidden' => 'true']) ?>
+                        </button>
+                        <div class="collapse admin-module-body sidebar-submenu <?= $isModuleActive ? 'show' : '' ?>"
+                             id="<?= htmlspecialchars($moduleCollapseId) ?>">
+                            <ul class="nav flex-column">
+                                <?php if ($showModuleOverview): ?>
+                                <li class="nav-item">
+                                    <a class="nav-link sidebar-sub overview-link <?= $onModuleOverview ? 'active' : '' ?>"
+                                       href="<?= htmlspecialchars($overviewUrl) ?>"
+                                       data-title="Overview"
+                                       title="Overview">
+                                        <?= smsIcon('layout-grid', ['aria-hidden' => 'true']) ?>
+                                        <span>Overview</span>
+                                    </a>
+                                </li>
+                                <?php endif; ?>
+                                <?php if ($showModuleGroups): ?>
+                                    <?php foreach ($module['groups'] as $groupLabel => $groupSlugs): ?>
+                                        <?php
+                                        $groupCollapseId = $moduleCollapseId . '_grp_' . preg_replace('/[^a-z0-9_]/', '_', strtolower((string) $groupLabel));
+                                        $isGroupActive = ($activeGroupLabel === (string) $groupLabel);
+                                        $reportSidebarItems = null;
+                                        $outputsSidebarItems = null;
+                                        if ($navModuleKey === 'crad' && $groupLabel === 'Reports') {
+                                            $reportSidebarItems = [
+                                                ['slug' => 'capstone-analytics', 'label' => 'Capstone Analytics', 'icon' => 'fa-chart-pie'],
+                                                ['slug' => 'progress-reports', 'label' => 'Progress Reports', 'icon' => 'fa-chart-line'],
+                                                ['slug' => 'defense-reports', 'label' => 'Defense Reports', 'icon' => 'fa-gavel'],
+                                                ['slug' => 'adviser-reports', 'label' => 'Adviser Reports', 'icon' => 'fa-user-tie'],
+                                                ['slug' => 'completion-reports', 'label' => 'Completion Reports', 'icon' => 'fa-check-double'],
+                                                ['slug' => 'publication-reports', 'label' => 'Publication Reports', 'icon' => 'fa-book-open'],
+                                            ];
+                                        }
+                                        if (in_array($navModuleKey, ['crad', 'crad_grant'], true) && $groupLabel === 'Outputs & Records') {
+                                            $outputsSidebarItems = [
+                                                ['slug' => 'publications-ip', 'label' => 'Publications & IP', 'icon' => 'fa-book-open', 'badge_key' => 'pending-verify'],
+                                                ['slug' => 'document-repository', 'label' => 'Document Repository', 'icon' => 'fa-archive', 'badge_key' => 'pending-archive'],
+                                            ];
+                                        }
+                                        $customSidebarItems = $outputsSidebarItems ?? $reportSidebarItems;
+                                        ?>
+                                        <li class="nav-item admin-subgroup-item">
+                                            <button type="button"
+                                                    class="nav-link admin-subgroup-toggle <?= $isGroupActive ? 'active' : '' ?>"
+                                                    data-admin-subgroup="#<?= htmlspecialchars($groupCollapseId) ?>"
+                                                    aria-expanded="<?= $isGroupActive ? 'true' : 'false' ?>"
+                                                    aria-controls="<?= htmlspecialchars($groupCollapseId) ?>">
+                                                <span><?= htmlspecialchars((string) $groupLabel) ?></span>
+                                                <?= smsIcon('chevron-down', ['class' => 'sidebar-chevron ms-auto', 'aria-hidden' => 'true']) ?>
+                                            </button>
+                                            <div class="admin-subgroup-body <?= $isGroupActive ? 'show' : '' ?>"
+                                                 id="<?= htmlspecialchars($groupCollapseId) ?>">
+                                                <ul class="nav flex-column">
+                                                    <?php foreach (($customSidebarItems ?? array_map(static fn(string $slug): array => ['slug' => $slug], $groupSlugs)) as $sidebarItem): ?>
+                                                        <?php
+                                                        $slug = (string) ($sidebarItem['slug'] ?? '');
+                                                        if ($reportSidebarItems !== null) {
+                                                            $sidebarPageTitle = (string) ($sidebarItem['label'] ?? 'Report');
+                                                            $pageHref = BASE_URL . '/modules/crad/pages/research-analytics-reporting.php?report=' . rawurlencode($slug);
+                                                            $pageIcon = (string) ($sidebarItem['icon'] ?? 'fa-chart-bar');
+                                                            $isPageActive = $isModuleActive && $activePage === 'research-analytics-reporting' && (string) ($_GET['report'] ?? 'capstone-analytics') === $slug;
+                                                        } elseif ($outputsSidebarItems !== null) {
+                                                            if (!isset($pageTitles[$slug])) { continue; }
+                                                            $isPageActive = ($isModuleActive && $activePage === $slug);
+                                                            $pageHref = BASE_URL . '/modules/' . $moduleFolder . '/pages/' . $slug . '.php';
+                                                            $sidebarPageTitle = (string) ($sidebarItem['label'] ?? $pageTitles[$slug]);
+                                                            $pageIcon = (string) ($sidebarItem['icon'] ?? smsNavPageIcon($slug));
+                                                        } else {
+                                                            if (!isset($pageTitles[$slug])) { continue; }
+                                                            if ($roleKey === 'crad_officer' && in_array($slug, ['research-defense-scheduling', 'reviewer-evaluation'], true)) { continue; }
+                                                            $isPageActive = ($isModuleActive && $activePage === $slug);
+                                                            $pageHref = BASE_URL . '/modules/' . $moduleFolder . '/pages/' . $slug . '.php';
+                                                            $sidebarPageTitle = $pageTitles[$slug];
+                                                            $pageIcon = smsNavPageIcon($slug);
+                                                            if ($slug === 'security-settings') {
+                                                                $pageHref = BASE_URL . '/account/module-security.php?module=' . urlencode((string) $navModuleKey);
+                                                            }
+                                                        }
+                                                        ?>
+                                                        <li class="nav-item">
+                                                            <a class="nav-link sidebar-sub <?= $isPageActive ? 'active' : '' ?>"
+                                                               href="<?= htmlspecialchars($pageHref) ?>"
+                                                               data-title="<?= htmlspecialchars($sidebarPageTitle) ?>"
+                                                               title="<?= htmlspecialchars($sidebarPageTitle) ?>">
+                                                                <?= smsIcon($pageIcon, ['aria-hidden' => 'true']) ?>
+                                                                <span><?= htmlspecialchars($sidebarPageTitle) ?></span>
+                                                                <?php if ($outputsSidebarItems !== null && !empty($sidebarItem['badge_key'])): ?>
+                                                                <span class="sidebar-outputs-badge" data-outputs-badge="<?= htmlspecialchars((string) $sidebarItem['badge_key']) ?>" hidden></span>
+                                                                <?php endif; ?>
+                                                            </a>
+                                                        </li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                            </div>
+                                        </li>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <?php foreach ($module['pages'] as $page): ?>
+                                        <?php
+                                        $isPageActive = ($isModuleActive && $activePage === $page['slug']);
+                                        $pageHref = BASE_URL . '/modules/' . $moduleFolder . '/pages/' . $page['slug'] . '.php';
+                                        if ($navModuleKey === 'user-management' && $page['slug'] === 'module-security') {
+                                            $secFocus = (string) ($_SESSION['um_sec_focus'] ?? '');
+                                            if ($secFocus !== '' && ($activePage ?? '') === 'module-security' && empty($_GET['picker'])) {
+                                                $pageHref .= '?focus=' . rawurlencode($secFocus);
+                                            } else {
+                                                $pageHref .= '?picker=1';
+                                            }
+                                        }
+                                        ?>
+                                        <li class="nav-item">
+                                            <a class="nav-link sidebar-sub <?= $isPageActive ? 'active' : '' ?>"
+                                               href="<?= htmlspecialchars($pageHref) ?>"
+                                               data-title="<?= htmlspecialchars($page['title']) ?>"
+                                               title="<?= htmlspecialchars($page['title']) ?>">
+                                                <?= smsIcon(smsNavPageIcon($page['slug']), ['aria-hidden' => 'true']) ?>
+                                                <span><?= htmlspecialchars($page['title']) ?></span>
+                                            </a>
+                                        </li>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </ul>
+                        </div>
+                    </li>
                 <?php endforeach; ?>
                 <?php if ($securitySettingsModule !== '' && !$moduleHasSecuritySettingsPage): ?>
-                    <li class="nav-item sidebar-group-label">
-                        <span class="nav-link sidebar-group-heading">System</span>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link sidebar-sub <?= ($activePage === 'security-settings') ? 'active' : '' ?>"
-                           href="<?= BASE_URL ?>/account/module-security.php?module=<?= urlencode($securitySettingsModule) ?>">
-                            <i class="fas fa-shield-alt" aria-hidden="true"></i>
-                            <span>Security Settings</span>
-                        </a>
+                    <?php $secSettingsActive = ($activePage === 'security-settings'); ?>
+                    <?php $secSettingsHref = BASE_URL . '/account/module-security.php?module=' . urlencode($securitySettingsModule); ?>
+                    <li class="nav-item admin-module-item">
+                        <button type="button"
+                                class="nav-link sidebar-parent admin-module-toggle <?= $secSettingsActive ? 'active' : '' ?>"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#navGrp_system"
+                                aria-expanded="<?= $secSettingsActive ? 'true' : 'false' ?>"
+                                aria-controls="navGrp_system"
+                                data-overview-url="<?= htmlspecialchars($secSettingsHref) ?>"
+                                data-title="System"
+                                title="System">
+                            <?= smsIcon('shield', ['aria-hidden' => 'true']) ?>
+                            <span>System</span>
+                            <?= smsIcon('chevron-down', ['class' => 'sidebar-chevron ms-auto', 'aria-hidden' => 'true']) ?>
+                        </button>
+                        <div class="collapse admin-module-body sidebar-submenu <?= $secSettingsActive ? 'show' : '' ?>"
+                             id="navGrp_system">
+                            <ul class="nav flex-column">
+                                <li class="nav-item">
+                                    <a class="nav-link sidebar-sub <?= $secSettingsActive ? 'active' : '' ?>"
+                                       href="<?= htmlspecialchars($secSettingsHref) ?>"
+                                       data-title="Security Settings"
+                                       title="Security Settings">
+                                        <?= smsIcon('shield', ['aria-hidden' => 'true']) ?>
+                                        <span>Security Settings</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
                     </li>
                 <?php endif; ?>
                 <?php unset($navModuleKey, $module, $page, $isModuleActive, $overviewUrl, $pageHref, $isPageActive, $secFocus); ?>            <?php endif; ?>

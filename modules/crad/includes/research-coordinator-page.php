@@ -403,15 +403,15 @@ if ($rcPageSlug === 'send-notifications') {
             <div class="rcsn-sync" data-rcsn-sync>Syncing...</div>
         </header>
         <section class="rcsn-stats">
-            <div class="rcsn-stat"><i class="fas fa-check-circle"></i><div><span>Ready Assignments</span><strong data-rcsn-stat="assignments"><?= (int) $notificationStats['assignments'] ?></strong></div></div>
-            <div class="rcsn-stat"><i class="fas fa-flask"></i><div><span>Research Groups</span><strong data-rcsn-stat="students"><?= (int) $notificationStats['students'] ?></strong></div></div>
-            <div class="rcsn-stat"><i class="fas fa-user-tie"></i><div><span>Advisers</span><strong data-rcsn-stat="advisers"><?= (int) $notificationStats['advisers'] ?></strong></div></div>
+            <div class="rcsn-stat"><?= smsIcon('check-circle') ?><div><span>Ready Assignments</span><strong data-rcsn-stat="assignments"><?= (int) $notificationStats['assignments'] ?></strong></div></div>
+            <div class="rcsn-stat"><?= smsIcon('flask') ?><div><span>Research Groups</span><strong data-rcsn-stat="students"><?= (int) $notificationStats['students'] ?></strong></div></div>
+            <div class="rcsn-stat"><?= smsIcon('user-tie') ?><div><span>Advisers</span><strong data-rcsn-stat="advisers"><?= (int) $notificationStats['advisers'] ?></strong></div></div>
         </section>
         <div class="rcsn-notice" data-rcsn-notice></div>
         <section class="rcsn-card">
             <div class="rcsn-record-head">
                 <div>
-                    <h2 class="rcsn-record-title"><i class="fas fa-paper-plane"></i>Assigned Adviser Notification List <span class="rcsn-count" data-rcsn-record-badge><?= count($notificationRows) ?></span></h2>
+                    <h2 class="rcsn-record-title"><?= smsIcon('paper-plane') ?>Assigned Adviser Notification List <span class="rcsn-count" data-rcsn-record-badge><?= count($notificationRows) ?></span></h2>
                     <span class="rcsn-record-total" data-rcsn-record-count><?= count($notificationRows) ?> record<?= count($notificationRows) === 1 ? '' : 's' ?></span>
                 </div>
                 <div class="rcsn-sync" data-rcsn-record-sync>Syncing...</div>
@@ -492,7 +492,7 @@ if ($rcPageSlug === 'send-notifications') {
                     <td>${esc(row.updated || '')}</td>
                     <td>
                         <button type="button" class="rcsn-action" data-rcsn-send="${esc(row.group_number || '')}" ${row.can_send ? '' : 'disabled'}>
-                            <i class="fas ${row.is_sent ? 'fa-check' : 'fa-paper-plane'}"></i>${row.is_sent ? 'Sent' : 'Send Notification'}
+                            ${window.smsIconHtml ? window.smsIconHtml(row.is_sent ? 'check' : 'paper-plane') : ''}${row.is_sent ? 'Sent' : 'Send Notification'}
                         </button>
                     </td>
                 </tr>
@@ -504,7 +504,7 @@ if ($rcPageSlug === 'send-notifications') {
             const button = event.target.closest('[data-rcsn-send]');
             if (!button || button.disabled) return;
             button.disabled = true;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>Sending';
+            button.innerHTML = '<?= smsIcon('spinner', ['class' => 'fa-spin']) ?>Sending';
             try {
                 const form = new FormData();
                 form.append('ajax', 'send-assignment-notification');

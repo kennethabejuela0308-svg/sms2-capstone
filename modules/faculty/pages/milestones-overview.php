@@ -30,7 +30,7 @@ try {
     $tablesCheck = $crad->query("SHOW TABLES LIKE 'research_plans'")->fetch();
     if (!$tablesCheck) throw new Exception('Not installed.');
 } catch (Throwable $e) {
-    echo '<div class="alert alert-warning m-3"><i class="fas fa-exclamation-triangle me-2"></i><strong>Module Not Installed</strong></div>';
+    echo '<div class="alert alert-warning m-3">' . smsIcon('exclamation-triangle', ['class' => 'me-2']) . '<strong>Module Not Installed</strong></div>';
     require_once ROOT_PATH . '/includes/layout-end.php';
     exit;
 }
@@ -165,12 +165,12 @@ $statusMeta = [
                                         <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
                                             <?php if ($pending > 0): ?>
                                                 <span class="badge bg-warning text-dark" style="font-size:0.7rem;font-weight:800;">
-                                                    <i class="fas fa-clock me-1"></i><?= $pending ?> Pending
+                                                    <?= smsIcon('clock', ['class' => 'me-1']) ?><?= $pending ?> Pending
                                                 </span>
                                             <?php endif; ?>
                                             <?php if ($isOverdue): ?>
                                                 <span class="badge bg-danger" style="font-size:0.7rem;font-weight:800;">
-                                                    <i class="fas fa-exclamation-circle me-1"></i>Overdue
+                                                    <?= smsIcon('exclamation-circle', ['class' => 'me-1']) ?>Overdue
                                                 </span>
                                             <?php endif; ?>
                                         </div>
@@ -192,7 +192,7 @@ $statusMeta = [
                                 <!-- Status pill -->
                                 <div class="mb-3">
                                     <span class="rm-status-pill" style="background:<?= $sc['bg'] ?>;color:<?= $sc['color'] ?>;" data-milestone-status>
-                                        <i class="fas fa-<?= $sc['icon'] ?>"></i>
+                                        <?= smsIcon($sc['icon']) ?>
                                         <?= htmlspecialchars($status) ?>
                                     </span>
                                 </div>
@@ -202,14 +202,14 @@ $statusMeta = [
                                 <div class="rm-milestone-dates">
                                     <?php if ($startDate): ?>
                                         <div>
-                                            <div class="rm-milestone-date-item-label"><i class="fas fa-play me-1"></i>Start</div>
+                                            <div class="rm-milestone-date-item-label"><?= smsIcon('play', ['class' => 'me-1']) ?>Start</div>
                                             <div class="rm-milestone-date-item-value"><?= date('M d, Y', strtotime((string) $startDate)) ?></div>
                                         </div>
                                     <?php endif; ?>
                                     <?php if ($targetDate): ?>
                                         <div>
                                             <div class="rm-milestone-date-item-label" style="color:<?= $isOverdue ? '#ef4444' : '' ?>">
-                                                <i class="fas fa-flag-checkered me-1"></i>Target
+                                                <?= smsIcon('flag-checkered', ['class' => 'me-1']) ?>Target
                                             </div>
                                             <div class="rm-milestone-date-item-value" style="color:<?= $isOverdue ? '#ef4444' : '' ?>">
                                                 <?= date('M d, Y', strtotime((string) $targetDate)) ?>
@@ -219,7 +219,7 @@ $statusMeta = [
                                     <?php if ($completedAt): ?>
                                         <div class="<?= ($startDate || $targetDate) ? '' : '' ?>" style="grid-column:1/-1;">
                                             <div class="rm-milestone-date-item-label" style="color:#10b981;">
-                                                <i class="fas fa-check-circle me-1"></i>Completed
+                                                <?= smsIcon('check-circle', ['class' => 'me-1']) ?>Completed
                                             </div>
                                             <div class="rm-milestone-date-item-value" style="color:#10b981;">
                                                 <?= date('M d, Y', strtotime((string) $completedAt)) ?>
@@ -247,7 +247,7 @@ $statusMeta = [
                                 <?php if (!empty($ms['researcher_notes'])): ?>
                                     <div class="rm-note-block mb-2" style="background:#eff6ff;border-left:3px solid #3b82f6;color:#1e40af;">
                                         <div style="font-size:0.68rem;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;color:#3b82f6;">
-                                            <i class="fas fa-user me-1"></i>Researcher Notes
+                                            <?= smsIcon('user', ['class' => 'me-1']) ?>Researcher Notes
                                         </div>
                                         <?= nl2br(htmlspecialchars($ms['researcher_notes'])) ?>
                                     </div>
@@ -256,7 +256,7 @@ $statusMeta = [
                                 <?php if (!empty($ms['adviser_remarks'])): ?>
                                     <div class="rm-note-block mb-2" style="background:#f0fdf4;border-left:3px solid #10b981;color:#065f46;">
                                         <div style="font-size:0.68rem;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;color:#10b981;">
-                                            <i class="fas fa-user-tie me-1"></i>Your Remarks
+                                            <?= smsIcon('user-tie', ['class' => 'me-1']) ?>Your Remarks
                                         </div>
                                         <?= nl2br(htmlspecialchars($ms['adviser_remarks'])) ?>
                                     </div>
@@ -268,7 +268,7 @@ $statusMeta = [
                                      <?= empty($ms['panel_remarks']) ? 'style="display:none;"' : '' ?>>
                                     <div class="rm-note-block mb-2" style="background:#ecfdf5;border-left:3px solid #059669;color:#064e3b;">
                                         <div style="font-size:0.68rem;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;color:#059669;">
-                                            <i class="fas fa-users me-1"></i>Panel Remarks
+                                            <?= smsIcon('users', ['class' => 'me-1']) ?>Panel Remarks
                                         </div>
                                         <div data-milestone-panel-remarks-text>
                                             <?= nl2br(htmlspecialchars((string) ($ms['panel_remarks'] ?? ''))) ?>
@@ -280,7 +280,7 @@ $statusMeta = [
                                 <div class="mt-auto pt-2">
                                     <a href="<?= BASE_URL ?>/modules/faculty/pages/submitted-updates.php?group=<?= urlencode($groupNumber) ?>&milestone_id=<?= $ms['id'] ?>"
                                        class="rm-primary-action" style="font-size:0.85rem;">
-                                        <i class="fas fa-eye"></i>View Updates
+                                        <?= smsIcon('eye') ?>View Updates
                                         <?php if ($pending > 0): ?>
                                             <span class="badge bg-warning text-dark ms-auto"><?= $pending ?></span>
                                         <?php endif; ?>
@@ -296,7 +296,7 @@ $statusMeta = [
         <?php else: ?>
             <div class="glass-panel">
                 <div class="glass-panel-body rm-empty">
-                    <div class="rm-empty-icon"><i class="fas fa-tasks"></i></div>
+                    <div class="rm-empty-icon"><?= smsIcon('tasks') ?></div>
                     <h6>No Milestones Found</h6>
                     <p>Milestones have not been initialized for this research group yet.</p>
                 </div>
@@ -305,7 +305,7 @@ $statusMeta = [
 
         <!-- Live refresh bar -->
         <div class="rm-refresh-bar" id="rmRefreshBar">
-            <i class="fas fa-sync-alt rm-refresh-icon" id="rmRefreshIcon"></i>
+            <?= smsIcon('sync-alt', ['class' => 'rm-refresh-icon']) ?>
             <span id="rmRefreshText">Last updated: <?= date('g:i:s A') ?></span>
         </div>
 

@@ -33,11 +33,11 @@ try {
         throw new Exception('Research Progress module not installed.');
     }
 } catch (Throwable $e) {
-    echo '<div class="alert alert-warning">
-        <i class="fas fa-exclamation-triangle me-2"></i>
-        <strong>Module Not Installed</strong><br>
-        The Research Progress module database tables are not yet installed.
-    </div>';
+    echo '<div class="alert alert-warning">'
+        . smsIcon('exclamation-triangle', ['class' => 'me-2'])
+        . '<strong>Module Not Installed</strong><br>'
+        . 'The Research Progress module database tables are not yet installed.'
+        . '</div>';
     require_once ROOT_PATH . '/includes/layout-end.php';
     exit;
 }
@@ -49,14 +49,12 @@ $studentUserId = (int) ($_SESSION['user_id'] ?? 0);
 $researchGroup = rpGetRegisteredResearchGroup($crad, $studentId, $studentUserId);
 
 if (!$researchGroup) {
-    echo '<div class="alert alert-info">
-        <i class="fas fa-info-circle me-2"></i>
-        <strong>Research Development is not yet available.</strong><br>
-        Your research group must be officially registered in the
-        Capstone Group/Student Registry before you can access this section.
-        Please ensure your title approval is fully signed and your adviser
-        and coordinator assignments are in place.
-    </div>';
+    echo '<div class="alert alert-info">'
+        . smsIcon('info-circle', ['class' => 'me-2'])
+        . '<strong>Research Development is not yet available.</strong><br>'
+        . 'Your research group must be officially registered in the Capstone Group/Student Registry before you can access this section.'
+        . ' Please ensure your title approval is fully signed and your adviser and coordinator assignments are in place.'
+        . '</div>';
     require_once ROOT_PATH . '/includes/layout-end.php';
     exit;
 }
@@ -112,15 +110,15 @@ foreach ($feedbackList as $feedback) {
                         All (<?= count($feedbackByType['all']) ?>)
                     </button>
                     <button class="btn btn-sm btn-outline-primary filter-btn" data-filter="Comment">
-                        <i class="fas fa-comment me-1"></i>
+                        <?= smsIcon('comment', ['class' => 'me-1']) ?>
                         Comments (<?= count($feedbackByType['Comment']) ?>)
                     </button>
                     <button class="btn btn-sm btn-outline-warning filter-btn" data-filter="Revision Request">
-                        <i class="fas fa-redo me-1"></i>
+                        <?= smsIcon('redo', ['class' => 'me-1']) ?>
                         Revisions (<?= count($feedbackByType['Revision Request']) ?>)
                     </button>
                     <button class="btn btn-sm btn-outline-success filter-btn" data-filter="Progress Approved">
-                        <i class="fas fa-check-circle me-1"></i>
+                        <?= smsIcon('check-circle', ['class' => 'me-1']) ?>
                         Approved (<?= count($feedbackByType['Progress Approved']) + count($feedbackByType['Approval']) ?>)
                     </button>
                 </div>
@@ -147,7 +145,7 @@ foreach ($feedbackList as $feedback) {
                                 <!-- Timeline Icon -->
                                 <div class="col-auto">
                                     <div style="width:48px;height:48px;border-radius:12px;background:<?= $config['bg'] ?>;display:flex;align-items:center;justify-content:center;">
-                                        <i class="fas <?= $config['icon'] ?>" style="color:<?= $config['color'] ?>;font-size:1.2rem;"></i>
+                                        <?= smsIcon($config['icon'], ['style' => 'color:' . $config['color'] . ';font-size:1.2rem;']) ?>
                                     </div>
                                 </div>
                                 
@@ -162,19 +160,19 @@ foreach ($feedbackList as $feedback) {
                                                 </span>
                                                 <?php if ($feedback['milestone_name']): ?>
                                                     <span class="badge bg-secondary">
-                                                        <i class="fas fa-bookmark me-1"></i>
+                                                        <?= smsIcon('bookmark', ['class' => 'me-1']) ?>
                                                         <?= htmlspecialchars($feedback['milestone_name']) ?>
                                                     </span>
                                                 <?php endif; ?>
                                             </div>
                                             <div style="font-weight:700;color:var(--sms-heading);font-size:0.95rem;">
-                                                <i class="fas fa-user-tie me-2" style="color:var(--sms-primary);"></i>
+                                                <?= smsIcon('user-tie', ['class' => 'me-2', 'style' => 'color:var(--sms-primary);']) ?>
                                                 <?= htmlspecialchars($feedback['adviser_name']) ?>
                                             </div>
                                         </div>
                                         <div class="text-end">
                                             <div style="font-size:0.75rem;color:var(--sms-text-muted);">
-                                                <i class="fas fa-clock me-1"></i>
+                                                <?= smsIcon('clock', ['class' => 'me-1']) ?>
                                                 <?= date('M d, Y', strtotime($feedback['created_at'])) ?>
                                             </div>
                                             <div style="font-size:0.7rem;color:var(--sms-text-muted);">
@@ -209,7 +207,7 @@ foreach ($feedbackList as $feedback) {
                                     <!-- Status Change -->
                                     <?php if ($feedback['new_milestone_status']): ?>
                                         <div class="student-feedback-status alert alert-info mb-0" style="font-size:0.85rem;padding:0.5rem 1rem;">
-                                            <i class="fas fa-info-circle me-2"></i>
+                                            <?= smsIcon('info-circle', ['class' => 'me-2']) ?>
                                             <strong>Status Updated:</strong> <?= htmlspecialchars($feedback['new_milestone_status']) ?>
                                         </div>
                                     <?php endif; ?>
@@ -221,7 +219,7 @@ foreach ($feedbackList as $feedback) {
             <?php else: ?>
                 <div class="glass-panel">
                     <div class="glass-panel-body text-center py-5">
-                        <i class="fas fa-comments" style="font-size:3rem;color:var(--sms-border);margin-bottom:1rem;"></i>
+                        <?= smsIcon('comments', ['style' => 'font-size:3rem;color:var(--sms-border);margin-bottom:1rem;']) ?>
                         <h6 style="font-weight:700;color:var(--sms-heading);margin-bottom:0.5rem;">No Feedback Yet</h6>
                         <p class="text-muted mb-0">Your adviser hasn't provided any feedback yet.<br>Submit progress updates to receive feedback.</p>
                     </div>
@@ -232,7 +230,7 @@ foreach ($feedbackList as $feedback) {
         <!-- Last Refresh Indicator -->
         <div class="text-center mt-4">
             <small class="text-muted" data-last-refresh>
-                <i class="fas fa-sync-alt me-1"></i>
+                <?= smsIcon('sync-alt', ['class' => 'me-1']) ?>
                 Last updated: <?= date('g:i:s A') ?>
             </small>
         </div>

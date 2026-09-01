@@ -22,7 +22,7 @@
  *   server-side in the session (crad_grant_tokens / crad_apply_tokens).
  *   Tokens expire after 10 minutes. Each token is consumed on first use.
  *
- * ACCESS: crad_officer, superadmin, admin only.
+ * ACCESS: crad_officer, research_grant (CRAD grant module), and granted admins.
  */
 
 declare(strict_types=1);
@@ -37,8 +37,7 @@ require_once __DIR__ . '/../includes/grant-helpers.php';
 
 requireAuth();
 
-$roleKey = getCurrentUserRoleKey();
-if (!in_array($roleKey, ['crad_officer', 'superadmin', 'admin'], true)) {
+if (!grantUserCanView()) {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Access denied.']);
     exit;
@@ -92,17 +91,46 @@ switch ($action) {
     // ── Token generation ──────────────────────────────────────────────────────
 
     case 'generate_token':
+        if (!grantUserCanManage()) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Access denied.']);
+            exit;
+        }
         echo json_encode(['success' => true, 'token' => _mintSessionToken('crad_grant_tokens')]);
         break;
 
     case 'generate_apply_token':
+        if (!grantUserCanApply()) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Access denied.']);
+            exit;
+        }
         echo json_encode(['success' => true, 'token' => _mintSessionToken('crad_apply_tokens')]);
         break;
 
     // ── Read actions ──────────────────────────────────────────────────────────
 
     case 'get_dashboard_stats':
+        if (!grantUserCanManage()) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Access denied.']);
+            exit;
+        }
         echo json_encode(['success' => true, 'stats' => grantDashboardStats($crad)]);
+        break;
+
+    case 'get_dashboard_metrics':
+        if (!grantUserCanManage()) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Access denied.']);
+            exit;
+        }
+        $metrics = grantGetDashboardMetrics($crad);
+        echo json_encode([
+            'success'     => true,
+            'metrics'     => $metrics,
+            'fingerprint' => grantDashboardMetricsFingerprint($metrics),
+        ]);
         break;
 
     case 'get_opportunities':
@@ -112,13 +140,28 @@ switch ($action) {
 
     case 'get_applications':
         $oppId = isset($_GET['opportunity_id']) ? (int) $_GET['opportunity_id'] : null;
-        $apps  = grantGetApplications($crad, $oppId);
+        if (grantUserCanManage()) {
+            $apps = grantGetApplications($crad, $oppId);
+        } else {
+            $apps = grantGetMyApplications($crad);
+            if ($oppId !== null && $oppId > 0) {
+                $apps = array_values(array_filter(
+                    $apps,
+                    static fn(array $row): bool => (int) ($row['grant_opportunity_id'] ?? 0) === $oppId
+                ));
+            }
+        }
         echo json_encode(['success' => true, 'applications' => $apps, 'count' => count($apps)]);
         break;
 
     // ── Publish a new grant call (officer only) ───────────────────────────────
 
     case 'publish_opportunity':
+        if (!grantUserCanManage()) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Access denied.']);
+            exit;
+        }
         if ($method !== 'POST') {
             http_response_code(405);
             echo json_encode(['success' => false, 'message' => 'Method not allowed.']);
@@ -178,6 +221,11 @@ switch ($action) {
     // ── Submit a full research grant proposal (BRGFAMS Form 1) ───────────────
 
     case 'submit_proposal':
+        if (!grantUserCanApply()) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Access denied.']);
+            exit;
+        }
         if ($method !== 'POST') {
             http_response_code(405);
             echo json_encode(['success' => false, 'message' => 'Method not allowed.']);
@@ -265,6 +313,88 @@ switch ($action) {
             // we can't re-issue the same token; the JS will fetch a fresh one.
             http_response_code(400);
             echo json_encode(['success' => false, 'message' => $result['error'] ?? 'Failed to submit proposal.']);
+        }
+        break;
+
+    case 'get_revisions':
+        if (!grantUserCanApply()) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Access denied.']);
+            exit;
+        }
+        $revisions = grantEnrichRevisionApplications($crad, grantGetMyRevisionRequiredApplications($crad));
+        echo json_encode(['success' => true, 'revisions' => $revisions, 'count' => count($revisions)]);
+        break;
+
+    case 'resubmit_proposal':
+        if (!grantUserCanApply()) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Access denied.']);
+            exit;
+        }
+        if ($method !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['success' => false, 'message' => 'Method not allowed.']);
+            exit;
+        }
+
+        $applicationId = (int) ($_POST['grant_application_id'] ?? 0);
+        if ($applicationId <= 0) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'Invalid proposal selected.']);
+            exit;
+        }
+
+        $proposalUpload = smsSecureUpload(
+            $_FILES['proposal_pdf'] ?? ['error' => UPLOAD_ERR_NO_FILE],
+            [
+                'subdir'    => 'grant_proposals',
+                'required'  => true,
+                'max_bytes' => 10 * 1024 * 1024,
+                'allowed'   => [
+                    'pdf'  => ['application/pdf'],
+                    'doc'  => ['application/msword', 'application/octet-stream'],
+                    'docx' => [
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        'application/zip',
+                        'application/octet-stream',
+                    ],
+                ],
+            ]
+        );
+        $supportingUpload = smsSecureUpload(
+            $_FILES['supporting_docs'] ?? ['error' => UPLOAD_ERR_NO_FILE],
+            ['subdir' => 'grant_proposals', 'required' => false, 'max_bytes' => 10 * 1024 * 1024]
+        );
+        $ethicsUpload = smsSecureUpload(
+            $_FILES['ethics_doc'] ?? ['error' => UPLOAD_ERR_NO_FILE],
+            ['subdir' => 'grant_proposals', 'required' => false, 'max_bytes' => 10 * 1024 * 1024]
+        );
+
+        $result = grantResubmitProposal(
+            $crad,
+            $applicationId,
+            ['researcher_notes' => $_POST['researcher_notes'] ?? ''],
+            [
+                'proposal_pdf'    => $proposalUpload,
+                'supporting_docs' => $supportingUpload,
+                'ethics_doc'      => $ethicsUpload,
+            ]
+        );
+
+        if ($result['ok']) {
+            echo json_encode([
+                'success'      => true,
+                'message'      => 'Proposal resubmitted successfully. It is now under committee review.',
+                'id'           => $result['id'],
+                'reference'    => $result['reference'] ?? '',
+                'version'      => $result['version'] ?? null,
+                'new_status'   => $result['new_status'] ?? 'Under Review',
+                'status_label' => 'UNDER REVIEW',
+            ]);
+        } else {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => $result['error'] ?? 'Failed to resubmit proposal.']);
         }
         break;
 

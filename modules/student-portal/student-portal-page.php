@@ -99,18 +99,32 @@ foreach ($paymentTransactions as $txn) {
 }
 
 $studentProfile = [
-    'name' => 'Juan Dela Cruz',
+    'name' => getCurrentUserName() ?: 'Student',
     'student_id' => $studentId,
     'program' => 'Bachelor of Science in Information Technology',
     'year_level' => '4th Year',
     'section' => 'BSIT 4A',
     'semester' => '1st Semester',
+    'school_year' => '2026-2027',
     'status' => 'Enrolled',
-    'email' => 's230000001@bcp.edu.ph',
+    'email' => (string) ($_SESSION['user_email'] ?? 'student@bcp.edu.ph'),
     'mobile' => '0917 000 0001',
     'address' => 'Novaliches, Quezon City',
     'guardian' => 'Maria Dela Cruz',
+    'guardian_contact' => '0918 000 0002',
 ];
+
+if (!function_exists('spProfileInitials')) {
+    function spProfileInitials(string $name): string
+    {
+        $parts = preg_split('/\s+/', trim($name)) ?: [];
+        $letters = '';
+        foreach (array_slice($parts, 0, 2) as $part) {
+            $letters .= strtoupper(substr($part, 0, 1));
+        }
+        return $letters !== '' ? $letters : 'ST';
+    }
+}
 
 $studentPages = [
     'dashboard' => [
@@ -206,13 +220,13 @@ require_once __DIR__ . '/../../includes/layout-start.php';
 <div class="student-portal">
     <?php if ($processMessage !== ''): ?>
         <div class="alert alert-success student-process-alert" role="alert">
-            <i class="fas fa-check-circle me-2"></i><?= htmlspecialchars($processMessage) ?>
+            <?= smsIcon('check-circle', ['class' => 'me-2']) ?><?= htmlspecialchars($processMessage) ?>
         </div>
     <?php endif; ?>
 
     <?php if (!empty($_GET['notice']) && $_GET['notice'] === 'research-forum-required'): ?>
         <div class="alert alert-warning student-process-alert" role="alert">
-            <i class="fas fa-lock me-2"></i>You must pay the <strong>Research Forum</strong> fee before submitting research documents. Please complete payment to unlock access.
+            <?= smsIcon('lock', ['class' => 'me-2']) ?>You must pay the <strong>Research Forum</strong> fee before submitting research documents. Please complete payment to unlock access.
         </div>
     <?php endif; ?>
 
@@ -220,33 +234,45 @@ require_once __DIR__ . '/../../includes/layout-start.php';
         <div class="row g-3 mb-3 dashboard-stats">
             <div class="col-md-3">
                 <section class="card stat-card primary">
-                    <div class="card-body">
-                        <h6 class="text-muted">Enrollment Status</h6>
-                        <h4 class="fw-bold mb-0">Enrolled</h4>
+                    <div class="card-body d-flex align-items-center">
+                        <div class="stat-icon me-3"><?= smsIcon('user-check') ?></div>
+                        <div>
+                            <h6 class="text-muted">Enrollment Status</h6>
+                            <h4 class="fw-bold mb-0">Enrolled</h4>
+                        </div>
                     </div>
                 </section>
             </div>
             <div class="col-md-3">
                 <section class="card stat-card success">
-                    <div class="card-body">
-                        <h6 class="text-muted">Current GWA</h6>
-                        <h4 class="fw-bold mb-0">1.75</h4>
+                    <div class="card-body d-flex align-items-center">
+                        <div class="stat-icon me-3"><?= smsIcon('star') ?></div>
+                        <div>
+                            <h6 class="text-muted">Current GWA</h6>
+                            <h4 class="fw-bold mb-0">1.75</h4>
+                        </div>
                     </div>
                 </section>
             </div>
             <div class="col-md-3">
                 <section class="card stat-card warning">
-                    <div class="card-body">
-                        <h6 class="text-muted">Balance</h6>
-                        <h4 class="fw-bold mb-0">PHP 8,450.00</h4>
+                    <div class="card-body d-flex align-items-center">
+                        <div class="stat-icon me-3"><?= smsIcon('wallet') ?></div>
+                        <div>
+                            <h6 class="text-muted">Balance</h6>
+                            <h4 class="fw-bold mb-0">PHP 8,450.00</h4>
+                        </div>
                     </div>
                 </section>
             </div>
             <div class="col-md-3">
                 <section class="card stat-card info">
-                    <div class="card-body">
-                        <h6 class="text-muted">Current Status</h6>
-                        <h4 class="fw-bold mb-0 fs-6"><?= htmlspecialchars($researchCurrentStatus) ?></h4>
+                    <div class="card-body d-flex align-items-center">
+                        <div class="stat-icon me-3"><?= smsIcon('flask') ?></div>
+                        <div>
+                            <h6 class="text-muted">Current Status</h6>
+                            <h4 class="fw-bold mb-0 fs-6"><?= htmlspecialchars($researchCurrentStatus) ?></h4>
+                        </div>
                     </div>
                 </section>
             </div>
@@ -263,8 +289,8 @@ require_once __DIR__ . '/../../includes/layout-start.php';
                             <div><strong>Systems Analysis and Design</strong><span>1:00 PM - 4:00 PM · Room 210</span><small>Hybrid session</small></div>
                         </div>
                         <div class="student-process-bar">
-                            <a class="btn btn-sms-primary" href="<?= BASE_URL ?>/modules/student-portal/pages/class-schedule.php"><i class="fas fa-calendar-alt me-2"></i>View Schedule</a>
-                            <a class="btn btn-outline-primary" href="<?= BASE_URL ?>/modules/student-portal/pages/grades-portal.php"><i class="fas fa-star-half-alt me-2"></i>Check Grades</a>
+                            <a class="btn btn-sms-primary" href="<?= BASE_URL ?>/modules/student-portal/pages/class-schedule.php"><?= smsIcon('calendar-alt', ['class' => 'me-2']) ?>View Schedule</a>
+                            <a class="btn btn-outline-primary" href="<?= BASE_URL ?>/modules/student-portal/pages/grades-portal.php"><?= smsIcon('star-half-alt', ['class' => 'me-2']) ?>Check Grades</a>
                         </div>
                     </div>
                 </section>
@@ -279,60 +305,176 @@ require_once __DIR__ . '/../../includes/layout-start.php';
                             <div><span>3</span><strong>Monitor records</strong><p>Review balance, receipts, and academic standing.</p></div>
                         </div>
                         <div class="student-process-bar">
-                            <a class="btn btn-sms-primary" href="<?= BASE_URL ?>/modules/student-portal/pages/research-proposal-submission.php"><i class="fas fa-flask me-2"></i>Research Proposal</a>
-                            <a class="btn btn-outline-primary" href="<?= BASE_URL ?>/modules/student-portal/pages/account-balance.php"><i class="fas fa-wallet me-2"></i>Account Balance</a>
+                            <a class="btn btn-sms-primary" href="<?= BASE_URL ?>/modules/student-portal/pages/research-proposal-submission.php"><?= smsIcon('flask', ['class' => 'me-2']) ?>Research Proposal</a>
+                            <a class="btn btn-outline-primary" href="<?= BASE_URL ?>/modules/student-portal/pages/account-balance.php"><?= smsIcon('wallet', ['class' => 'me-2']) ?>Account Balance</a>
                         </div>
                     </div>
                 </section>
             </div>
         </div>
     <?php elseif ($studentPortalPage === 'my-profile'): ?>
-        <div class="row g-3">
-            <div class="col-lg-4">
-                <section class="card student-profile-card h-100">
-                    <div class="card-body">
-                        <div class="student-avatar mb-3">
-                            <i class="fas fa-user-graduate"></i>
+        <section class="sp-profile-hero card mb-3">
+            <div class="card-body">
+                <div class="sp-profile-hero__main">
+                    <div class="sp-profile-hero__avatar" aria-hidden="true"><?= htmlspecialchars(spProfileInitials($studentProfile['name'])) ?></div>
+                    <div class="sp-profile-hero__copy">
+                        <span class="sp-profile-kicker">Student Profile</span>
+                        <h2 class="sp-profile-hero__name"><?= htmlspecialchars($studentProfile['name']) ?></h2>
+                        <p class="sp-profile-hero__program"><?= htmlspecialchars($studentProfile['program']) ?></p>
+                        <div class="sp-profile-badges">
+                            <span class="sp-profile-badge sp-profile-badge--success"><?= smsIcon('circle-check', ['class' => 'me-1']) ?><?= htmlspecialchars($studentProfile['status']) ?></span>
+                            <span class="sp-profile-badge"><?= smsIcon('id', ['class' => 'me-1']) ?><?= htmlspecialchars($studentProfile['student_id']) ?></span>
+                            <span class="sp-profile-badge"><?= smsIcon('calendar', ['class' => 'me-1']) ?>S.Y. <?= htmlspecialchars($studentProfile['school_year']) ?></span>
                         </div>
-                        <h5 class="fw-semibold mb-1"><?= htmlspecialchars($studentProfile['name']) ?></h5>
-                        <p class="text-muted mb-3"><?= htmlspecialchars($studentProfile['program']) ?></p>
-                        <span class="badge text-bg-success">Active Student</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="row g-3 mb-3">
+            <div class="col-md-3">
+                <section class="card stat-card primary h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="stat-icon me-3"><?= smsIcon('school') ?></div>
+                        <div>
+                            <h6 class="text-muted">Year Level</h6>
+                            <h4 class="fw-bold mb-0 fs-6"><?= htmlspecialchars($studentProfile['year_level']) ?></h4>
+                        </div>
                     </div>
                 </section>
             </div>
-            <div class="col-lg-8">
-                <section class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title fw-semibold mb-3">Student Information</h5>
-                        <div class="student-record-grid">
-                            <div><span>Student ID</span><strong><?= htmlspecialchars($studentProfile['student_id']) ?></strong></div>
-                            <div><span>Program</span><strong><?= htmlspecialchars($studentProfile['program']) ?></strong></div>
-                            <div><span>Year Level</span><strong><?= htmlspecialchars($studentProfile['year_level']) ?></strong></div>
-                            <div><span>Semester</span><strong><?= htmlspecialchars($studentProfile['semester']) ?></strong></div>
-                            <div><span>Section</span><strong><?= htmlspecialchars($studentProfile['section']) ?></strong></div>
-                            <div><span>Email</span><strong><?= htmlspecialchars($studentProfile['email']) ?></strong></div>
-                            <div><span>Mobile</span><strong><?= htmlspecialchars($studentProfile['mobile']) ?></strong></div>
-                            <div><span>Address</span><strong><?= htmlspecialchars($studentProfile['address']) ?></strong></div>
-                            <div><span>Guardian</span><strong><?= htmlspecialchars($studentProfile['guardian']) ?></strong></div>
+            <div class="col-md-3">
+                <section class="card stat-card info h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="stat-icon me-3"><?= smsIcon('users') ?></div>
+                        <div>
+                            <h6 class="text-muted">Section</h6>
+                            <h4 class="fw-bold mb-0 fs-6"><?= htmlspecialchars($studentProfile['section']) ?></h4>
                         </div>
-                        <div class="student-process-bar">
-                            <a class="btn btn-sms-primary" href="?process=profile-update"><i class="fas fa-pen me-2"></i>Request Profile Update</a>
-                            <a class="btn btn-outline-primary" href="?process=profile-correction"><i class="fas fa-file-signature me-2"></i>Submit Correction Ticket</a>
+                    </div>
+                </section>
+            </div>
+            <div class="col-md-3">
+                <section class="card stat-card warning h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="stat-icon me-3"><?= smsIcon('calendar-event') ?></div>
+                        <div>
+                            <h6 class="text-muted">Semester</h6>
+                            <h4 class="fw-bold mb-0 fs-6"><?= htmlspecialchars($studentProfile['semester']) ?></h4>
+                        </div>
+                    </div>
+                </section>
+            </div>
+            <div class="col-md-3">
+                <section class="card stat-card success h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="stat-icon me-3"><?= smsIcon('star') ?></div>
+                        <div>
+                            <h6 class="text-muted">Standing</h6>
+                            <h4 class="fw-bold mb-0 fs-6">Good Standing</h4>
                         </div>
                     </div>
                 </section>
             </div>
         </div>
+
+        <div class="row g-3">
+            <div class="col-lg-6">
+                <section class="card sp-profile-section h-100">
+                    <div class="card-header sp-profile-section__head">
+                        <div>
+                            <h5 class="mb-0"><?= smsIcon('school', ['class' => 'me-2 text-primary']) ?>Academic Information</h5>
+                            <p class="mb-0">Official enrollment and program details</p>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="sp-profile-fields">
+                            <div class="sp-profile-field">
+                                <span class="sp-profile-field__label"><?= smsIcon('id') ?>Student ID</span>
+                                <strong class="sp-profile-field__value"><?= htmlspecialchars($studentProfile['student_id']) ?></strong>
+                            </div>
+                            <div class="sp-profile-field">
+                                <span class="sp-profile-field__label"><?= smsIcon('book') ?>Program</span>
+                                <strong class="sp-profile-field__value"><?= htmlspecialchars($studentProfile['program']) ?></strong>
+                            </div>
+                            <div class="sp-profile-field">
+                                <span class="sp-profile-field__label"><?= smsIcon('stack-2') ?>Year Level</span>
+                                <strong class="sp-profile-field__value"><?= htmlspecialchars($studentProfile['year_level']) ?></strong>
+                            </div>
+                            <div class="sp-profile-field">
+                                <span class="sp-profile-field__label"><?= smsIcon('users') ?>Section</span>
+                                <strong class="sp-profile-field__value"><?= htmlspecialchars($studentProfile['section']) ?></strong>
+                            </div>
+                            <div class="sp-profile-field">
+                                <span class="sp-profile-field__label"><?= smsIcon('calendar-event') ?>Semester</span>
+                                <strong class="sp-profile-field__value"><?= htmlspecialchars($studentProfile['semester']) ?></strong>
+                            </div>
+                            <div class="sp-profile-field">
+                                <span class="sp-profile-field__label"><?= smsIcon('calendar') ?>School Year</span>
+                                <strong class="sp-profile-field__value"><?= htmlspecialchars($studentProfile['school_year']) ?></strong>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+            <div class="col-lg-6">
+                <section class="card sp-profile-section h-100">
+                    <div class="card-header sp-profile-section__head">
+                        <div>
+                            <h5 class="mb-0"><?= smsIcon('address-book', ['class' => 'me-2 text-primary']) ?>Contact Information</h5>
+                            <p class="mb-0">How the school can reach you</p>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="sp-profile-fields">
+                            <div class="sp-profile-field">
+                                <span class="sp-profile-field__label"><?= smsIcon('mail') ?>Email</span>
+                                <strong class="sp-profile-field__value"><?= htmlspecialchars($studentProfile['email']) ?></strong>
+                            </div>
+                            <div class="sp-profile-field">
+                                <span class="sp-profile-field__label"><?= smsIcon('phone') ?>Mobile</span>
+                                <strong class="sp-profile-field__value"><?= htmlspecialchars($studentProfile['mobile']) ?></strong>
+                            </div>
+                            <div class="sp-profile-field sp-profile-field--wide">
+                                <span class="sp-profile-field__label"><?= smsIcon('map-pin') ?>Address</span>
+                                <strong class="sp-profile-field__value"><?= htmlspecialchars($studentProfile['address']) ?></strong>
+                            </div>
+                            <div class="sp-profile-field">
+                                <span class="sp-profile-field__label"><?= smsIcon('user-heart') ?>Guardian</span>
+                                <strong class="sp-profile-field__value"><?= htmlspecialchars($studentProfile['guardian']) ?></strong>
+                            </div>
+                            <div class="sp-profile-field">
+                                <span class="sp-profile-field__label"><?= smsIcon('phone-call') ?>Guardian Contact</span>
+                                <strong class="sp-profile-field__value"><?= htmlspecialchars($studentProfile['guardian_contact']) ?></strong>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <section class="card sp-profile-actions mt-3">
+            <div class="card-body">
+                <div class="sp-profile-actions__copy">
+                    <h5 class="mb-1"><?= smsIcon('info-circle', ['class' => 'me-2 text-primary']) ?>Need to update your records?</h5>
+                    <p class="mb-0">Profile changes are reviewed by the Registrar. Submit a request if your details need correction.</p>
+                </div>
+                <div class="student-process-bar mb-0">
+                    <a class="btn btn-sms-primary" href="?process=profile-update"><?= smsIcon('edit', ['class' => 'me-2']) ?>Request Profile Update</a>
+                    <a class="btn btn-outline-primary" href="?process=profile-correction"><?= smsIcon('file-text', ['class' => 'me-2']) ?>Submit Correction Ticket</a>
+                </div>
+            </div>
+        </section>
     <?php elseif ($studentPortalPage === 'student-id'): ?>
         <div class="row g-3">
             <div class="col-lg-4">
                 <section class="card student-id-card h-100">
                     <div class="card-body">
                         <div class="student-id-brand">
-                            <i class="fas fa-graduation-cap"></i>
+                            <?= smsIcon('graduation-cap') ?>
                             <span><?= htmlspecialchars(INSTITUTION) ?></span>
                         </div>
-                        <div class="student-id-photo"><i class="fas fa-user-graduate"></i></div>
+                        <div class="student-id-photo"><?= smsIcon('user-graduate') ?></div>
                         <h5><?= htmlspecialchars($studentProfile['name']) ?></h5>
                         <p><?= htmlspecialchars($studentProfile['program']) ?></p>
                         <div class="student-id-number"><?= htmlspecialchars($studentProfile['student_id']) ?></div>
@@ -349,8 +491,8 @@ require_once __DIR__ . '/../../includes/layout-start.php';
                             <div><span>3</span><strong>Request print or replacement</strong><p>Use this option for first printing, lost ID, or damaged ID replacement.</p></div>
                         </div>
                         <div class="student-process-bar">
-                            <a class="btn btn-sms-primary" href="?process=id-print"><i class="fas fa-print me-2"></i>Request ID Print</a>
-                            <a class="btn btn-outline-primary" href="?process=id-replacement"><i class="fas fa-redo me-2"></i>Request Replacement</a>
+                            <a class="btn btn-sms-primary" href="?process=id-print"><?= smsIcon('print', ['class' => 'me-2']) ?>Request ID Print</a>
+                            <a class="btn btn-outline-primary" href="?process=id-replacement"><?= smsIcon('redo', ['class' => 'me-2']) ?>Request Replacement</a>
                         </div>
                     </div>
                 </section>
@@ -359,13 +501,13 @@ require_once __DIR__ . '/../../includes/layout-start.php';
     <?php elseif ($studentPortalPage === 'account-balance'): ?>
         <div class="row g-3 mb-3 dashboard-stats">
             <div class="col-md-4">
-                <section class="card stat-card warning"><div class="card-body"><h6 class="text-muted">Total Assessment</h6><h4 class="fw-bold mb-0">PHP 24,950.00</h4></div></section>
+                <section class="card stat-card warning"><div class="card-body d-flex align-items-center"><div class="stat-icon me-3"><?= smsIcon('file-invoice-dollar') ?></div><div><h6 class="text-muted">Total Assessment</h6><h4 class="fw-bold mb-0">PHP 24,950.00</h4></div></div></section>
             </div>
             <div class="col-md-4">
-                <section class="card stat-card success"><div class="card-body"><h6 class="text-muted">Total Paid</h6><h4 class="fw-bold mb-0">PHP 16,500.00</h4></div></section>
+                <section class="card stat-card success"><div class="card-body d-flex align-items-center"><div class="stat-icon me-3"><?= smsIcon('check-circle') ?></div><div><h6 class="text-muted">Total Paid</h6><h4 class="fw-bold mb-0">PHP 16,500.00</h4></div></div></section>
             </div>
             <div class="col-md-4">
-                <section class="card stat-card primary"><div class="card-body"><h6 class="text-muted">Balance</h6><h4 class="fw-bold mb-0">PHP 8,450.00</h4></div></section>
+                <section class="card stat-card primary"><div class="card-body d-flex align-items-center"><div class="stat-icon me-3"><?= smsIcon('wallet') ?></div><div><h6 class="text-muted">Balance</h6><h4 class="fw-bold mb-0">PHP 8,450.00</h4></div></div></section>
             </div>
         </div>
         <section class="card">
@@ -382,8 +524,8 @@ require_once __DIR__ . '/../../includes/layout-start.php';
                     </table>
                 </div>
                 <div class="student-process-bar">
-                    <a class="btn btn-sms-primary" href="?process=pay-now"><i class="fas fa-credit-card me-2"></i>Proceed to Payment</a>
-                    <a class="btn btn-outline-primary" href="?process=soa"><i class="fas fa-file-invoice me-2"></i>Request Statement of Account</a>
+                    <a class="btn btn-sms-primary" href="?process=pay-now"><?= smsIcon('credit-card', ['class' => 'me-2']) ?>Proceed to Payment</a>
+                    <a class="btn btn-outline-primary" href="?process=soa"><?= smsIcon('file-invoice', ['class' => 'me-2']) ?>Request Statement of Account</a>
                 </div>
             </div>
         </section>
@@ -403,8 +545,8 @@ require_once __DIR__ . '/../../includes/layout-start.php';
                     </table>
                 </div>
                 <div class="student-process-bar">
-                    <a class="btn btn-sms-primary" href="?process=download-schedule"><i class="fas fa-download me-2"></i>Download Schedule</a>
-                    <a class="btn btn-outline-primary" href="?process=schedule-conflict"><i class="fas fa-exclamation-triangle me-2"></i>Report Schedule Conflict</a>
+                    <a class="btn btn-sms-primary" href="?process=download-schedule"><?= smsIcon('download', ['class' => 'me-2']) ?>Download Schedule</a>
+                    <a class="btn btn-outline-primary" href="?process=schedule-conflict"><?= smsIcon('exclamation-triangle', ['class' => 'me-2']) ?>Report Schedule Conflict</a>
                 </div>
             </div>
         </section>
@@ -440,8 +582,8 @@ require_once __DIR__ . '/../../includes/layout-start.php';
                             </table>
                         </div>
                         <div class="student-process-bar">
-                            <a class="btn btn-sms-primary" href="?process=copy-grades"><i class="fas fa-file-download me-2"></i>Request Copy of Grades</a>
-                            <a class="btn btn-outline-primary" href="?process=transcript"><i class="fas fa-scroll me-2"></i>Request Transcript</a>
+                            <a class="btn btn-sms-primary" href="?process=copy-grades"><?= smsIcon('file-download', ['class' => 'me-2']) ?>Request Copy of Grades</a>
+                            <a class="btn btn-outline-primary" href="?process=transcript"><?= smsIcon('scroll', ['class' => 'me-2']) ?>Request Transcript</a>
                         </div>
                     </div>
                 </section>
@@ -458,8 +600,8 @@ require_once __DIR__ . '/../../includes/layout-start.php';
                     <div><strong>Networking Fundamentals</strong><span>Prof. Miguel Cruz</span><small>Consultation: Monday, 3:00 PM - 5:00 PM</small></div>
                 </div>
                 <div class="student-process-bar">
-                    <a class="btn btn-sms-primary" href="?process=consultation"><i class="fas fa-envelope me-2"></i>Send Consultation Request</a>
-                    <a class="btn btn-outline-primary" href="?process=subject-details"><i class="fas fa-book-reader me-2"></i>View Subject Details</a>
+                    <a class="btn btn-sms-primary" href="?process=consultation"><?= smsIcon('envelope', ['class' => 'me-2']) ?>Send Consultation Request</a>
+                    <a class="btn btn-outline-primary" href="?process=subject-details"><?= smsIcon('book-reader', ['class' => 'me-2']) ?>View Subject Details</a>
                 </div>
             </div>
         </section>
@@ -484,24 +626,24 @@ require_once __DIR__ . '/../../includes/layout-start.php';
                     </table>
                 </div>
                 <div class="student-process-bar">
-                    <a class="btn btn-sms-primary" href="?process=receipt"><i class="fas fa-receipt me-2"></i>Download Receipt</a>
-                    <a class="btn btn-outline-primary" href="?process=payment-issue"><i class="fas fa-search-dollar me-2"></i>Report Payment Issue</a>
+                    <a class="btn btn-sms-primary" href="?process=receipt"><?= smsIcon('receipt', ['class' => 'me-2']) ?>Download Receipt</a>
+                    <a class="btn btn-outline-primary" href="?process=payment-issue"><?= smsIcon('search-dollar', ['class' => 'me-2']) ?>Report Payment Issue</a>
                 </div>
             </div>
         </section>
     <?php elseif ($studentPortalPage === 'grades-portal'): ?>
         <div class="row g-3 mb-3 dashboard-stats">
             <div class="col-md-3">
-                <section class="card stat-card primary"><div class="card-body"><h6 class="text-muted">Current GWA</h6><h4 class="fw-bold mb-0">1.75</h4></div></section>
+                <section class="card stat-card primary"><div class="card-body d-flex align-items-center"><div class="stat-icon me-3"><?= smsIcon('star') ?></div><div><h6 class="text-muted">Current GWA</h6><h4 class="fw-bold mb-0">1.75</h4></div></div></section>
             </div>
             <div class="col-md-3">
-                <section class="card stat-card success"><div class="card-body"><h6 class="text-muted">Passed Subjects</h6><h4 class="fw-bold mb-0">18</h4></div></section>
+                <section class="card stat-card success"><div class="card-body d-flex align-items-center"><div class="stat-icon me-3"><?= smsIcon('check-circle') ?></div><div><h6 class="text-muted">Passed Subjects</h6><h4 class="fw-bold mb-0">18</h4></div></div></section>
             </div>
             <div class="col-md-3">
-                <section class="card stat-card warning"><div class="card-body"><h6 class="text-muted">Current Subjects</h6><h4 class="fw-bold mb-0">6</h4></div></section>
+                <section class="card stat-card warning"><div class="card-body d-flex align-items-center"><div class="stat-icon me-3"><?= smsIcon('book-open') ?></div><div><h6 class="text-muted">Current Subjects</h6><h4 class="fw-bold mb-0">6</h4></div></div></section>
             </div>
             <div class="col-md-3">
-                <section class="card stat-card info"><div class="card-body"><h6 class="text-muted">Total Units Earned</h6><h4 class="fw-bold mb-0">54</h4></div></section>
+                <section class="card stat-card info"><div class="card-body d-flex align-items-center"><div class="stat-icon me-3"><?= smsIcon('graduation-cap') ?></div><div><h6 class="text-muted">Total Units Earned</h6><h4 class="fw-bold mb-0">54</h4></div></div></section>
             </div>
         </div>
         <section class="card mb-3">
@@ -539,8 +681,8 @@ require_once __DIR__ . '/../../includes/layout-start.php';
                     </table>
                 </div>
                 <div class="student-process-bar">
-                    <a class="btn btn-sms-primary" href="?process=copy-grades"><i class="fas fa-file-download me-2"></i>Download Grades Report</a>
-                    <a class="btn btn-outline-primary" href="?process=transcript"><i class="fas fa-scroll me-2"></i>Request Official Transcript</a>
+                    <a class="btn btn-sms-primary" href="?process=copy-grades"><?= smsIcon('file-download', ['class' => 'me-2']) ?>Download Grades Report</a>
+                    <a class="btn btn-outline-primary" href="?process=transcript"><?= smsIcon('scroll', ['class' => 'me-2']) ?>Request Official Transcript</a>
                 </div>
             </div>
         </section>

@@ -47,7 +47,7 @@ $pageBannerIcon = $pageBannerIcon ?? $moduleIcon;
             <a href="<?= htmlspecialchars($href) ?>" class="text-decoration-none d-block h-100">
                 <div class="card module-card hover-card h-100">
                     <div class="card-body d-flex align-items-center gap-3">
-                        <div class="card-icon"><i class="fas <?= htmlspecialchars($icon) ?>" aria-hidden="true"></i></div>
+                        <div class="card-icon"><?= smsIcon($icon, ['aria-hidden' => 'true']) ?></div>
                         <div class="min-w-0">
                             <h6 class="mb-0 fw-semibold"><?= htmlspecialchars($page['title']) ?></h6>
                             <small class="text-muted"><?= $activeModule === 'reports-analytics' ? 'Open report process' : 'Open submodule' ?></small>

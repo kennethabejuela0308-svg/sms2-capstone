@@ -10,7 +10,7 @@ require_once ROOT_PATH . '/modules/crad/includes/chapter-evaluation-workflow.php
 
 requireAuth();
 $roleKey = getCurrentUserRoleKey();
-if (!in_array($roleKey, ['crad_officer', 'research_coordinator', 'research_director', 'superadmin', 'admin'], true)) {
+if (!smsRoleAllowedForModule(['crad_officer', 'research_coordinator', 'research_director'], 'crad')) {
     http_response_code(403);
     exit('Forbidden');
 }
@@ -556,7 +556,7 @@ $officialAssignmentStats = cradOfficialAssignmentStats($officialAssignmentRecord
 <div class="record-assignment-stats" data-official-assignment-stats>
     <section class="record-assignment-stat">
         <span class="record-assignment-stat__icon record-assignment-stat__icon--blue">
-            <i class="fas fa-layer-group" aria-hidden="true"></i>
+            <?= smsIcon('layer-group', ['aria-hidden' => 'true']) ?>
         </span>
         <div>
             <small>Total Records</small>
@@ -565,7 +565,7 @@ $officialAssignmentStats = cradOfficialAssignmentStats($officialAssignmentRecord
     </section>
     <section class="record-assignment-stat">
         <span class="record-assignment-stat__icon record-assignment-stat__icon--amber">
-            <i class="fas fa-user-check" aria-hidden="true"></i>
+            <?= smsIcon('user-check', ['aria-hidden' => 'true']) ?>
         </span>
         <div>
             <small>Adviser Assigned</small>
@@ -574,7 +574,7 @@ $officialAssignmentStats = cradOfficialAssignmentStats($officialAssignmentRecord
     </section>
     <section class="record-assignment-stat">
         <span class="record-assignment-stat__icon record-assignment-stat__icon--purple">
-            <i class="fas fa-users" aria-hidden="true"></i>
+            <?= smsIcon('users', ['aria-hidden' => 'true']) ?>
         </span>
         <div>
             <small>Panel Removed</small>
@@ -583,7 +583,7 @@ $officialAssignmentStats = cradOfficialAssignmentStats($officialAssignmentRecord
     </section>
     <section class="record-assignment-stat">
         <span class="record-assignment-stat__icon record-assignment-stat__icon--green">
-            <i class="fas fa-check-circle" aria-hidden="true"></i>
+            <?= smsIcon('check-circle', ['aria-hidden' => 'true']) ?>
         </span>
         <div>
             <small>Official Records</small>
@@ -596,7 +596,7 @@ $officialAssignmentStats = cradOfficialAssignmentStats($officialAssignmentRecord
     <div class="record-assignment-tracking__title">Assignment Record Tracking</div>
     <div class="record-assignment-tracking__controls">
         <label class="record-assignment-search">
-            <i class="fas fa-search" aria-hidden="true"></i>
+            <?= smsIcon('search', ['aria-hidden' => 'true']) ?>
             <input type="search" data-official-assignment-search placeholder="Search by research group, title, or adviser...">
         </label>
         <select class="record-assignment-filter" data-official-assignment-status>
@@ -647,7 +647,7 @@ $officialAssignmentStats = cradOfficialAssignmentStats($officialAssignmentRecord
                         <td>Not required</td>
                         <td>
                             <a class="official-assignment-record__action <?= $isRecorded ? 'is-recorded' : '' ?>" href="<?= htmlspecialchars($recordUrl) ?>">
-                                <i class="fas <?= $isRecorded ? 'fa-check-circle' : 'fa-calendar-check' ?>"></i>
+                                <?= smsIcon($isRecorded ? 'check-circle' : 'calendar-check') ?>
                                 Record
                             </a>
                         </td>
@@ -741,7 +741,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 '<td>' + esc(row.adviser || 'For assignment') + '</td>' +
                 '<td>Not required</td>' +
                 '<td><a class="official-assignment-record__action ' + (isRecorded ? 'is-recorded' : '') + '" href="' + esc(recordUrl(row)) + '">' +
-                    '<i class="fas ' + (isRecorded ? 'fa-check-circle' : 'fa-calendar-check') + '"></i> Record' +
+                    (window.smsIconHtml ? window.smsIconHtml(isRecorded ? 'check-circle' : 'calendar-check') : '') + ' Record' +
                 '</a></td>' +
             '</tr>';
         }).join('');

@@ -62,7 +62,7 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
         <h1>{PAGE_TITLE}</h1>
         <p>{MODULE_LABEL} submodule — placeholder page.</p>
     </div>
-    <span class="placeholder-badge"><i class="fas fa-code me-1"></i>Phase 1 Placeholder</span>
+    <span class="placeholder-badge"><?= smsIcon('code', ['class' => 'me-1']) ?>Phase 1 Placeholder</span>
 </div>
 
 <div class="card">
@@ -78,7 +78,7 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
                 and CRUD operations will be implemented in a future development phase.
             </p>
             <a href="<?= BASE_URL ?>/modules/{MODULE_KEY}/index.php" class="btn btn-outline-primary rounded-3">
-                <i class="fas fa-arrow-left me-2"></i>Back to {MODULE_LABEL}
+                <?= smsIcon('arrow-left', ['class' => 'me-2']) ?>Back to {MODULE_LABEL}
             </a>
         </div>
     </div>
@@ -119,7 +119,7 @@ foreach ($MODULES as $moduleKey => $module) {
         $cards .= '        <a href="<?= BASE_URL ?>/modules/' . $moduleKey . '/pages/' . $page['slug'] . '.php" class="text-decoration-none">' . "\n";
         $cards .= '            <div class="card module-card hover-card h-100">' . "\n";
         $cards .= '                <div class="card-body d-flex align-items-center gap-3">' . "\n";
-        $cards .= '                    <div class="card-icon"><i class="far fa-square"></i></div>' . "\n";
+        $cards .= '                    <div class="card-icon"><?= smsIcon(\'square\') ?></div>' . "\n";
         $cards .= '                    <div>' . "\n";
         $cards .= '                        <h6 class="mb-0 fw-semibold">' . htmlspecialchars($page['title']) . '</h6>' . "\n";
         $cards .= '                        <small class="text-muted">Open submodule</small>' . "\n";

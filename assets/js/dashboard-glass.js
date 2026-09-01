@@ -37,11 +37,21 @@
         }
     }
 
+    function scaleSeries(values, factor) {
+        return values.map(function (value) {
+            return Math.max(1, Math.round(value * factor));
+        });
+    }
+
     function buildCharts() {
         var text = themeVar('--sms-chart-text', '#94a3b8');
         var grid = themeVar('--sms-chart-grid', 'rgba(148,163,184,0.12)');
         var doughnutBorder = themeVar('--sms-chart-doughnut-border', '#121c34');
         var role = board.getAttribute('data-role') || 'admin';
+        var periodFactor = parseFloat(board.getAttribute('data-period-factor') || '1');
+        if (!isFinite(periodFactor) || periodFactor <= 0) {
+            periodFactor = 1;
+        }
 
         Chart.defaults.font.family = "'Inter', sans-serif";
         Chart.defaults.font.size = 11;
@@ -75,7 +85,25 @@
         } else if (role === 'qa') {
             donutData = [32, 24, 18, 14, 12];
         } else if (role === 'crad_officer' || role === 'research_coordinator' || role === 'research_grant' || role === 'adviser' || role === 'panel' || role === 'research_director') {
-            donutData = [32, 22, 18, 14, 14];
+            var cradDonutRaw = board.getAttribute('data-crad-donut');
+            if (role === 'crad_officer' && cradDonutRaw) {
+                try {
+                    var cradDonut = JSON.parse(cradDonutRaw);
+                    var ongoing = Math.max(0, parseInt(cradDonut.ongoing, 10) || 0);
+                    var completed = Math.max(0, parseInt(cradDonut.completed, 10) || 0);
+                    if (ongoing + completed > 0) {
+                        donutData = [ongoing, completed];
+                        donutColors = [blue, green];
+                    } else {
+                        donutData = [1, 1];
+                        donutColors = [blue, green];
+                    }
+                } catch (e) {
+                    donutData = [32, 22, 18, 14, 14];
+                }
+            } else {
+                donutData = [32, 22, 18, 14, 14];
+            }
         }
 
         var trendData = [42, 55, 48, 70, 62, 78, 74, 90];
@@ -91,6 +119,9 @@
         if (role === 'research_grant') trendData = [2, 3, 5, 4, 7, 8, 12, 16];
         if (role === 'adviser' || role === 'panel') trendData = [1, 2, 3, 5, 4, 7, 8, 11];
         if (role === 'research_director') trendData = [3, 4, 6, 8, 9, 13, 17, 21];
+
+        donutData = scaleSeries(donutData, periodFactor);
+        trendData = scaleSeries(trendData, periodFactor);
 
         var cashIn = [48, 52, 50, 64, 70, 78, 82, 90];
         var cashOut = [30, 34, 38, 42, 40, 48, 52, 55];
@@ -116,17 +147,39 @@
             cashOut = [12, 11, 10, 10, 9, 8, 7, 7];
             netParts = [94, 6];
         } else if (role === 'crad_officer' || role === 'research_coordinator' || role === 'research_grant' || role === 'adviser' || role === 'panel' || role === 'research_director') {
+            var cradNetRaw = board.getAttribute('data-crad-donut');
+            if (role === 'crad_officer' && cradNetRaw) {
+                try {
+                    var cradNet = JSON.parse(cradNetRaw);
+                    var netOngoing = Math.max(0, parseInt(cradNet.ongoing, 10) || 0);
+                    var netCompleted = Math.max(0, parseInt(cradNet.completed, 10) || 0);
+                    var netTotal = netOngoing + netCompleted;
+                    var completePct = netTotal > 0 ? Math.round((netCompleted / netTotal) * 100) : 0;
+                    netParts = [Math.max(completePct, 1), Math.max(100 - completePct, 1)];
+                } catch (e) {
+                    netParts = [69, 31];
+                }
+            } else {
+                netParts = [69, 31];
+            }
             cashIn = [1, 2, 2, 3, 4, 5, 6, 7];
             cashOut = [1, 1, 2, 2, 3, 3, 4, 4];
-            netParts = [69, 31];
         }
 
+        cashIn = scaleSeries(cashIn, periodFactor);
+        cashOut = scaleSeries(cashOut, periodFactor);
+
         destroyAll();
+
+        var donutLabels = ['A', 'B', 'C', 'D', 'E'];
+        if (role === 'crad_officer' && donutData.length === 2) {
+            donutLabels = ['Ongoing', 'Completed'];
+        }
 
         mountChart(document.getElementById('glassDonut'), {
             type: 'doughnut',
             data: {
-                labels: ['A', 'B', 'C', 'D', 'E'],
+                labels: donutLabels,
                 datasets: [{
                     data: donutData,
                     backgroundColor: donutColors,

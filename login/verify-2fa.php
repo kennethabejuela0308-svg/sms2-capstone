@@ -157,7 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $result = smsCompleteLoginSession($user, $username);
     if (!empty($result['ok'])) {
         require_once ROOT_PATH . '/includes/module-controls.php';
-        if (smsIsSystemInMaintenance() && !in_array(getCurrentUserRoleKey(), ['superadmin', 'admin'], true)) {
+        if (smsIsSystemInMaintenance() && !smsCanBypassSystemControls()) {
             logout();
             header('Location: ' . BASE_URL . '/account/maintenance.php');
             exit;
@@ -196,18 +196,11 @@ body.login-page {
     z-index: 0;
     overflow: hidden;
     pointer-events: none;
+    background:
+        radial-gradient(ellipse 90% 70% at 15% 10%, rgba(96, 165, 250, 0.22) 0%, transparent 55%),
+        linear-gradient(145deg, #051637 0%, #0b2a6b 42%, #1a6fc4 100%);
 }
 
-.verify-video-bg video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center;
-    transform: scale(1.04);
-    filter: saturate(1.05) brightness(0.92);
-}
-
-/* Keep video visible behind the glassy verify card */
 .verify-video-bg::after {
     content: "";
     position: absolute;
@@ -228,30 +221,22 @@ body.login-page {
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .verify-video-bg video {
-        display: none;
-    }
-
     .verify-video-bg {
         background: #071c48;
     }
 }
 </style>
 
-<div class="verify-video-bg" aria-hidden="true">
-    <video autoplay muted loop playsinline>
-        <source src="<?= BASE_URL ?>/assets/videos/bcp-campus.mp4?v=bcp4" type="video/mp4">
-    </video>
-</div>
+<div class="verify-video-bg" aria-hidden="true"></div>
 
 <main class="auth-stage">
     <section class="auth-card" aria-label="Two-factor verification">
         <div class="auth-badge">
             <?php if ($isEmailMode): ?>
-                <i class="fas fa-envelope"></i>
+                <?= smsIcon('envelope') ?>
                 <span>Email</span>
             <?php else: ?>
-                <i class="fas fa-shield-alt"></i>
+                <?= smsIcon('shield-alt') ?>
                 <span>Authenticator</span>
             <?php endif; ?>
         </div>
@@ -295,7 +280,7 @@ body.login-page {
                     ]) ?>
                 </div>
                 <button type="button" class="btn btn-secondary w-100 mb-2" disabled>
-                    <i class="fas fa-lock me-2"></i>Please try again later
+                    <?= smsIcon('lock', ['class' => 'me-2']) ?>Please try again later
                 </button>
             </fieldset>
         <?php else: ?>
@@ -314,7 +299,7 @@ body.login-page {
                 ]) ?>
             </div>
             <button type="submit" class="btn btn-auth-primary w-100 mb-2">
-                <i class="fas fa-check me-2"></i>Verify &amp; sign in
+                <?= smsIcon('check', ['class' => 'me-2']) ?>Verify &amp; sign in
             </button>
         </form>
         <?php endif; ?>
@@ -325,7 +310,7 @@ body.login-page {
                 <?= csrfField() ?>
                 <input type="hidden" name="action" value="use_authenticator">
                 <button type="submit" class="btn btn-outline-secondary w-100">
-                    <i class="fas fa-mobile-alt me-2"></i>Use Authenticator instead
+                    <?= smsIcon('mobile-alt', ['class' => 'me-2']) ?>Use Authenticator instead
                 </button>
             </form>
             <?php endif; ?>
@@ -333,7 +318,7 @@ body.login-page {
                 <?= csrfField() ?>
                 <input type="hidden" name="action" value="use_email">
                 <button type="submit" class="btn btn-outline-secondary w-100">
-                    <i class="fas fa-paper-plane me-2"></i>Resend email code
+                    <?= smsIcon('paper-plane', ['class' => 'me-2']) ?>Resend email code
                 </button>
             </form>
         <?php elseif (!$isLocked): ?>
@@ -341,7 +326,7 @@ body.login-page {
                 <?= csrfField() ?>
                 <input type="hidden" name="action" value="use_email">
                 <button type="submit" class="btn btn-outline-secondary w-100">
-                    <i class="fas fa-envelope me-2"></i>Send code to my email instead
+                    <?= smsIcon('envelope', ['class' => 'me-2']) ?>Send code to my email instead
                 </button>
             </form>
         <?php endif; ?>

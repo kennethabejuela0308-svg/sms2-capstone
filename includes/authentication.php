@@ -35,6 +35,9 @@ function smsNeedsSetup(): bool
  */
 function smsNormalizeRoleKey(string $roleKey): string
 {
+    if ($roleKey === 'admin') {
+        return 'superadmin';
+    }
     if ($roleKey === 'crad') {
         return 'crad_officer';
     }
@@ -42,6 +45,73 @@ function smsNormalizeRoleKey(string $roleKey): string
         return 'admission';
     }
     return $roleKey;
+}
+
+/**
+ * Role keys to consult in role_permissions (session key + matrix aliases).
+ *
+ * @return list<string>
+ */
+function smsRolePermissionLookupKeys(string $roleKey): array
+{
+    $normalized = smsNormalizeRoleKey($roleKey);
+    $keys = [$normalized];
+    $matrixKey = smsMatrixRoleKey($normalized);
+    if ($matrixKey !== $normalized) {
+        $keys[] = $matrixKey;
+    }
+
+    return array_values(array_unique($keys));
+}
+
+/**
+ * Operational Admin (sms_admin) or Super Admin — not a substitute for module access.
+ */
+function smsIsGrantedAdminRole(string $roleKey): bool
+{
+    $normalized = smsNormalizeRoleKey($roleKey);
+
+    return in_array($normalized, ['superadmin', 'sms_admin'], true);
+}
+
+/**
+ * DB-granted module access for Admin / Super Admin roles (replaces legacy admin checks).
+ */
+function smsHasGrantedModuleAdminAccess(string $moduleKey): bool
+{
+    if ($moduleKey === '' || $moduleKey === 'dashboard') {
+        return smsIsGrantedAdminRole(getCurrentUserRoleKey());
+    }
+
+    return smsIsGrantedAdminRole(getCurrentUserRoleKey())
+        && userCanAccessModule($moduleKey);
+}
+
+/**
+ * True when the session role is listed or has DB-granted Admin module access.
+ */
+function smsRoleAllowedForModule(array $allowedRoles, string $moduleKey): bool
+{
+    $roleKey = getCurrentUserRoleKey();
+    $normalized = smsNormalizeRoleKey($roleKey);
+    if (in_array($roleKey, $allowedRoles, true) || in_array($normalized, $allowedRoles, true)) {
+        return true;
+    }
+
+    return smsHasGrantedModuleAdminAccess($moduleKey);
+}
+
+/**
+ * Bypass maintenance / force-logout for system operators and User Management staff.
+ */
+function smsCanBypassSystemControls(?string $roleKey = null): bool
+{
+    $roleKey = $roleKey ?? getCurrentUserRoleKey();
+    if (smsIsGrantedAdminRole($roleKey)) {
+        return true;
+    }
+
+    return in_array('user-management', smsAllowedModuleKeysForRole($roleKey), true);
 }
 
 /**
@@ -103,14 +173,18 @@ function smsDefaultModulesForRole(string $roleKey): array
 {
     $roleKey = smsNormalizeRoleKey($roleKey);
     $defaults = [
-        'superadmin'       => ['user-management', 'student_portal'],
+        'superadmin'       => ['user-management'],
+        'sms_admin'        => ['enrollment', 'registrar', 'curriculum', 'accreditation', 'payment', 'faculty', 'scheduling', 'cocurricular', 'lms', 'crad'],
         'admin'            => ['user-management'],
         'admission'        => ['enrollment'],
         'student'      => ['student_portal'],
         'registrar'    => ['registrar', 'curriculum', 'scheduling'],
         'crad_officer' => ['crad'],
         'research_coordinator' => ['crad'],
+        'department_chair' => ['crad'],
+        'research_office' => ['crad'],
         'research_grant' => ['crad_grant'],
+        'review_committee' => ['crad_grant'],
         'finance'      => ['payment'],
         'hr'           => ['faculty'],
         'adviser'      => ['faculty'],
@@ -120,6 +194,7 @@ function smsDefaultModulesForRole(string $roleKey): array
         'it_office'    => ['lms'],
         'osa'          => ['cocurricular'],
         'qa'           => ['accreditation'],
+        'vpaa'         => ['accreditation'],
     ];
 
     return $defaults[$roleKey] ?? [];
@@ -137,18 +212,21 @@ function smsAllowedModuleKeysForRole(string $roleKey): array
     $pdo = db();
     if ($pdo) {
         try {
+            $lookupKeys = smsRolePermissionLookupKeys($roleKey);
+            $placeholders = implode(',', array_fill(0, count($lookupKeys), '?'));
             $stmt = $pdo->prepare(
-                'SELECT module_key, granted FROM role_permissions WHERE role_key = ?'
+                "SELECT module_key, granted FROM role_permissions WHERE role_key IN ($placeholders)"
             );
-            $stmt->execute([$roleKey]);
+            $stmt->execute($lookupKeys);
             $rows = $stmt->fetchAll();
 
             if ($rows) {
                 foreach ($rows as $row) {
                     if ((int) $row['granted'] === 1) {
-                        $allowed[] = $row['module_key'];
+                        $allowed[] = (string) $row['module_key'];
                     }
                 }
+                $allowed = array_values(array_unique($allowed));
             } else {
                 $allowed = smsDefaultModulesForRole($roleKey);
             }
@@ -180,13 +258,9 @@ function smsAllowedModuleKeysForRole(string $roleKey): array
         }
     }
 
-    if (in_array($roleKey, ['superadmin', 'admin'], true) && !in_array('user-management', $allowed, true)) {
-        $allowed[] = 'user-management';
-    }
-
     if ($roleKey === 'student') {
         $allowed = ['student_portal'];
-    } elseif ($roleKey !== 'superadmin') {
+    } else {
         $allowed = array_values(array_filter(
             $allowed,
             static fn($moduleKey) => $moduleKey !== 'student_portal'
@@ -210,29 +284,14 @@ function userCanAccessModule(string $moduleKey): bool
         return true;
     }
 
-    if ($moduleKey === 'user-management') {
-        $roleKey = getCurrentUserRoleKey();
-        if (in_array($roleKey, ['superadmin', 'admin'], true)) {
-            return true;
-        }
-        return in_array('user-management', getAllowedModuleKeys(), true);
-    }
-
-    // Legacy admin accounts are restricted to dashboard and User Management.
-    if (getCurrentUserRoleKey() === 'admin') {
-        return false;
-    }
-
     // Student portal alias
     if ($moduleKey === 'student-portal' || $moduleKey === 'student_portal') {
         $moduleKey = 'student_portal';
-        $roleKey = getCurrentUserRoleKey();
+        $roleKey = smsNormalizeRoleKey(getCurrentUserRoleKey());
         if ($roleKey === 'student') {
             return true;
         }
-        if ($roleKey !== 'superadmin') {
-            return false;
-        }
+        return in_array($moduleKey, getAllowedModuleKeys(), true);
     }
 
     $allowedModules = getAllowedModuleKeys();
@@ -247,6 +306,19 @@ function requireSuperAdmin(): void
     }
 }
 
+/**
+ * Admin personal account settings (profile + login security).
+ * Available to Super Admin and operational Admin (sms_admin) — not tied to user-management module.
+ */
+function requireAdminAccountSettings(): void
+{
+    requireAuth();
+    if (!smsIsGrantedAdminRole(getCurrentUserRoleKey())) {
+        header('Location: ' . BASE_URL . '/dashboard/index.php');
+        exit;
+    }
+}
+
 function getVisibleModules(array $modules): array
 {
     $allowedModules = getAllowedModuleKeys();
@@ -254,6 +326,14 @@ function getVisibleModules(array $modules): array
 
     if (getCurrentUserRoleKey() === 'research_coordinator' && isset($visible['crad'])) {
         $visible['crad'] = smsResearchCoordinatorCradModule();
+    }
+
+    if (getCurrentUserRoleKey() === 'department_chair' && isset($visible['crad'])) {
+        unset($visible['crad']);
+    }
+
+    if (getCurrentUserRoleKey() === 'review_committee' && isset($visible['crad_grant'])) {
+        $visible['crad_grant'] = smsReviewCommitteeGrantModule();
     }
 
     if (in_array('student_portal', $allowedModules, true) && !isset($visible['student_portal'])) {
@@ -317,9 +397,6 @@ function smsResearchCoordinatorCradModule(): array
                 'adviser-availability',
                 'assign-research-adviser',
             ],
-            'Research Collaboration' => [
-                'research-collaboration-portal',
-            ],
             'B. Panel Assignment' => [
                 'retrieve-defense-ready-research',
                 'select-panel-members',
@@ -349,36 +426,32 @@ function smsResearchCoordinatorCradModule(): array
     ];
 }
 
+function smsReviewCommitteeGrantModule(): array
+{
+    return [
+        'label' => 'Research Grant',
+        'icon'  => 'fa-hand-holding-usd',
+        'hide_overview' => true,
+        'groups' => [
+            'Review & Workflow' => [
+                'reviewer-evaluation',
+            ],
+            'System' => [
+                'security-settings',
+            ],
+        ],
+        'pages' => [
+            ['slug' => 'reviewer-evaluation', 'title' => 'Reviewer Evaluation'],
+            ['slug' => 'security-settings', 'title' => 'Security Settings'],
+        ],
+    ];
+}
+
 function smsPostLoginRedirectUrl(): string
 {
-    $allowedModules = getAllowedModuleKeys();
-    $priority = [
-        'user-management',
-        'enrollment',
-        'registrar',
-        'curriculum',
-        'accreditation',
-        'payment',
-        'faculty',
-        'scheduling',
-        'cocurricular',
-        'lms',
-        'crad',
-        'reports-analytics',
-        'student_portal',
-    ];
+    require_once __DIR__ . '/navigation-context.php';
 
-    foreach ($priority as $moduleKey) {
-        if (!in_array($moduleKey, $allowedModules, true)) {
-            continue;
-        }
-        if ($moduleKey === 'student_portal') {
-            return BASE_URL . '/modules/student-portal/pages/my-profile.php';
-        }
-        return BASE_URL . '/modules/' . $moduleKey . '/index.php';
-    }
-
-    return BASE_URL . '/dashboard/index.php';
+    return smsRoleHomeUrl(getCurrentUserRoleKey());
 }
 
 function requireModuleAccess(string $moduleKey): void
@@ -399,7 +472,7 @@ function requireModuleAccess(string $moduleKey): void
 
     if (
         smsIsModuleInMaintenance($key)
-        && !in_array(getCurrentUserRoleKey(), ['superadmin', 'admin'], true)
+        && !smsCanBypassSystemControls()
         && $key !== 'user-management'
         && !$isMaintEscape
     ) {
@@ -432,6 +505,9 @@ function requireModuleAccess(string $moduleKey): void
             '/modules/crad/pages/assign-panel-members.php',
             '/modules/crad/pages/send-notifications.php',
             '/modules/crad/pages/manage-assignments.php',
+            '/modules/crad/pages/reviewer-evaluation.php',
+            '/modules/crad/pages/approval-workflows.php',
+            '/modules/crad/grant-proposal-file.php',
         ];
         $isAllowedCoordinatorPage = false;
         foreach ($allowedCoordinatorPages as $allowedPath) {
@@ -455,6 +531,67 @@ function requireModuleAccess(string $moduleKey): void
     }
 
     if (!userCanAccessModule($key) && !userCanAccessModule($moduleKey)) {
+        $grantResearcherPages = [
+            '/modules/crad/pages/grant-opportunities.php',
+            '/modules/crad/pages/proposals-applications.php',
+            '/modules/crad/pages/revisions-requested.php',
+            '/modules/crad/pages/revise-proposal.php',
+            '/modules/crad/pages/approved-funded.php',
+            '/modules/crad/pages/funded-research.php',
+            '/modules/crad/pages/budget-disbursement.php',
+            '/modules/crad/pages/project-milestones.php',
+            '/modules/crad/pages/publications-ip.php',
+            '/modules/crad/pages/document-repository.php',
+            '/modules/crad/grant-funded-research-file.php',
+            '/modules/crad/grant-final-output-file.php',
+            '/modules/crad/grant-document-repository-file.php',
+            '/modules/crad/grant-milestone-file.php',
+        ];
+        $grantReviewerPages = [
+            '/modules/crad/pages/reviewer-evaluation.php',
+            '/modules/faculty/pages/reviewer-evaluation.php',
+            '/modules/accreditation/pages/reviewer-evaluation.php',
+            '/modules/payment/pages/reviewer-evaluation.php',
+            '/modules/crad/grant-proposal-file.php',
+        ];
+        $roleKey = getCurrentUserRoleKey();
+        if (in_array($roleKey, ['student', 'adviser'], true)) {
+            foreach ($grantResearcherPages as $allowedPath) {
+                if (str_ends_with($scriptPath, $allowedPath)) {
+                    return;
+                }
+            }
+        }
+        if (in_array($roleKey, ['review_committee', 'adviser'], true)) {
+            foreach ($grantReviewerPages as $allowedPath) {
+                if (str_ends_with($scriptPath, $allowedPath)) {
+                    return;
+                }
+            }
+        }
+        $grantApproverRoles = ['research_coordinator', 'department_chair', 'hr', 'crad_officer', 'research_office', 'finance', 'qa', 'vpaa'];
+        if (in_array($roleKey, $grantApproverRoles, true)) {
+            $grantApproverPages = [
+                '/modules/crad/pages/approval-workflows.php',
+                '/modules/faculty/pages/approval-workflows.php',
+                '/modules/accreditation/pages/approval-workflows.php',
+                '/modules/payment/pages/approval-workflows.php',
+            ];
+            if ($roleKey === 'finance') {
+                $grantApproverPages[] = '/modules/payment/pages/reviewer-evaluation.php';
+                $grantApproverPages[] = '/modules/crad/pages/budget-disbursement.php';
+                $grantApproverPages[] = '/modules/crad/pages/project-milestones.php';
+                $grantApproverPages[] = '/modules/crad/pages/approved-funded.php';
+            } elseif (!in_array($roleKey, ['crad_officer'], true)) {
+                $grantApproverPages = array_merge($grantReviewerPages, $grantApproverPages);
+            }
+            foreach ($grantApproverPages as $allowedPath) {
+                if (str_ends_with($scriptPath, $allowedPath)) {
+                    return;
+                }
+            }
+        }
+
         header('Location: ' . BASE_URL . '/dashboard/index.php');
         exit;
     }

@@ -73,7 +73,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
 
 <?php if ($flash !== ''): ?>
     <div class="alert alert-success mb-3" role="alert">
-        <i class="fas fa-check-circle me-2"></i><?= htmlspecialchars($flash) ?>
+        <?= smsIcon('check-circle', ['class' => 'me-2']) ?><?= htmlspecialchars($flash) ?>
     </div>
 <?php endif; ?>
 
@@ -88,7 +88,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
             <p><?= htmlspecialchars($dashboard['subtitle'] ?? 'Analytics for the selected report type and filters.') ?></p>
         </div>
         <a class="ra-export-btn" href="?process=export">
-            Export <i class="fas fa-chevron-down" style="font-size:0.65rem;"></i>
+            Export <?= smsIcon('chevron-down', ['style' => 'font-size:0.65rem;']) ?>
         </a>
     </header>
 
@@ -154,7 +154,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
 
         <div class="ra-summary-tools">
             <label class="ra-search">
-                <i class="fas fa-search"></i>
+                <?= smsIcon('search') ?>
                 <input type="search" id="raSummarySearch" placeholder="Search this report table." aria-label="Search summary table">
             </label>
             <label class="ra-rows">

@@ -7,7 +7,7 @@ require_once __DIR__ . '/../../../config/config.php';
 require_once ROOT_PATH . '/includes/authentication.php';
 require_once ROOT_PATH . '/modules/crad/config/config.php';
 requireAuth();
-if (!in_array(getCurrentUserRoleKey(), ['crad_officer', 'research_coordinator', 'research_director', 'superadmin', 'admin'], true)) {
+if (!smsRoleAllowedForModule(['crad_officer', 'research_coordinator', 'research_director'], 'crad')) {
     http_response_code(403);
     exit('Forbidden');
 }

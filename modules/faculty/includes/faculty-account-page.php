@@ -761,7 +761,12 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
     ?>
     <style>
         .faculty-account-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1rem; margin-bottom:1rem; }
-        .faculty-stat { border:1px solid var(--sms-border); border-radius:8px; background:var(--sms-card-bg); padding:1rem; }
+        .faculty-stat { display:flex; align-items:center; gap:.85rem; border:1px solid var(--sms-border); border-radius:12px; background:var(--sms-card-bg); padding:.95rem 1rem; }
+        .faculty-stat-icon { width:42px; height:42px; flex:0 0 auto; display:grid; place-items:center; border-radius:12px; font-size:1rem; }
+        .faculty-stat-icon.blue { color:#2563eb; background:rgba(37,99,235,0.12); }
+        .faculty-stat-icon.green { color:#059669; background:rgba(16,185,129,0.12); }
+        .faculty-stat-icon.amber { color:#d97706; background:rgba(245,158,11,0.14); }
+        .faculty-stat-icon.purple { color:#7c3aed; background:rgba(139,92,246,0.12); }
         .faculty-stat span { display:block; color:var(--sms-text-muted); font-size:.72rem; font-weight:800; text-transform:uppercase; }
         .faculty-stat strong { display:block; color:var(--sms-text); font-size:1.45rem; line-height:1.2; }
         .faculty-research-list { display:grid; gap:.85rem; }
@@ -803,10 +808,10 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
     <?php endif; ?>
 
     <div class="faculty-account-grid">
-        <section class="faculty-stat"><span>Total Records</span><strong><?= count($assignments) ?></strong></section>
-        <section class="faculty-stat"><span>Assigned</span><strong><?= count($assigned) ?></strong></section>
-        <section class="faculty-stat"><span>Pending</span><strong><?= $pending ?></strong></section>
-        <section class="faculty-stat"><span>Availability</span><strong class="<?= $availabilityCardClass ?>"><?= htmlspecialchars($primaryAvailability) ?></strong></section>
+        <section class="faculty-stat"><div class="faculty-stat-icon blue"><?= smsIcon('folder-open') ?></div><div><span>Total Records</span><strong><?= count($assignments) ?></strong></div></section>
+        <section class="faculty-stat"><div class="faculty-stat-icon green"><?= smsIcon('user-check') ?></div><div><span>Assigned</span><strong><?= count($assigned) ?></strong></div></section>
+        <section class="faculty-stat"><div class="faculty-stat-icon amber"><?= smsIcon('clock') ?></div><div><span>Pending</span><strong><?= $pending ?></strong></div></section>
+        <section class="faculty-stat"><div class="faculty-stat-icon purple"><?= smsIcon('toggle-on') ?></div><div><span>Availability</span><strong class="<?= $availabilityCardClass ?>"><?= htmlspecialchars($primaryAvailability) ?></strong></div></section>
     </div>
 
     <?php if ($mode === 'profile'): ?>
@@ -836,7 +841,7 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
                     </div>
                     <div>
                         <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save me-1"></i>Save Profile
+                            <?= smsIcon('save', ['class' => 'me-1']) ?>Save Profile
                         </button>
                     </div>
                 </form>
@@ -854,7 +859,7 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
                     <label class="form-label fw-semibold">Expertise Based on Assignment Database</label>
                     <textarea class="form-control mb-3" name="expertise" rows="3" required><?= htmlspecialchars($primaryExpertise) ?></textarea>
                     <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save me-1"></i>Save Expertise
+                        <?= smsIcon('save', ['class' => 'me-1']) ?>Save Expertise
                     </button>
                 </form>
             </div>
@@ -879,7 +884,7 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
                         <?php endforeach; ?>
                     </div>
                     <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save me-1"></i>Save Availability
+                        <?= smsIcon('save', ['class' => 'me-1']) ?>Save Availability
                     </button>
                 </form>
             </div>
@@ -910,7 +915,7 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
         data-ta-update="<?= htmlspecialchars($updateEndpoint) ?>">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h2 class="h6 mb-0 fw-bold">
-                <i class="fas fa-inbox me-1 text-primary"></i>
+                <?= smsIcon('inbox', ['class' => 'me-1 text-primary']) ?>
                 Title Approval Submissions
                 <?php if ($titlePending > 0): ?>
                     <span class="badge bg-warning text-dark ms-1" id="taPendingBadge"><?= $titlePending ?></span>
@@ -923,13 +928,13 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
         <div class="card-body p-0">
             <?php if (!$titleInboxRows): ?>
             <div class="faculty-empty" id="taEmpty">
-                <i class="fas fa-paper-plane fa-2x mb-3 d-block" style="color:var(--sms-text-muted);"></i>
+                <?= smsIcon('paper-plane', ['class' => 'fa-2x mb-3 d-block', 'style' => 'color:var(--sms-text-muted);']) ?>
                 <strong>No title approval submissions yet.</strong>
                 <div class="mt-1">Student submissions sent to you will appear here in real time.</div>
             </div>
             <?php else: ?>
             <div class="faculty-empty" id="taEmpty" style="display:none">
-                <i class="fas fa-paper-plane fa-2x mb-3 d-block" style="color:var(--sms-text-muted);"></i>
+                <?= smsIcon('paper-plane', ['class' => 'fa-2x mb-3 d-block', 'style' => 'color:var(--sms-text-muted);']) ?>
                 <strong>No title approval submissions yet.</strong>
                 <div class="mt-1">Student submissions sent to you will appear here in real time.</div>
             </div>
@@ -972,7 +977,7 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
                                 <button class="btn btn-primary btn-sm ta-open"
                                     style="font-size:.75rem"
                                     data-ta-row="<?= htmlspecialchars(json_encode($taRow, JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS)) ?>">
-                                    <i class="fas fa-folder-open me-1"></i>Open
+                                    <?= smsIcon('folder-open', ['class' => 'me-1']) ?>Open
                                 </button>
                             </td>
                         </tr>
@@ -993,7 +998,7 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
                     <h2 style="margin:0;color:#fff;font-size:1.15rem;font-weight:800;">Title Approval Form</h2>
                 </div>
                 <button id="taModalClose" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:.4rem .85rem;cursor:pointer;font-weight:700;font-size:.88rem;">
-                    <i class="fas fa-times me-1"></i>Close
+                    <?= smsIcon('times', ['class' => 'me-1']) ?>Close
                 </button>
             </div>
 
@@ -1013,10 +1018,10 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
             <div style="background:#991b1b;padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;">
                 <div>
                     <div style="color:rgba(254,226,226,.86);font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:.2rem;">Title Approval</div>
-                    <h3 style="margin:0;color:#fff;font-size:1.05rem;font-weight:800;"><i class="fas fa-undo me-2"></i>Return Submission</h3>
+                    <h3 style="margin:0;color:#fff;font-size:1.05rem;font-weight:800;"><?= smsIcon('undo', ['class' => 'me-2']) ?>Return Submission</h3>
                 </div>
                 <button id="taReturnClose" type="button" style="background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.32);color:#fff;border-radius:8px;padding:.35rem .75rem;cursor:pointer;font-weight:700;">
-                    <i class="fas fa-times"></i>
+                    <?= smsIcon('times') ?>
                 </button>
             </div>
             <div style="padding:1.2rem;">
@@ -1026,7 +1031,7 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
             </div>
             <div style="padding:.9rem 1.2rem;border-top:1px solid #e5e7eb;background:#f8fafc;display:flex;justify-content:flex-end;gap:.65rem;">
                 <button id="taReturnCancel" type="button" class="btn btn-outline-secondary btn-sm" style="font-size:.82rem;">Cancel</button>
-                <button id="taReturnConfirm" type="button" class="btn btn-danger btn-sm" style="font-size:.82rem;"><i class="fas fa-undo me-1"></i>Return</button>
+                <button id="taReturnConfirm" type="button" class="btn btn-danger btn-sm" style="font-size:.82rem;"><?= smsIcon('undo', ['class' => 'me-1']) ?>Return</button>
             </div>
         </div>
     </div>
@@ -1036,10 +1041,10 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
             <div style="background:#991b1b;padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;">
                 <div>
                     <div style="color:rgba(254,226,226,.86);font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:.2rem;">Title Approval</div>
-                    <h3 style="margin:0;color:#fff;font-size:1.05rem;font-weight:800;"><i class="fas fa-exclamation-triangle me-2"></i>Confirm Return</h3>
+                    <h3 style="margin:0;color:#fff;font-size:1.05rem;font-weight:800;"><?= smsIcon('exclamation-triangle', ['class' => 'me-2']) ?>Confirm Return</h3>
                 </div>
                 <button id="taReturnConfirmClose" type="button" style="background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.32);color:#fff;border-radius:8px;padding:.35rem .75rem;cursor:pointer;font-weight:700;">
-                    <i class="fas fa-times"></i>
+                    <?= smsIcon('times') ?>
                 </button>
             </div>
             <div style="padding:1.2rem;">
@@ -1050,7 +1055,7 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
             </div>
             <div style="padding:.9rem 1.2rem;border-top:1px solid #e5e7eb;background:#f8fafc;display:flex;justify-content:flex-end;gap:.65rem;">
                 <button id="taReturnConfirmCancel" type="button" class="btn btn-outline-secondary btn-sm" style="font-size:.82rem;">Cancel</button>
-                <button id="taReturnConfirmYes" type="button" class="btn btn-danger btn-sm" style="font-size:.82rem;"><i class="fas fa-undo me-1"></i>Yes, Return Submission</button>
+                <button id="taReturnConfirmYes" type="button" class="btn btn-danger btn-sm" style="font-size:.82rem;"><?= smsIcon('undo', ['class' => 'me-1']) ?>Yes, Return Submission</button>
             </div>
         </div>
     </div>
@@ -1060,10 +1065,10 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
             <div style="background:#17366f;padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;">
                 <div>
                     <div style="color:rgba(219,234,254,.9);font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:.2rem;">TITLE APPROVAL</div>
-                    <h3 style="margin:0;color:#fff;font-size:1.05rem;font-weight:800;"><i class="fas fa-check-circle me-2"></i>Confirm Approval</h3>
+                    <h3 style="margin:0;color:#fff;font-size:1.05rem;font-weight:800;"><?= smsIcon('check-circle', ['class' => 'me-2']) ?>Confirm Approval</h3>
                 </div>
                 <button id="taApproveConfirmClose" type="button" style="background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.32);color:#fff;border-radius:8px;padding:.35rem .75rem;cursor:pointer;font-weight:700;">
-                    <i class="fas fa-times"></i>
+                    <?= smsIcon('times') ?>
                 </button>
             </div>
             <div style="padding:1.2rem;">
@@ -1073,7 +1078,7 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
             </div>
             <div style="padding:.9rem 1.2rem;border-top:1px solid #e5e7eb;background:#f8fafc;display:flex;justify-content:flex-end;gap:.65rem;">
                 <button id="taApproveConfirmCancel" type="button" class="btn btn-outline-secondary btn-sm" style="font-size:.82rem;">Cancel</button>
-                <button id="taApproveConfirmYes" type="button" class="btn btn-success btn-sm" style="font-size:.82rem;"><i class="fas fa-check me-1"></i>Yes, Approve</button>
+                <button id="taApproveConfirmYes" type="button" class="btn btn-success btn-sm" style="font-size:.82rem;"><?= smsIcon('check', ['class' => 'me-1']) ?>Yes, Approve</button>
             </div>
         </div>
     </div>
@@ -1135,7 +1140,7 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
                 '<td><small>'+esc(r.department)+'</small></td>'+
                 '<td><small>'+esc(fmtDate(r.sent_at))+'</small></td>'+
                 '<td><span class="badge bg-'+badgeCls(r.status)+'">'+esc(r.status)+'</span></td>'+
-                '<td><button class="btn btn-primary btn-sm ta-open" style="font-size:.75rem" data-ta-id-open="'+esc(r.id)+'" data-ta-row="'+rowJson+'"><i class="fas fa-folder-open me-1"></i>Open</button></td>'+
+                '<td><button class="btn btn-primary btn-sm ta-open" style="font-size:.75rem" data-ta-id-open="'+esc(r.id)+'" data-ta-row="'+rowJson+'"><?= smsIcon('folder-open', ['class' => 'me-1']) ?>Open</button></td>'+
                 '</tr>';
         }
 
@@ -1164,13 +1169,13 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
                     '<td style="border:0.8px solid #222;padding:2mm 1.4mm;">'+esc(m[2]||'')+'</td>'+
                     '</tr>';
             }
-            var base = window.location.origin;
+            var base = window.location.origin + <?= json_encode(BASE_URL) ?>;
             return '<div style="font-family:Arial,Helvetica,sans-serif;color:#111;font-size:9pt;line-height:1.45;">'+
 
             /* Header */
             '<div style="display:grid;grid-template-columns:15mm 1fr auto;align-items:center;gap:3mm;padding-bottom:2.5mm;border-bottom:2px solid #17366f;margin-bottom:4mm;">'+
             '<div style="width:42px;height:42px;display:flex;align-items:center;justify-content:center;background:transparent;">'+
-            '<img src="'+base+'/SMS2_system/images/bcp-crest.png?v=20260811" style="width:42px;height:42px;object-fit:contain;border-radius:0;background:transparent;" onerror="this.style.display=\'none\'">'+
+            '<img src="'+base+'/images/bcp-crest.png?v=20260811" style="width:42px;height:42px;object-fit:contain;border-radius:0;background:transparent;" onerror="this.style.display=\'none\'">'+
             '</div>'+
             '<div style="font-size:7pt;line-height:1.4;">'+
             '<strong style="display:block;font-size:10pt;color:#17366f;">BESTLINK COLLEGE OF THE PHILIPPINES</strong>'+
@@ -1282,8 +1287,8 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
             /* Action buttons */
             if (r.status === 'Pending') {
                 modalActs.innerHTML =
-                    '<button id="taModalApprove" class="btn btn-success btn-sm" style="font-size:.82rem"><i class="fas fa-check me-1"></i>Approve</button>'+
-                    '<button id="taModalReturn" class="btn btn-outline-danger btn-sm" style="font-size:.82rem"><i class="fas fa-undo me-1"></i>Return</button>';
+                    '<button id="taModalApprove" class="btn btn-success btn-sm" style="font-size:.82rem"><?= smsIcon('check', ['class' => 'me-1']) ?>Approve</button>'+
+                    '<button id="taModalReturn" class="btn btn-outline-danger btn-sm" style="font-size:.82rem"><?= smsIcon('undo', ['class' => 'me-1']) ?>Return</button>';
                 document.getElementById('taModalApprove').addEventListener('click', function(){ openSigModal(r); });
                 document.getElementById('taModalReturn').addEventListener('click', function(){
                     openReturnModal(r);
@@ -1405,7 +1410,7 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
         function resetReturnConfirmButton() {
             returnRequestInFlight = false;
             returnConfirmYes.disabled = false;
-            returnConfirmYes.innerHTML = '<i class="fas fa-undo me-1"></i>Yes, Return Submission';
+            returnConfirmYes.innerHTML = '<?= smsIcon('undo', ['class' => 'me-1']) ?>Yes, Return Submission';
         }
 
         document.getElementById('taReturnClose').addEventListener('click', closeReturnModal);
@@ -1419,7 +1424,7 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
             if (!pendingReturnRow || returnRequestInFlight) return;
             returnRequestInFlight = true;
             returnConfirmYes.disabled = true;
-            returnConfirmYes.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
+            returnConfirmYes.innerHTML = '<?= smsIcon('spinner', ['class' => 'fa-spin me-1']) ?>Processing...';
 
             doAction(pendingReturnRow.id, 'Returned', returnRemarks.value.trim(), '').then(function(data){
                 if (data && data.ok) {
@@ -1492,10 +1497,10 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
             <div style="background:linear-gradient(135deg,#065f46 0%,#047857 55%,#059669 100%);padding:1rem 1.4rem;display:flex;align-items:center;justify-content:space-between;">
                 <div>
                     <div style="color:rgba(209,250,229,.8);font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:.2rem;">Title Approval</div>
-                    <h3 style="margin:0;color:#fff;font-size:1.05rem;font-weight:800;"><i class="fas fa-signature me-2"></i>Draw Your Signature</h3>
+                    <h3 style="margin:0;color:#fff;font-size:1.05rem;font-weight:800;"><?= smsIcon('signature', ['class' => 'me-2']) ?>Draw Your Signature</h3>
                 </div>
                 <button id="taSigModalClose" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:.35rem .8rem;cursor:pointer;font-weight:700;font-size:.82rem;">
-                    <i class="fas fa-times"></i>
+                    <?= smsIcon('times') ?>
                 </button>
             </div>
             <div style="padding:1.25rem;">
@@ -1510,13 +1515,13 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
                     <canvas id="taSigCanvas" style="display:block;width:100%;height:160px;cursor:crosshair;touch-action:none;"></canvas>
                 </div>
                 <div id="taSigError" style="display:none;margin-top:.6rem;padding:.5rem .75rem;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;color:#991b1b;font-size:.8rem;font-weight:700;">
-                    <i class="fas fa-exclamation-circle me-1"></i>Please provide your signature before approving.
+                    <?= smsIcon('exclamation-circle', ['class' => 'me-1']) ?>Please provide your signature before approving.
                 </div>
             </div>
             <div style="padding:.85rem 1.25rem;border-top:1px solid #e5e7eb;display:flex;align-items:center;justify-content:flex-end;gap:.65rem;background:#f9fafb;">
                 <button id="taSigCancelBtn" class="btn btn-outline-secondary btn-sm" style="font-size:.82rem;">Cancel</button>
                 <button id="taSigConfirmBtn" class="btn btn-success btn-sm" style="font-size:.82rem;">
-                    <i class="fas fa-check me-1"></i>Confirm &amp; Approve
+                    <?= smsIcon('check', ['class' => 'me-1']) ?>Confirm &amp; Approve
                 </button>
             </div>
         </div>
@@ -1602,7 +1607,7 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
         function resetApproveConfirmButton() {
             approveRequestInFlight = false;
             approveConfirmYes.disabled = false;
-            approveConfirmYes.innerHTML = '<i class="fas fa-check me-1"></i>Yes, Approve';
+            approveConfirmYes.innerHTML = '<?= smsIcon('check', ['class' => 'me-1']) ?>Yes, Approve';
         }
 
         function closeApproveConfirmModal() {
@@ -1652,7 +1657,7 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
 
             /* Disable confirm while saving */
             confirmBtn.disabled = true;
-            confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving…';
+            confirmBtn.innerHTML = '<?= smsIcon('spinner', ['class' => 'fa-spin me-1']) ?>Saving…';
 
             /* Call the shared doAction via a custom event so we stay in the outer IIFE scope */
             var ev = new CustomEvent('ta-do-approve', { detail: { row: pendingRow, sig: sigData } });
@@ -1662,7 +1667,7 @@ function renderFacultyAccountPage(string $title, string $activePage, string $mod
             /* Re-enable in case something goes wrong */
             setTimeout(function () {
                 confirmBtn.disabled = false;
-                confirmBtn.innerHTML = '<i class="fas fa-check me-1"></i>Confirm &amp; Approve';
+                confirmBtn.innerHTML = '<?= smsIcon('check', ['class' => 'me-1']) ?>Confirm &amp; Approve';
             }, 3000);
         });
 

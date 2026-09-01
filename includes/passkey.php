@@ -609,7 +609,7 @@ function smsRenderPasskeyCard(int $userId, string $csrfToken, bool $asBox = fals
             </p>
             <div id="smsPasskeyMsg" class="small mb-2" hidden></div>
             <button type="button" class="sms-sec-btn sms-sec-btn-primary" id="smsPasskeyAdd">
-                <i class="fas fa-plus" aria-hidden="true"></i>Add passkey
+                <?= smsIcon('plus', ['aria-hidden' => 'true']) ?>Add passkey
             </button>
             <?php if ($keys): ?>
                 <div class="sms-sec-list table-responsive mt-3">
@@ -630,7 +630,7 @@ function smsRenderPasskeyCard(int $userId, string $csrfToken, bool $asBox = fals
                                         <button type="button" class="sms-sec-btn sms-sec-btn-danger sms-passkey-remove"
                                                 data-id="<?= (int) $pk['id'] ?>"
                                                 data-name="<?= e((string) $pk['device_name']) ?>">
-                                            <i class="fas fa-trash-alt" aria-hidden="true"></i>Remove
+                                            <?= smsIcon('trash-alt', ['aria-hidden' => 'true']) ?>Remove
                                         </button>
                                     </td>
                                 </tr>
@@ -641,51 +641,59 @@ function smsRenderPasskeyCard(int $userId, string $csrfToken, bool $asBox = fals
             <?php endif; ?>
     <?= $asBox ? smsSecBoxEnd() : smsSecCardEnd() ?>
 
-    <div class="modal fade" id="smsPasskeyRemoveModal" tabindex="-1" aria-labelledby="smsPasskeyRemoveTitle" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="smsPasskeyRemoveTitle">Are you sure?</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <div class="modal fade sms-confirm-modal" id="smsPasskeyRemoveModal" tabindex="-1" aria-labelledby="smsPasskeyRemoveTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered sms-confirm-dialog sms-confirm-dialog--wide">
+            <div class="modal-content sms-confirm-content">
+                <div class="sms-confirm-header">
+                    <div class="sms-confirm-header-text">
+                        <span class="sms-confirm-kicker">Passkey</span>
+                        <h5 class="sms-confirm-title" id="smsPasskeyRemoveTitle">Remove passkey?</h5>
+                    </div>
+                    <button type="button" class="sms-confirm-close" data-bs-dismiss="modal" aria-label="Close"><span class="sms-confirm-close__glyph" aria-hidden="true">×</span></button>
                 </div>
-                <div class="modal-body">
-                    <p class="mb-3" id="smsPasskeyRemoveLead">Are you sure you want to remove this passkey? Verify your identity to continue.</p>
-                    <div id="smsPasskeyRemoveErr" class="alert alert-danger py-2 small" hidden></div>
-                    <div id="smsPasskeyRemoveInfo" class="alert alert-info py-2 small" hidden></div>
+                <div class="sms-confirm-body sms-confirm-body--form">
+                    <div class="sms-confirm-icon sms-confirm-icon--danger" aria-hidden="true">
+                        <?= smsIcon('trash') ?>
+                    </div>
+                    <p class="sms-confirm-msg mb-0" id="smsPasskeyRemoveLead">Verify your identity to remove this passkey.</p>
+                    <div id="smsPasskeyRemoveErr" class="sms-confirm-notice sms-confirm-notice--danger w-100" hidden></div>
+                    <div id="smsPasskeyRemoveInfo" class="sms-confirm-notice sms-confirm-notice--info w-100" hidden></div>
 
-                    <div id="smsPkVerifyAuthenticator" class="sms-pk-verify" hidden>
-                        <label class="form-label fw-semibold" for="smsPkTotp">Authenticator code</label>
-                        <input type="text" class="form-control" id="smsPkTotp" inputmode="numeric" maxlength="6"
+                    <div class="sms-confirm-form w-100">
+                    <div id="smsPkVerifyAuthenticator" class="sms-pk-verify w-100" hidden>
+                        <label class="sms-confirm-label" for="smsPkTotp"><?= smsIcon('shield-lock') ?>Authenticator code</label>
+                        <input type="text" class="form-control sms-confirm-input" id="smsPkTotp" inputmode="numeric" maxlength="6"
                                pattern="\d{6}" autocomplete="one-time-code" placeholder="000000">
                     </div>
-                    <div id="smsPkVerifyEmail" class="sms-pk-verify" hidden>
-                        <label class="form-label fw-semibold" for="smsPkOtp">Email code</label>
-                        <input type="text" class="form-control" id="smsPkOtp" inputmode="numeric" maxlength="6"
+                    <div id="smsPkVerifyEmail" class="sms-pk-verify w-100" hidden>
+                        <label class="sms-confirm-label" for="smsPkOtp"><?= smsIcon('mail') ?>Email code</label>
+                        <input type="text" class="form-control sms-confirm-input" id="smsPkOtp" inputmode="numeric" maxlength="6"
                                pattern="\d{6}" autocomplete="one-time-code" placeholder="000000">
-                        <button type="button" class="btn btn-link btn-sm px-0 mt-1" id="smsPkResendEmail">Resend email code</button>
+                        <button type="button" class="btn btn-link btn-sm px-0 mt-2 sms-confirm-link" id="smsPkResendEmail"><?= smsIcon('refresh', ['class' => 'me-1']) ?>Resend email code</button>
                     </div>
-                    <div id="smsPkVerifyPassword" class="sms-pk-verify" hidden>
-                        <label class="form-label fw-semibold" for="smsPkPassword">Password</label>
+                    <div id="smsPkVerifyPassword" class="sms-pk-verify w-100" hidden>
+                        <label class="sms-confirm-label" for="smsPkPassword"><?= smsIcon('lock') ?>Password</label>
                         <div class="sms-pw-group password-group">
-                            <input type="password" class="form-control" id="smsPkPassword" autocomplete="current-password"
+                            <input type="password" class="form-control sms-confirm-input" id="smsPkPassword" autocomplete="current-password"
                                    placeholder="Enter your password">
                             <button class="password-toggle sms-pw-toggle" type="button" data-pw-target="smsPkPassword"
                                     aria-label="Show password" title="Show password" aria-pressed="false">
-                                <i class="fas fa-eye" aria-hidden="true"></i>
+                                <?= smsIcon('eye', ['aria-hidden' => 'true']) ?>
                             </button>
                         </div>
                     </div>
+                    </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="sms-sec-btn sms-sec-btn-danger" id="smsPasskeyRemoveConfirm">
-                        <i class="fas fa-trash-alt" aria-hidden="true"></i>Yes, remove
+                <div class="sms-confirm-footer">
+                    <button type="button" class="btn btn-outline-secondary sms-confirm-cancel" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn sms-confirm-ok sms-confirm-ok--danger" id="smsPasskeyRemoveConfirm">
+                        <?= smsIcon('trash', ['class' => 'me-1', 'aria-hidden' => 'true']) ?>Yes, remove
                     </button>
                 </div>
             </div>
         </div>
     </div>
     </div>
-    <script src="<?= BASE_URL ?>/assets/js/passkey.js?v=10"></script>
+    <script src="<?= BASE_URL ?>/assets/js/passkey.js?v=11"></script>
     <?php
 }

@@ -31,7 +31,7 @@ require_once ROOT_PATH . '/includes/security.php';
 requireAuth();
 
 $roleKey = getCurrentUserRoleKey();
-if (!in_array($roleKey, ['crad_officer', 'superadmin', 'admin'], true)) {
+if (!smsRoleAllowedForModule(['crad_officer'], 'crad')) {
     header('Location: ' . BASE_URL . '/dashboard/index.php');
     exit;
 }
@@ -477,19 +477,19 @@ sort($programs, SORT_STRING);
 <div class="cgsr-wrap">
     <div class="cgsr-stats">
         <div class="cgsr-stat">
-            <div class="cgsr-stat-icon indigo"><i class="fas fa-users"></i></div>
+            <div class="cgsr-stat-icon indigo"><?= smsIcon('users') ?></div>
             <div><strong id="cgsr-stat-groups"><?= (int) $stats['total_groups'] ?></strong><span>Registered Groups</span></div>
         </div>
         <div class="cgsr-stat">
-            <div class="cgsr-stat-icon green"><i class="fas fa-user-graduate"></i></div>
+            <div class="cgsr-stat-icon green"><?= smsIcon('user-graduate') ?></div>
             <div><strong id="cgsr-stat-students"><?= (int) $stats['total_students'] ?></strong><span>Total Students</span></div>
         </div>
         <div class="cgsr-stat">
-            <div class="cgsr-stat-icon blue"><i class="fas fa-user-tie"></i></div>
+            <div class="cgsr-stat-icon blue"><?= smsIcon('user-tie') ?></div>
             <div><strong id="cgsr-stat-advisers"><?= (int) $stats['total_advisers'] ?></strong><span>Total Advisers</span></div>
         </div>
         <div class="cgsr-stat">
-            <div class="cgsr-stat-icon amber"><i class="fas fa-user-cog"></i></div>
+            <div class="cgsr-stat-icon amber"><?= smsIcon('user-cog') ?></div>
             <div><strong id="cgsr-stat-coordinators"><?= (int) $stats['total_coordinators'] ?></strong><span>Total Coordinators</span></div>
         </div>
     </div>
@@ -497,14 +497,14 @@ sort($programs, SORT_STRING);
     <section class="cgsr-card">
         <div class="cgsr-card-head">
             <div class="cgsr-card-title">
-                <h2><i class="fas fa-clipboard-list"></i> Official Registered Groups</h2>
+                <h2><?= smsIcon('clipboard-list') ?> Official Registered Groups</h2>
                 <span data-cgsr-count><?= count($rows) ?> registered group<?= count($rows) === 1 ? '' : 's' ?></span>
             </div>
             <div class="cgsr-meta" data-cgsr-sync>Synced <?= htmlspecialchars(date('M j, Y g:i:s A')) ?></div>
         </div>
         <div class="cgsr-card-tools">
             <label class="cgsr-search">
-                <i class="fas fa-search"></i>
+                <?= smsIcon('search') ?>
                 <input type="search" data-cgsr-search placeholder="Search by group, title, leader, adviser, or coordinator..." aria-label="Search registry">
             </label>
             <select class="cgsr-filter" data-cgsr-filter="academic_year" aria-label="Filter by Academic Year">
@@ -586,10 +586,10 @@ sort($programs, SORT_STRING);
                                     <?php endif; ?>
                                 </td>
                                 <td><div class="cgsr-title"><?= htmlspecialchars($r['academic_year']) ?></div></td>
-                                <td><span class="cgsr-badge cgsr-badge-registered"><i class="fas fa-check"></i> Registered</span></td>
+                                <td><span class="cgsr-badge cgsr-badge-registered"><?= smsIcon('check') ?> Registered</span></td>
                                 <td>
                                     <button type="button" class="cgsr-btn cgsr-btn-primary" data-cgsr-view="<?= htmlspecialchars($r['group_number']) ?>">
-                                        <i class="fas fa-eye"></i> View
+                                        <?= smsIcon('eye') ?> View
                                     </button>
                                 </td>
                             </tr>
@@ -606,8 +606,8 @@ sort($programs, SORT_STRING);
 <div class="cgsr-modal-overlay" data-cgsr-modal hidden>
     <div class="cgsr-modal" role="dialog" aria-modal="true">
         <div class="cgsr-modal-head">
-            <h3><i class="fas fa-clipboard-list"></i> Registered Group Details</h3>
-            <button type="button" class="cgsr-modal-close" data-cgsr-close aria-label="Close"><i class="fas fa-times"></i></button>
+            <h3><?= smsIcon('clipboard-list') ?> Registered Group Details</h3>
+            <button type="button" class="cgsr-modal-close" data-cgsr-close aria-label="Close"><?= smsIcon('times') ?></button>
         </div>
         <div class="cgsr-modal-body" data-cgsr-modal-body></div>
     </div>
@@ -680,8 +680,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     '<td><div class="cgsr-title">' + esc(r.coordinator) + '</div>' +
                         (r.coordinator_email ? '<span class="cgsr-meta-block">' + esc(r.coordinator_email) + '</span>' : '') + '</td>' +
                     '<td><div class="cgsr-title">' + esc(r.academic_year) + '</div></td>' +
-                    '<td><span class="cgsr-badge cgsr-badge-registered"><i class="fas fa-check"></i> Registered</span></td>' +
-                    '<td><button type="button" class="cgsr-btn cgsr-btn-primary" data-cgsr-view="' + esc(r.group_number) + '"><i class="fas fa-eye"></i> View</button></td>' +
+                    '<td><span class="cgsr-badge cgsr-badge-registered"><?= smsIcon('check') ?> Registered</span></td>' +
+                    '<td><button type="button" class="cgsr-btn cgsr-btn-primary" data-cgsr-view="' + esc(r.group_number) + '"><?= smsIcon('eye') ?> View</button></td>' +
                 '</tr>';
             }).join('');
             tbody.querySelectorAll('[data-cgsr-view]').forEach(function (btn) {
@@ -706,7 +706,7 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     const badge = function (label, cls) {
-        return '<span class="cgsr-badge ' + cls + '"><i class="fas fa-check"></i> ' + esc(label) + '</span>';
+        return '<span class="cgsr-badge ' + cls + '"><?= smsIcon('check') ?> ' + esc(label) + '</span>';
     };
 
     const openDetails = function (r) {
@@ -742,13 +742,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     '<span class="cgsr-detail-value">' + esc(r.coordinator) + '</span></div>' +
             '</div>' +
 
-            '<div class="cgsr-detail-section"><h4><i class="fas fa-user-tie"></i> Leader</h4>' +
+            '<div class="cgsr-detail-section"><h4><?= smsIcon('user-tie') ?> Leader</h4>' +
                 '<div class="cgsr-detail-list"><div class="cgsr-detail-list-item"><span class="cgsr-detail-role">Leader</span>' +
                 '<div><span class="cgsr-detail-value">' + esc((r.leader && r.leader.name) || '\u2014') + '</span>' +
                 ((r.leader && r.leader.id) ? '<span class="cgsr-meta-block">' + esc(r.leader.id) + '</span>' : '') +
                 '</div></div></div></div>' +
 
-            '<div class="cgsr-detail-section"><h4><i class="fas fa-users"></i> Members</h4>' +
+            '<div class="cgsr-detail-section"><h4><?= smsIcon('users') ?> Members</h4>' +
                 '<div class="cgsr-detail-list">' + memberRows + '</div></div>';
 
         modal.hidden = false;

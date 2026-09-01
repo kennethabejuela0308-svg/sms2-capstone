@@ -170,10 +170,10 @@ body.admission-embed-page {
         </div>
         <div class="admission-actions">
             <a href="<?= BASE_URL ?>/login/login.php">
-                <i class="fas fa-arrow-left" aria-hidden="true"></i>Back to Sign In
+                <?= smsIcon('arrow-left', ['aria-hidden' => 'true']) ?>Back to Sign In
             </a>
             <button type="button" id="admissionOpenTabBtn" title="Open this BCP admission page in a new tab">
-                <i class="fas fa-external-link-alt" aria-hidden="true"></i>Open in new tab
+                <?= smsIcon('external-link-alt', ['aria-hidden' => 'true']) ?>Open in new tab
             </button>
         </div>
     </header>

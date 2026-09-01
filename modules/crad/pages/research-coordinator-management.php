@@ -22,7 +22,7 @@ require_once ROOT_PATH . '/includes/security.php';
 requireAuth();
 
 $roleKey = getCurrentUserRoleKey();
-if (!in_array($roleKey, ['crad_officer', 'superadmin', 'admin'], true)) {
+if (!smsRoleAllowedForModule(['crad_officer'], 'crad')) {
     header('Location: ' . BASE_URL . '/dashboard/index.php');
     exit;
 }
@@ -798,7 +798,7 @@ $csrf     = csrfToken();
 
 <?php if (!empty($payload['message'])): ?>
 <div class="rcm-alert rcm-alert-<?= $payload['ok'] ? 'success' : 'danger' ?>" role="alert">
-    <i class="fas <?= $payload['ok'] ? 'fa-check-circle' : 'fa-exclamation-circle' ?>"></i>
+    <?= smsIcon($payload['ok'] ? 'check-circle' : 'exclamation-circle') ?>
     <span><?= htmlspecialchars($payload['message']) ?></span>
 </div>
 <?php endif; ?>
@@ -1093,19 +1093,19 @@ $csrf     = csrfToken();
 <div class="rcm-wrap">
     <div class="rcm-stats">
         <div class="rcm-stat">
-            <div class="rcm-stat-icon indigo"><i class="fas fa-user-tie"></i></div>
+            <div class="rcm-stat-icon indigo"><?= smsIcon('user-tie') ?></div>
             <div><strong id="rcm-stat-total"><?= (int) $stats['total_coordinators'] ?></strong><span>Total Coordinators</span></div>
         </div>
         <div class="rcm-stat">
-            <div class="rcm-stat-icon green"><i class="fas fa-user-check"></i></div>
+            <div class="rcm-stat-icon green"><?= smsIcon('user-check') ?></div>
             <div><strong id="rcm-stat-active"><?= (int) $stats['active_coordinators'] ?></strong><span>Active Coordinators</span></div>
         </div>
         <div class="rcm-stat">
-            <div class="rcm-stat-icon blue"><i class="fas fa-users"></i></div>
+            <div class="rcm-stat-icon blue"><?= smsIcon('users') ?></div>
             <div><strong id="rcm-stat-assigned"><?= (int) $stats['assigned_groups'] ?></strong><span>Assigned Groups</span></div>
         </div>
         <div class="rcm-stat">
-            <div class="rcm-stat-icon amber"><i class="fas fa-clock"></i></div>
+            <div class="rcm-stat-icon amber"><?= smsIcon('clock') ?></div>
             <div><strong id="rcm-stat-pending"><?= (int) $stats['pending_groups'] ?></strong><span>Pending Assignment</span></div>
         </div>
     </div>
@@ -1113,14 +1113,14 @@ $csrf     = csrfToken();
     <section class="rcm-card" data-rcm-card="eligible">
         <div class="rcm-card-head">
             <div class="rcm-card-title">
-                <h2><i class="fas fa-user-plus"></i> Assign Research Coordinator</h2>
+                <h2><?= smsIcon('user-plus') ?> Assign Research Coordinator</h2>
                 <span data-rcm-count><?= count($eligible) ?> group<?= count($eligible) === 1 ? '' : 's' ?> waiting • <?= count($pool) ?> coordinator(s)</span>
             </div>
             <div class="rcm-meta" data-rcm-sync>Synced <?= htmlspecialchars(date('M j, Y g:i:s A')) ?></div>
         </div>
         <div class="rcm-card-tools">
             <label class="rcm-search">
-                <i class="fas fa-search"></i>
+                <?= smsIcon('search') ?>
                 <input type="search" data-rcm-search placeholder="Search by group, title, or adviser..." aria-label="Search eligible research groups">
             </label>
             <select class="rcm-filter" data-rcm-status aria-label="Filter coordinator status">
@@ -1192,7 +1192,7 @@ $csrf     = csrfToken();
                             </td>
                             <td>
                                 <button type="button" class="rcm-btn rcm-btn-primary rcm-assign-btn" data-group="<?= htmlspecialchars($g['group_number'], ENT_QUOTES) ?>">
-                                    <i class="fas fa-check"></i> Assign
+                                    <?= smsIcon('check') ?> Assign
                                 </button>
                             </td>
                         </tr>
@@ -1203,9 +1203,9 @@ $csrf     = csrfToken();
         <div class="rcm-pager" data-rcm-pager>
             <span class="rcm-pager-info" data-rcm-info></span>
             <div class="rcm-pager-nav">
-                <button type="button" class="rcm-pager-btn" data-rcm-prev aria-label="Previous page"><i class="fas fa-chevron-left"></i></button>
+                <button type="button" class="rcm-pager-btn" data-rcm-prev aria-label="Previous page"><?= smsIcon('chevron-left') ?></button>
                 <div class="rcm-pager-nav" data-rcm-pages></div>
-                <button type="button" class="rcm-pager-btn" data-rcm-next aria-label="Next page"><i class="fas fa-chevron-right"></i></button>
+                <button type="button" class="rcm-pager-btn" data-rcm-next aria-label="Next page"><?= smsIcon('chevron-right') ?></button>
             </div>
             <label class="rcm-per-page">Records
                 <select data-rcm-per-page aria-label="Records per page">
@@ -1222,13 +1222,13 @@ $csrf     = csrfToken();
     <section class="rcm-card" data-rcm-card="assignments">
         <div class="rcm-card-head">
             <div class="rcm-card-title">
-                <h2><i class="fas fa-clipboard-list"></i> Assignment List</h2>
+                <h2><?= smsIcon('clipboard-list') ?> Assignment List</h2>
                 <span data-rcm-count><?= count($assignments) ?> assignment<?= count($assignments) === 1 ? '' : 's' ?></span>
             </div>
         </div>
         <div class="rcm-card-tools">
             <label class="rcm-search">
-                <i class="fas fa-search"></i>
+                <?= smsIcon('search') ?>
                 <input type="search" data-rcm-search placeholder="Search by group, title, or coordinator..." aria-label="Search coordinator assignments">
             </label>
             <select class="rcm-filter" data-rcm-status aria-label="Filter assignment status">
@@ -1270,18 +1270,18 @@ $csrf     = csrfToken();
                             </td>
                             <td>
                                 <span class="rcm-pill rcm-pill-<?= $a['status'] === 'Active' ? 'active' : 'inactive' ?>">
-                                    <i class="fas <?= $a['status'] === 'Active' ? 'fa-check-circle' : 'fa-minus-circle' ?>"></i>
+                                    <?= smsIcon($a['status'] === 'Active' ? 'check-circle' : 'minus-circle') ?>
                                     <?= htmlspecialchars($a['status']) ?>
                                 </span>
                             </td>
                             <td class="rcm-meta"><?= $a['assigned_at'] !== '' ? htmlspecialchars(date('M j, Y g:i A', strtotime($a['assigned_at']))) : '—' ?></td>
                             <td>
                                 <span class="rcm-menu-wrap">
-                                    <button type="button" class="rcm-btn rcm-menu-btn" data-rcm-menu aria-label="Actions"><i class="fas fa-ellipsis-v"></i></button>
+                                    <button type="button" class="rcm-btn rcm-menu-btn" data-rcm-menu aria-label="Actions"><?= smsIcon('ellipsis-v') ?></button>
                                     <div class="rcm-menu" role="menu">
-                                        <button type="button" class="rcm-menu-item" data-menu="view" data-type="assignment" data-id="<?= (int) $a['id'] ?>"><i class="fas fa-eye"></i> View Details</button>
-                                        <button type="button" class="rcm-menu-item" data-menu="reassign" data-group="<?= htmlspecialchars($a['group_number'], ENT_QUOTES) ?>" data-coordinator="<?= htmlspecialchars($a['coordinator_name'], ENT_QUOTES) ?>"><i class="fas fa-user-cog"></i> Reassign Coordinator</button>
-                                        <button type="button" class="rcm-menu-item<?= $a['status'] === 'Active' ? ' danger' : '' ?>" data-menu="toggle" data-id="<?= (int) $a['id'] ?>" data-status="<?= $a['status'] === 'Active' ? 'Inactive' : 'Active' ?>"><i class="fas <?= $a['status'] === 'Active' ? 'fa-pause' : 'fa-play' ?>"></i> <?= $a['status'] === 'Active' ? 'Deactivate Assignment' : 'Reactivate Assignment' ?></button>
+                                        <button type="button" class="rcm-menu-item" data-menu="view" data-type="assignment" data-id="<?= (int) $a['id'] ?>"><?= smsIcon('eye') ?> View Details</button>
+                                        <button type="button" class="rcm-menu-item" data-menu="reassign" data-group="<?= htmlspecialchars($a['group_number'], ENT_QUOTES) ?>" data-coordinator="<?= htmlspecialchars($a['coordinator_name'], ENT_QUOTES) ?>"><?= smsIcon('user-cog') ?> Reassign Coordinator</button>
+                                        <button type="button" class="rcm-menu-item<?= $a['status'] === 'Active' ? ' danger' : '' ?>" data-menu="toggle" data-id="<?= (int) $a['id'] ?>" data-status="<?= $a['status'] === 'Active' ? 'Inactive' : 'Active' ?>"><?= smsIcon($a['status'] === 'Active' ? 'pause' : 'play') ?> <?= $a['status'] === 'Active' ? 'Deactivate Assignment' : 'Reactivate Assignment' ?></button>
                                     </div>
                                 </span>
                             </td>
@@ -1293,9 +1293,9 @@ $csrf     = csrfToken();
         <div class="rcm-pager" data-rcm-pager>
             <span class="rcm-pager-info" data-rcm-info></span>
             <div class="rcm-pager-nav">
-                <button type="button" class="rcm-pager-btn" data-rcm-prev aria-label="Previous page"><i class="fas fa-chevron-left"></i></button>
+                <button type="button" class="rcm-pager-btn" data-rcm-prev aria-label="Previous page"><?= smsIcon('chevron-left') ?></button>
                 <div class="rcm-pager-nav" data-rcm-pages></div>
-                <button type="button" class="rcm-pager-btn" data-rcm-next aria-label="Next page"><i class="fas fa-chevron-right"></i></button>
+                <button type="button" class="rcm-pager-btn" data-rcm-next aria-label="Next page"><?= smsIcon('chevron-right') ?></button>
             </div>
             <label class="rcm-per-page">Records
                 <select data-rcm-per-page aria-label="Records per page">
@@ -1312,13 +1312,13 @@ $csrf     = csrfToken();
     <section class="rcm-card" data-rcm-card="roster">
         <div class="rcm-card-head">
             <div class="rcm-card-title">
-                <h2><i class="fas fa-user-tie"></i> Coordinator Roster</h2>
+                <h2><?= smsIcon('user-tie') ?> Coordinator Roster</h2>
                 <span data-rcm-count><?= count($roster) ?> coordinator<?= count($roster) === 1 ? '' : 's' ?></span>
             </div>
         </div>
         <div class="rcm-card-tools">
             <label class="rcm-search">
-                <i class="fas fa-search"></i>
+                <?= smsIcon('search') ?>
                 <input type="search" data-rcm-search placeholder="Search by coordinator or email..." aria-label="Search coordinator roster">
             </label>
             <select class="rcm-filter" data-rcm-status aria-label="Filter coordinator status">
@@ -1351,7 +1351,7 @@ $csrf     = csrfToken();
                             </td>
                             <td>
                                 <span class="rcm-pill rcm-pill-<?= !empty($r['active']) ? 'active' : 'inactive' ?>">
-                                    <i class="fas <?= !empty($r['active']) ? 'fa-check-circle' : 'fa-minus-circle' ?>"></i>
+                                    <?= smsIcon(!empty($r['active']) ? 'check-circle' : 'minus-circle') ?>
                                     <?= !empty($r['active']) ? 'Active' : 'Inactive' ?>
                                 </span>
                             </td>
@@ -1365,9 +1365,9 @@ $csrf     = csrfToken();
                             <td class="rcm-meta"><?= $r['last_assigned'] !== null ? htmlspecialchars(date('M j, Y', strtotime($r['last_assigned']))) : '—' ?></td>
                             <td>
                                 <span class="rcm-menu-wrap">
-                                    <button type="button" class="rcm-btn rcm-menu-btn" data-rcm-menu aria-label="Actions"><i class="fas fa-ellipsis-v"></i></button>
+                                    <button type="button" class="rcm-btn rcm-menu-btn" data-rcm-menu aria-label="Actions"><?= smsIcon('ellipsis-v') ?></button>
                                     <div class="rcm-menu" role="menu">
-                                        <button type="button" class="rcm-menu-item" data-menu="view" data-type="coordinator" data-id="<?= (int) $r['user_id'] ?>" data-name="<?= htmlspecialchars($r['name'], ENT_QUOTES) ?>"><i class="fas fa-eye"></i> View Details</button>
+                                        <button type="button" class="rcm-menu-item" data-menu="view" data-type="coordinator" data-id="<?= (int) $r['user_id'] ?>" data-name="<?= htmlspecialchars($r['name'], ENT_QUOTES) ?>"><?= smsIcon('eye') ?> View Details</button>
                                     </div>
                                 </span>
                             </td>
@@ -1379,9 +1379,9 @@ $csrf     = csrfToken();
         <div class="rcm-pager" data-rcm-pager>
             <span class="rcm-pager-info" data-rcm-info></span>
             <div class="rcm-pager-nav">
-                <button type="button" class="rcm-pager-btn" data-rcm-prev aria-label="Previous page"><i class="fas fa-chevron-left"></i></button>
+                <button type="button" class="rcm-pager-btn" data-rcm-prev aria-label="Previous page"><?= smsIcon('chevron-left') ?></button>
                 <div class="rcm-pager-nav" data-rcm-pages></div>
-                <button type="button" class="rcm-pager-btn" data-rcm-next aria-label="Next page"><i class="fas fa-chevron-right"></i></button>
+                <button type="button" class="rcm-pager-btn" data-rcm-next aria-label="Next page"><?= smsIcon('chevron-right') ?></button>
             </div>
             <label class="rcm-per-page">Records
                 <select data-rcm-per-page aria-label="Records per page">
@@ -1400,7 +1400,7 @@ $csrf     = csrfToken();
     <div class="rcm-modal" role="dialog" aria-modal="true" aria-labelledby="rcm-modal-title">
         <div class="rcm-modal-head">
             <h3 id="rcm-modal-title" data-rcm-modal-title>Details</h3>
-            <button type="button" class="rcm-modal-close" data-rcm-close aria-label="Close"><i class="fas fa-times"></i></button>
+            <button type="button" class="rcm-modal-close" data-rcm-close aria-label="Close"><?= smsIcon('times') ?></button>
         </div>
         <div class="rcm-modal-body" data-rcm-modal-body></div>
     </div>
@@ -1643,7 +1643,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 '<td><div class="rcm-title rcm-truncate" title="' + esc(g.research_title || '') + '">' + esc(g.research_title || '') + '</div></td>' +
                 '<td>' + esc(g.adviser || '') + '</td>' +
                 '<td><select class="rcm-select rcm-coordinator-select" data-group="' + esc(g.group_number) + '">' + options + '</select>' + hint + '</td>' +
-                '<td><button type="button" class="rcm-btn rcm-btn-primary rcm-assign-btn" data-group="' + esc(g.group_number) + '"><i class="fas fa-check"></i> Assign</button></td>' +
+                '<td><button type="button" class="rcm-btn rcm-btn-primary rcm-assign-btn" data-group="' + esc(g.group_number) + '"><?= smsIcon('check') ?> Assign</button></td>' +
                 '</tr>';
         }).join('');
         if (empty) empty.hidden = true;
@@ -1674,14 +1674,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     (a.research_title ? '<span class="rcm-meta rcm-meta-truncate" title="' + esc(a.research_title) + '">' + esc(a.research_title) + '</span>' : '') + '</td>' +
                 '<td><div class="rcm-title">' + esc(a.coordinator_name) + '</div>' +
                     (a.coordinator_email ? '<span class="rcm-meta">' + esc(a.coordinator_email) + '</span>' : '') + '</td>' +
-                '<td><span class="rcm-pill rcm-pill-' + (isActive ? 'active' : 'inactive') + '"><i class="fas ' + (isActive ? 'fa-check-circle' : 'fa-minus-circle') + '"></i> ' + esc(a.status) + '</span></td>' +
+                '<td><span class="rcm-pill rcm-pill-' + (isActive ? 'active' : 'inactive') + '">' + (window.smsIconHtml ? window.smsIconHtml(isActive ? 'check-circle' : 'minus-circle') : '') + ' ' + esc(a.status) + '</span></td>' +
                 '<td class="rcm-meta">' + fmtDateTime(a.assigned_at) + '</td>' +
                 '<td><span class="rcm-menu-wrap">' +
-                    '<button type="button" class="rcm-btn rcm-menu-btn" data-rcm-menu aria-label="Actions"><i class="fas fa-ellipsis-v"></i></button>' +
+                    '<button type="button" class="rcm-btn rcm-menu-btn" data-rcm-menu aria-label="Actions"><?= smsIcon('ellipsis-v') ?></button>' +
                     '<div class="rcm-menu" role="menu">' +
-                        '<button type="button" class="rcm-menu-item" data-menu="view" data-type="assignment" data-id="' + esc(a.id) + '"><i class="fas fa-eye"></i> View Details</button>' +
-                        '<button type="button" class="rcm-menu-item" data-menu="reassign" data-group="' + esc(a.group_number) + '" data-coordinator="' + esc(a.coordinator_name) + '"><i class="fas fa-user-cog"></i> Reassign Coordinator</button>' +
-                        '<button type="button" class="rcm-menu-item' + (isActive ? ' danger' : '') + '" data-menu="toggle" data-id="' + esc(a.id) + '" data-status="' + (isActive ? 'Inactive' : 'Active') + '"><i class="fas ' + (isActive ? 'fa-pause' : 'fa-play') + '"></i> ' + (isActive ? 'Deactivate Assignment' : 'Reactivate Assignment') + '</button>' +
+                        '<button type="button" class="rcm-menu-item" data-menu="view" data-type="assignment" data-id="' + esc(a.id) + '"><?= smsIcon('eye') ?> View Details</button>' +
+                        '<button type="button" class="rcm-menu-item" data-menu="reassign" data-group="' + esc(a.group_number) + '" data-coordinator="' + esc(a.coordinator_name) + '"><?= smsIcon('user-cog') ?> Reassign Coordinator</button>' +
+                        '<button type="button" class="rcm-menu-item' + (isActive ? ' danger' : '') + '" data-menu="toggle" data-id="' + esc(a.id) + '" data-status="' + (isActive ? 'Inactive' : 'Active') + '">' + (window.smsIconHtml ? window.smsIconHtml(isActive ? 'pause' : 'play') : '') + ' ' + (isActive ? 'Deactivate Assignment' : 'Reactivate Assignment') + '</button>' +
                     '</div>' +
                 '</span></td>' +
                 '</tr>';
@@ -1712,14 +1712,14 @@ document.addEventListener('DOMContentLoaded', function () {
             return '<tr data-rcm-row data-status="' + (isActive ? 'active' : 'inactive') + '" data-search="' + esc(searchText) + '">' +
                 '<td><div class="rcm-title">' + esc(r.name) + '</div>' +
                     (r.email ? '<span class="rcm-meta">' + esc(r.email) + '</span>' : '') + '</td>' +
-                '<td><span class="rcm-pill rcm-pill-' + (isActive ? 'active' : 'inactive') + '"><i class="fas ' + (isActive ? 'fa-check-circle' : 'fa-minus-circle') + '"></i> ' + (isActive ? 'Active' : 'Inactive') + '</span></td>' +
+                '<td><span class="rcm-pill rcm-pill-' + (isActive ? 'active' : 'inactive') + '">' + (window.smsIconHtml ? window.smsIconHtml(isActive ? 'check-circle' : 'minus-circle') : '') + ' ' + (isActive ? 'Active' : 'Inactive') + '</span></td>' +
                 '<td><strong>' + (r.active_count || 0) + '</strong><span class="rcm-meta">' + ((r.active_count || 0) + (r.inactive_count || 0)) + ' assignment(s)</span>' +
                     (r.groups && r.groups.length ? '<span class="rcm-meta">' + esc(r.groups.join(', ')) + '</span>' : '') + '</td>' +
                 '<td class="rcm-meta">' + fmtDateOnly(r.last_assigned) + '</td>' +
                 '<td><span class="rcm-menu-wrap">' +
-                    '<button type="button" class="rcm-btn rcm-menu-btn" data-rcm-menu aria-label="Actions"><i class="fas fa-ellipsis-v"></i></button>' +
+                    '<button type="button" class="rcm-btn rcm-menu-btn" data-rcm-menu aria-label="Actions"><?= smsIcon('ellipsis-v') ?></button>' +
                     '<div class="rcm-menu" role="menu">' +
-                        '<button type="button" class="rcm-menu-item" data-menu="view" data-type="coordinator" data-id="' + esc(detailKey) + '" data-name="' + esc(r.name) + '"><i class="fas fa-eye"></i> View Details</button>' +
+                        '<button type="button" class="rcm-menu-item" data-menu="view" data-type="coordinator" data-id="' + esc(detailKey) + '" data-name="' + esc(r.name) + '"><?= smsIcon('eye') ?> View Details</button>' +
                     '</div>' +
                 '</span></td>' +
                 '</tr>';
@@ -1770,7 +1770,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (old) old.remove();
         const div = document.createElement('div');
         div.className = 'rcm-alert rcm-alert-' + (isSuccess ? 'success' : 'danger') + ' rcm-flash';
-        div.innerHTML = '<i class="fas ' + (isSuccess ? 'fa-check-circle' : 'fa-exclamation-circle') + '"></i><span>' + message.replace(/[&<>]/g, '') + '</span>';
+        div.innerHTML = (window.smsIconHtml ? window.smsIconHtml(isSuccess ? 'check-circle' : 'exclamation-circle') : '') + '<span>' + message.replace(/[&<>]/g, '') + '</span>';
         wrap.insertBefore(div, wrap.firstChild);
         setTimeout(function () {
             if (div.parentNode) div.parentNode.removeChild(div);
@@ -1786,7 +1786,7 @@ document.addEventListener('DOMContentLoaded', function () {
             '<div class="modal-content rcas-confirm-modal">' +
             '<div class="modal-header rcas-confirm-modal-header">' +
             '<div class="d-flex align-items-center gap-2">' +
-            '<span class="rcas-confirm-modal-icon-wrap"><i class="fas fa-user-tie"></i></span>' +
+            '<span class="rcas-confirm-modal-icon-wrap"><?= smsIcon('user-tie') ?></span>' +
             '<h5 class="modal-title mb-0">Confirm Coordinator Assignment</h5>' +
             '</div>' +
             '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>' +
@@ -1801,7 +1801,7 @@ document.addEventListener('DOMContentLoaded', function () {
             '</div>' +
             '<div class="modal-footer rcas-confirm-modal-footer">' +
             '<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="rcmAssignCancel">Cancel</button>' +
-            '<button type="button" class="btn btn-primary rcas-confirm-btn" id="rcmAssignConfirm"><i class="fas fa-check me-1"></i>Confirm Assignment</button>' +
+            '<button type="button" class="btn btn-primary rcas-confirm-btn" id="rcmAssignConfirm"><?= smsIcon('check', ['class' => 'me-1']) ?>Confirm Assignment</button>' +
             '</div>' +
             '</div></div></div>';
         document.body.appendChild(wrap.firstChild);
@@ -1855,7 +1855,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         const original = btn.innerHTML;
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+        btn.innerHTML = '<?= smsIcon('spinner', ['class' => 'fa-spin']) ?> Saving…';
 
         const fd = new FormData();
         fd.append('ajax', 'assign');
@@ -1966,7 +1966,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     function statusPill(status) {
         const active = String(status || '').toLowerCase() === 'active';
-        return '<span class="rcm-pill rcm-pill-' + (active ? 'active' : 'inactive') + '"><i class="fas ' + (active ? 'fa-check-circle' : 'fa-minus-circle') + '"></i> ' + esc(status || '') + '</span>';
+        return '<span class="rcm-pill rcm-pill-' + (active ? 'active' : 'inactive') + '">' + (window.smsIconHtml ? window.smsIconHtml(active ? 'check-circle' : 'minus-circle') : '') + ' ' + esc(status || '') + '</span>';
     }
     function buildGroupModalHtml(d) {
         const g = d.detail;
@@ -1998,7 +1998,7 @@ document.addEventListener('DOMContentLoaded', function () {
               }).join('') + '</div>'
             : '<span class="rcm-meta">No assignment history recorded.</span>';
         return '<div class="rcm-detail-head"><span class="rcm-code">' + esc(g.group_number) + '</span>' +
-                (current ? statusPill(current.status) : '<span class="rcm-pill rcm-pill-inactive"><i class="fas fa-minus-circle"></i> Unassigned</span>') + '</div>' +
+                (current ? statusPill(current.status) : '<span class="rcm-pill rcm-pill-inactive"><?= smsIcon('minus-circle') ?> Unassigned</span>') + '</div>' +
             '<div class="rcm-detail-grid">' +
                 detailField('Research Title', esc(g.research_title)) +
                 detailField('Group Name', esc(g.group_name)) +
@@ -2008,10 +2008,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 detailField('Research Adviser', esc(g.adviser)) +
                 detailField('Group Assigned Date', esc(g.date_assigned)) +
             '</div>' +
-            '<div class="rcm-detail-section"><h4><i class="fas fa-user"></i> Leader</h4>' + leader + '</div>' +
-            '<div class="rcm-detail-section"><h4><i class="fas fa-users"></i> Group Members</h4>' + members + '</div>' +
-            '<div class="rcm-detail-section"><h4><i class="fas fa-clipboard-check"></i> Current Coordinator</h4>' + assignment + '</div>' +
-            '<div class="rcm-detail-section"><h4><i class="fas fa-history"></i> Assignment History</h4>' + history + '</div>';
+            '<div class="rcm-detail-section"><h4><?= smsIcon('user') ?> Leader</h4>' + leader + '</div>' +
+            '<div class="rcm-detail-section"><h4><?= smsIcon('users') ?> Group Members</h4>' + members + '</div>' +
+            '<div class="rcm-detail-section"><h4><?= smsIcon('clipboard-check') ?> Current Coordinator</h4>' + assignment + '</div>' +
+            '<div class="rcm-detail-section"><h4><?= smsIcon('history') ?> Assignment History</h4>' + history + '</div>';
     }
     function buildCoordinatorModalHtml(d) {
         const c = d.detail;
@@ -2032,7 +2032,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 detailField('Total Assignments', esc(String(as.length))) +
                 detailField('Active Assignments', esc(String(as.filter(function (a) { return a.status === 'Active'; }).length))) +
             '</div>' +
-            '<div class="rcm-detail-section"><h4><i class="fas fa-users"></i> Assignments</h4>' + list + '</div>';
+            '<div class="rcm-detail-section"><h4><?= smsIcon('users') ?> Assignments</h4>' + list + '</div>';
     }
     function openDetails(item) {
         const type = item.dataset.type;
@@ -2067,7 +2067,7 @@ document.addEventListener('DOMContentLoaded', function () {
             '<select class="rcm-select" data-reassign-select style="width:100%;">' + options + '</select>' +
             '<div style="display:flex;gap:.6rem;justify-content:flex-end;margin-top:1.1rem;">' +
             '<button type="button" class="rcm-btn rcm-btn-soft-danger" data-rcm-close-inline>Cancel</button>' +
-            '<button type="button" class="rcm-btn rcm-btn-primary" data-reassign-save><i class="fas fa-check"></i> Save Assignment</button>' +
+            '<button type="button" class="rcm-btn rcm-btn-primary" data-reassign-save><?= smsIcon('check') ?> Save Assignment</button>' +
             '</div>';
         openModal('Reassign Coordinator', html);
         const overlay = document.querySelector('[data-rcm-modal]');

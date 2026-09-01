@@ -33,11 +33,11 @@ try {
         throw new Exception('Research Progress module not installed.');
     }
 } catch (Throwable $e) {
-    echo '<div class="alert alert-warning m-3">
-        <i class="fas fa-exclamation-triangle me-2"></i>
-        <strong>Module Not Installed</strong><br>
-        The Research Progress module database tables are not yet installed.
-    </div>';
+    echo '<div class="alert alert-warning m-3">'
+        . smsIcon('exclamation-triangle', ['class' => 'me-2'])
+        . '<strong>Module Not Installed</strong><br>'
+        . 'The Research Progress module database tables are not yet installed.'
+        . '</div>';
     require_once ROOT_PATH . '/includes/layout-end.php';
     exit;
 }
@@ -65,7 +65,7 @@ $totalPending = array_sum(array_column($assignedGroups, 'pending_reviews'));
             </div>
             <?php if ($totalPending > 0): ?>
                 <span class="badge bg-warning text-dark" style="font-size:0.82rem;padding:0.45rem 0.85rem;border-radius:999px;font-weight:800;">
-                    <i class="fas fa-clock me-1"></i><?= $totalPending ?> Pending
+                    <?= smsIcon('clock', ['class' => 'me-1']) ?><?= $totalPending ?> Pending
                 </span>
             <?php endif; ?>
         </div>
@@ -75,21 +75,21 @@ $totalPending = array_sum(array_column($assignedGroups, 'pending_reviews'));
         <div class="rm-stats-row">
             <div class="rm-stat-chip">
                 <div class="rm-stat-chip-icon" style="background:rgba(37,99,235,0.12);color:#2563eb;">
-                    <i class="fas fa-layer-group"></i>
+                    <?= smsIcon('layer-group') ?>
                 </div>
                 <div class="rm-stat-chip-value" data-live-group-count><?= count($assignedGroups) ?></div>
                 <div class="rm-stat-chip-label">Groups</div>
             </div>
             <div class="rm-stat-chip">
                 <div class="rm-stat-chip-icon" style="background:rgba(245,158,11,0.12);color:#f59e0b;">
-                    <i class="fas fa-clock"></i>
+                    <?= smsIcon('clock') ?>
                 </div>
                 <div class="rm-stat-chip-value" style="color:#f59e0b;" data-live-pending-count><?= $totalPending ?></div>
                 <div class="rm-stat-chip-label">Pending Reviews</div>
             </div>
             <div class="rm-stat-chip">
                 <div class="rm-stat-chip-icon" style="background:rgba(16,185,129,0.12);color:#10b981;">
-                    <i class="fas fa-check-circle"></i>
+                    <?= smsIcon('check-circle') ?>
                 </div>
                 <?php
                 $avgProg = count($assignedGroups)
@@ -101,7 +101,7 @@ $totalPending = array_sum(array_column($assignedGroups, 'pending_reviews'));
             </div>
             <div class="rm-stat-chip">
                 <div class="rm-stat-chip-icon" style="background:rgba(99,102,241,0.12);color:#6366f1;">
-                    <i class="fas fa-tasks"></i>
+                    <?= smsIcon('tasks') ?>
                 </div>
                 <?php
                 $totalMiles = array_sum(array_column($assignedGroups, 'total_milestones'));
@@ -137,7 +137,7 @@ $totalPending = array_sum(array_column($assignedGroups, 'pending_reviews'));
                                     </span>
                                     <?php if ($pendingReviews > 0): ?>
                                         <span class="badge bg-warning text-dark" style="font-size:0.78rem;font-weight:800;">
-                                            <i class="fas fa-clock me-1"></i><?= $pendingReviews ?> to review
+                                            <?= smsIcon('clock', ['class' => 'me-1']) ?><?= $pendingReviews ?> to review
                                         </span>
                                     <?php endif; ?>
                                 </div>
@@ -148,10 +148,10 @@ $totalPending = array_sum(array_column($assignedGroups, 'pending_reviews'));
 
                                 <!-- Meta -->
                                 <div class="rm-group-meta">
-                                    <i class="fas fa-calendar-alt"></i>
+                                    <?= smsIcon('calendar-alt') ?>
                                     <?= htmlspecialchars($group['academic_year']) ?>
                                     <?php if ($hasPlan && $group['current_stage']): ?>
-                                        &nbsp;·&nbsp;<i class="fas fa-map-marker-alt"></i>
+                                        &nbsp;·&nbsp;<?= smsIcon('map-marker-alt') ?>
                                         <?= htmlspecialchars($group['current_stage']) ?>
                                         &nbsp;·&nbsp;<?= htmlspecialchars($academicPhase) ?>
                                     <?php endif; ?>
@@ -206,7 +206,7 @@ $totalPending = array_sum(array_column($assignedGroups, 'pending_reviews'));
                                 <div class="rm-group-actions">
                                     <a href="<?= BASE_URL ?>/modules/faculty/pages/research-progress-monitoring.php?group=<?= urlencode($group['group_number']) ?>"
                                        class="rm-primary-action">
-                                        <i class="fas fa-chart-line"></i>View Progress
+                                        <?= smsIcon('chart-line') ?>View Progress
                                     </a>
                                 </div>
 
@@ -219,7 +219,7 @@ $totalPending = array_sum(array_column($assignedGroups, 'pending_reviews'));
         <?php else: ?>
             <div class="glass-panel">
                 <div class="glass-panel-body rm-empty">
-                    <div class="rm-empty-icon"><i class="fas fa-users"></i></div>
+                    <div class="rm-empty-icon"><?= smsIcon('users') ?></div>
                     <h6>No Research Groups Assigned</h6>
                     <p>You don't have any research groups assigned yet.<br>Please contact the Research Coordinator.</p>
                 </div>
@@ -228,7 +228,7 @@ $totalPending = array_sum(array_column($assignedGroups, 'pending_reviews'));
 
         <!-- Live refresh indicator -->
         <div class="rm-refresh-bar" id="rmRefreshBar">
-            <i class="fas fa-sync-alt rm-refresh-icon" id="rmRefreshIcon"></i>
+            <?= smsIcon('sync-alt', ['class' => 'rm-refresh-icon']) ?>
             <span id="rmRefreshText">Last updated: <?= date('g:i:s A') ?></span>
         </div>
 

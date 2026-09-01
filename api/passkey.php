@@ -186,8 +186,6 @@ try {
         $redirect = BASE_URL . '/dashboard/index.php';
         if (!empty($_SESSION['must_change_password'])) {
             $redirect = BASE_URL . '/login/change-password.php';
-        } elseif (getCurrentUserRoleKey() === 'student') {
-            $redirect = BASE_URL . '/modules/student-portal/pages/my-profile.php';
         }
         smsPasskeyJson(['ok' => true, 'redirect' => $redirect]);
     }

@@ -1462,29 +1462,29 @@ renderBreadcrumbs($breadcrumbs);
 
 <div class="rcas-wrap <?= $isRetrievePage ? 'rcas-wrap--retrieve' : ($isFindContactPage ? 'rcas-wrap--contact' : '') ?>" data-rcas-endpoint="<?= rcAssignE($endpoint) ?>" data-rcas-mode="<?= $isRetrievePage ? 'retrieve' : ($isAssignPage ? 'assign' : ($isAvailabilityPage ? 'availability' : 'contact')) ?>">
     <?php if (!$payload['ok']): ?>
-        <div class="rcas-error"><i class="fas fa-exclamation-circle me-1"></i><?= rcAssignE((string) $payload['error']) ?></div>
+        <div class="rcas-error"><?= smsIcon('exclamation-circle', ['class' => 'me-1']) ?><?= rcAssignE((string) $payload['error']) ?></div>
     <?php endif; ?>
 
     <header class="rcas-header">
         <div>
-            <h1><i class="fas fa-user-check me-2"></i><?= rcAssignE($pageTitle) ?></h1>
+            <h1><?= smsIcon('user-check', ['class' => 'me-2']) ?><?= rcAssignE($pageTitle) ?></h1>
             <p><?= rcAssignE($pageConfig['lead']) ?> records for approved research groups.</p>
         </div>
         <div class="rcas-sync" id="rcasLastSync">Synced <?= rcAssignE((string) $payload['last_sync']) ?></div>
     </header>
 
     <div class="rcas-stats">
-        <div class="rcas-stat"><i class="fas fa-list"></i><div><strong id="rcasTotal"><?= (int) $stats['total'] ?></strong><span>Total</span></div></div>
-        <div class="rcas-stat"><i class="fas fa-clock"></i><div><strong id="rcasPending"><?= (int) $stats['pending'] ?></strong><span>Pending</span></div></div>
-        <div class="rcas-stat"><i class="fas fa-calendar-check"></i><div><strong id="rcasAvailable"><?= (int) $stats['available'] ?></strong><span>Available</span></div></div>
-        <div class="rcas-stat"><i class="fas fa-check-circle"></i><div><strong id="rcasAssigned"><?= (int) $stats['assigned'] ?></strong><span>Assigned</span></div></div>
+        <div class="rcas-stat"><?= smsIcon('list') ?><div><strong id="rcasTotal"><?= (int) $stats['total'] ?></strong><span>Total</span></div></div>
+        <div class="rcas-stat"><?= smsIcon('clock') ?><div><strong id="rcasPending"><?= (int) $stats['pending'] ?></strong><span>Pending</span></div></div>
+        <div class="rcas-stat"><?= smsIcon('calendar-check') ?><div><strong id="rcasAvailable"><?= (int) $stats['available'] ?></strong><span>Available</span></div></div>
+        <div class="rcas-stat"><?= smsIcon('check-circle') ?><div><strong id="rcasAssigned"><?= (int) $stats['assigned'] ?></strong><span>Assigned</span></div></div>
     </div>
 
     <?php if ($isRetrievePage): ?>
         <section class="rcas-card rcas-retrieve-card">
             <div class="rcas-record-head">
                 <div>
-                    <h2 class="rcas-record-title"><i class="fas <?= rcAssignE($recordPanelIcon) ?>"></i><?= rcAssignE($recordPanelTitle) ?> <span class="rcas-count soft" id="rcasRecordBadge"><?= (int) $stats['total'] ?></span></h2>
+                    <h2 class="rcas-record-title"><?= smsIcon(rcAssignE($recordPanelIcon)) ?><?= rcAssignE($recordPanelTitle) ?> <span class="rcas-count soft" id="rcasRecordBadge"><?= (int) $stats['total'] ?></span></h2>
                     <span class="rcas-record-total" id="rcasRecordCount"><?= (int) $stats['total'] ?> record<?= (int) $stats['total'] === 1 ? '' : 's' ?></span>
                 </div>
                 <div class="rcas-sync" id="rcasRecordSync">Synced <?= rcAssignE((string) $payload['last_sync']) ?></div>
@@ -1519,7 +1519,7 @@ renderBreadcrumbs($breadcrumbs);
         <?php if ($isFindContactPage): ?>
         <div class="rcas-record-head">
             <div>
-                <h2 class="rcas-record-title"><i class="fas <?= rcAssignE($recordPanelIcon) ?>"></i><?= rcAssignE($recordPanelTitle) ?> <span class="rcas-count soft" id="rcasRecordBadge"><?= (int) $stats['total'] ?></span></h2>
+                <h2 class="rcas-record-title"><?= smsIcon(rcAssignE($recordPanelIcon)) ?><?= rcAssignE($recordPanelTitle) ?> <span class="rcas-count soft" id="rcasRecordBadge"><?= (int) $stats['total'] ?></span></h2>
                 <span class="rcas-record-total" id="rcasRecordCount"><?= (int) $stats['total'] ?> record<?= (int) $stats['total'] === 1 ? '' : 's' ?></span>
             </div>
             <div class="rcas-sync" id="rcasRecordSync">Synced <?= rcAssignE((string) $payload['last_sync']) ?></div>
@@ -1540,7 +1540,7 @@ renderBreadcrumbs($breadcrumbs);
         <div class="rcas-process">
             <div class="rcas-context-panel">
                 <div class="rcas-panel-title">
-                    <h3><i class="fas fa-flask me-2"></i>Selected Research</h3>
+                    <h3><?= smsIcon('flask', ['class' => 'me-2']) ?>Selected Research</h3>
                 </div>
                 <div class="rcas-field">
                     <label for="rcasGroupSelect">Approved Research Group</label>
@@ -1551,14 +1551,14 @@ renderBreadcrumbs($breadcrumbs);
                     <span id="rcasRequired">Required expertise will appear here.</span>
                 </div>
                 <div class="rcas-flow">
-                    <div class="rcas-flow-step"><strong><i class="fas fa-flask"></i>Topic</strong><span>Read approved title.</span></div>
-                    <div class="rcas-flow-step"><strong><i class="fas <?= rcAssignE($secondStepIcon) ?>"></i><?= rcAssignE($secondStepTitle) ?></strong><span><?= rcAssignE($secondStepText) ?></span></div>
-                    <div class="rcas-flow-step"><strong><i class="fas <?= rcAssignE($thirdStepIcon) ?>"></i><?= rcAssignE($thirdStepTitle) ?></strong><span><?= rcAssignE($thirdStepText) ?></span></div>
+                    <div class="rcas-flow-step"><strong><?= smsIcon('flask') ?>Topic</strong><span>Read approved title.</span></div>
+                    <div class="rcas-flow-step"><strong><?= smsIcon(rcAssignE($secondStepIcon)) ?><?= rcAssignE($secondStepTitle) ?></strong><span><?= rcAssignE($secondStepText) ?></span></div>
+                    <div class="rcas-flow-step"><strong><?= smsIcon(rcAssignE($thirdStepIcon)) ?><?= rcAssignE($thirdStepTitle) ?></strong><span><?= rcAssignE($thirdStepText) ?></span></div>
                 </div>
             </div>
             <div class="rcas-results-panel">
                 <div class="rcas-panel-title">
-                    <h3><i class="fas fa-user-check me-2"></i><?= rcAssignE($resultsTitle) ?></h3>
+                    <h3><?= smsIcon('user-check', ['class' => 'me-2']) ?><?= rcAssignE($resultsTitle) ?></h3>
                     <span class="rcas-count" id="rcasMatchCount">0</span>
                 </div>
                 <div class="rcas-notice" id="rcasAssignNotice"></div>
@@ -1572,7 +1572,7 @@ renderBreadcrumbs($breadcrumbs);
     <section class="rcas-card rcas-assignment-card">
         <div class="rcas-record-head">
             <div>
-                <h2 class="rcas-record-title"><i class="fas <?= rcAssignE($recordPanelIcon) ?>"></i><?= rcAssignE($recordPanelTitle) ?> <span class="rcas-count soft" id="rcasRecordBadge"><?= (int) $stats['total'] ?></span></h2>
+                <h2 class="rcas-record-title"><?= smsIcon(rcAssignE($recordPanelIcon)) ?><?= rcAssignE($recordPanelTitle) ?> <span class="rcas-count soft" id="rcasRecordBadge"><?= (int) $stats['total'] ?></span></h2>
                 <span class="rcas-record-total" id="rcasRecordCount"><?= (int) $stats['total'] ?> record<?= (int) $stats['total'] === 1 ? '' : 's' ?></span>
             </div>
             <div class="rcas-sync" id="rcasRecordSync">Synced <?= rcAssignE((string) $payload['last_sync']) ?></div>
@@ -1611,9 +1611,9 @@ renderBreadcrumbs($breadcrumbs);
 <div class="rcas-contact-panel" id="rcasContactPanel" hidden>
     <div class="rcas-contact-box" role="dialog" aria-modal="true" aria-labelledby="rcasContactTitle">
         <div class="rcas-contact-head">
-            <h3 id="rcasContactTitle"><i class="fas fa-address-card me-2"></i>Contact Details</h3>
+            <h3 id="rcasContactTitle"><?= smsIcon('address-card', ['class' => 'me-2']) ?>Contact Details</h3>
             <button type="button" class="rcas-contact-close" id="rcasContactClose" aria-label="Close contact details">
-                <i class="fas fa-times"></i>
+                <?= smsIcon('times') ?>
             </button>
         </div>
         <div class="rcas-contact-body">
@@ -1625,8 +1625,8 @@ renderBreadcrumbs($breadcrumbs);
             <div class="rcas-contact-row"><span>Message Draft</span><p id="rcasContactMessage"></p></div>
         </div>
         <div class="rcas-contact-footer">
-            <button type="button" class="rcas-action" id="rcasCopyEmail"><i class="fas fa-copy"></i>Copy Email</button>
-            <button type="button" class="rcas-action primary" id="rcasCopyMessage"><i class="fas fa-clipboard"></i>Copy Message</button>
+            <button type="button" class="rcas-action" id="rcasCopyEmail"><?= smsIcon('copy') ?>Copy Email</button>
+            <button type="button" class="rcas-action primary" id="rcasCopyMessage"><?= smsIcon('clipboard') ?>Copy Message</button>
         </div>
     </div>
 </div>
@@ -1843,17 +1843,17 @@ renderBreadcrumbs($breadcrumbs);
                 <td>
                     <span class="rcas-retrieve-adviser">${esc(group.approved_adviser_name || 'For adviser')}</span>
                     <span class="rcas-retrieve-date">${esc(formatDate(group.updated_at || ''))}</span>
-                    <span class="rcas-retrieve-approved"><i class="fas fa-check"></i>${esc(group.adviser_approval_status || 'Approved')}</span>
+                    <span class="rcas-retrieve-approved"><?= smsIcon('check') ?>${esc(group.adviser_approval_status || 'Approved')}</span>
                 </td>
                 <td>
                     <span class="rcas-retrieve-main">${esc(group.coordinator_approved_name || 'Coordinator')}</span>
                     <span class="rcas-retrieve-date">${esc(formatDate(group.coordinator_approved_at || ''))}</span>
-                    <span class="rcas-retrieve-approved"><i class="fas fa-check"></i>${esc(group.coordinator_approval_status || 'Approved')}</span>
+                    <span class="rcas-retrieve-approved"><?= smsIcon('check') ?>${esc(group.coordinator_approval_status || 'Approved')}</span>
                 </td>
                 <td>
                     <span class="rcas-retrieve-main">CRAD Officer</span>
                     <span class="rcas-retrieve-date">${esc(formatDate(group.crad_approved_at || ''))}</span>
-                    <span class="rcas-retrieve-approved"><i class="fas fa-check"></i>${esc(group.crad_approval_status || 'Approved')}</span>
+                    <span class="rcas-retrieve-approved"><?= smsIcon('check') ?>${esc(group.crad_approval_status || 'Approved')}</span>
                 </td>
             </tr>
         `).join('');
@@ -1943,9 +1943,9 @@ renderBreadcrumbs($breadcrumbs);
                             ${sourceNote}
                             <div class="rcas-actions">
                                 <span class="rcas-badge ${badgeClass(row.availability_status)}">${esc(row.availability_status || 'Pending')}</span>
-                                <span class="rcas-load"><i class="fas fa-briefcase"></i>${esc(loadCount)} current record${loadCount === 1 ? '' : 's'}</span>
+                                <span class="rcas-load"><?= smsIcon('briefcase') ?>${esc(loadCount)} current record${loadCount === 1 ? '' : 's'}</span>
                                 <button type="button" class="rcas-action success" data-assign-id="${esc(row.assignment_id || '')}" data-assign-row="${encoded}" ${disabled ? 'disabled' : ''}>
-                                    <i class="fas fa-hand-pointer"></i>${esc(actionLabel)}
+                                    <?= smsIcon('hand-pointer') ?>${esc(actionLabel)}
                                 </button>
                             </div>
                         </div>
@@ -1965,7 +1965,7 @@ renderBreadcrumbs($breadcrumbs);
                             ${sourceNote}
                             <div class="rcas-actions">
                                 <span class="rcas-badge ${badgeClass(row.availability_status)}">${esc(row.availability_status || 'Pending')}</span>
-                                <span class="rcas-load"><i class="fas fa-briefcase"></i>${esc(loadCount)} current record${loadCount === 1 ? '' : 's'}</span>
+                                <span class="rcas-load"><?= smsIcon('briefcase') ?>${esc(loadCount)} current record${loadCount === 1 ? '' : 's'}</span>
                                 <span class="rcas-badge ${badgeClass(row.assignment_status)}">${esc(row.assignment_status || 'Pending')}</span>
                             </div>
                         </div>
@@ -1982,8 +1982,8 @@ renderBreadcrumbs($breadcrumbs);
                         ${sourceNote}
                         <div class="rcas-actions">
                             <span class="rcas-badge ${badgeClass(row.availability_status)}">${esc(row.availability_status || 'Pending')}</span>
-                            <button type="button" class="rcas-action primary" data-contact-row="${encoded}"><i class="fas fa-address-card"></i>View Contact</button>
-                            ${email ? `<button type="button" class="rcas-action" data-copy-email="${attr(email)}"><i class="fas fa-copy"></i>Copy Email</button>` : ''}
+                            <button type="button" class="rcas-action primary" data-contact-row="${encoded}"><?= smsIcon('address-card') ?>View Contact</button>
+                            ${email ? `<button type="button" class="rcas-action" data-copy-email="${attr(email)}"><?= smsIcon('copy') ?>Copy Email</button>` : ''}
                         </div>
                     </div>
                     <div class="rcas-score">${esc(row.match_score || 0)}%<small>Match</small></div>
@@ -2091,7 +2091,7 @@ renderBreadcrumbs($breadcrumbs);
             '<div class="modal-content rcas-confirm-modal">' +
             '<div class="modal-header rcas-confirm-modal-header">' +
             '<div class="d-flex align-items-center gap-2">' +
-            '<span class="rcas-confirm-modal-icon-wrap"><i class="fas fa-user-tie"></i></span>' +
+            '<span class="rcas-confirm-modal-icon-wrap"><?= smsIcon('user-tie') ?></span>' +
             '<h5 class="modal-title mb-0" id="rcasAssignConfirmTitle">Confirm Adviser Assignment</h5>' +
             '</div>' +
             '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>' +
@@ -2107,7 +2107,7 @@ renderBreadcrumbs($breadcrumbs);
             '</div>' +
             '<div class="modal-footer rcas-confirm-modal-footer">' +
             '<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="rcasAssignCancel">Cancel</button>' +
-            '<button type="button" class="btn btn-primary rcas-confirm-btn" id="rcasAssignConfirm"><i class="fas fa-check me-1"></i>Confirm Assignment</button>' +
+            '<button type="button" class="btn btn-primary rcas-confirm-btn" id="rcasAssignConfirm"><?= smsIcon('check', ['class' => 'me-1']) ?>Confirm Assignment</button>' +
             '</div>' +
             '</div></div></div>';
         document.body.appendChild(wrap.firstChild);
@@ -2116,7 +2116,7 @@ renderBreadcrumbs($breadcrumbs);
     const doAssign = async function (row, group, assignButton) {
         if (assignButton) {
             assignButton.disabled = true;
-            assignButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>Saving';
+            assignButton.innerHTML = '<?= smsIcon('spinner', ['class' => 'fa-spin']) ?>Saving';
         }
         try {
             const form = new FormData();
@@ -2172,7 +2172,7 @@ renderBreadcrumbs($breadcrumbs);
                 const ctx = pendingAssign;
                 if (!ctx) return;
                 confirmBtn.disabled = true;
-                confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Assigning...';
+                confirmBtn.innerHTML = '<?= smsIcon('spinner', ['class' => 'fa-spin']) ?> Assigning...';
                 if (modal) modal.hide();
                 doAssign(ctx.row, ctx.group, ctx.assignButton);
             });

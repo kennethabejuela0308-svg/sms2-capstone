@@ -48,14 +48,14 @@ if (!$pdo) {
     exit;
 }
 
-$validRoles   = ['superadmin', 'sms_admin', 'admission', 'registrar', 'finance', 'hr', 'adviser', 'research_director', 'grammarian', 'it_office', 'osa', 'qa', 'crad', 'research_coordinator', 'research_grant', 'student'];
+$validRoles   = ['superadmin', 'sms_admin', 'admission', 'registrar', 'finance', 'hr', 'adviser', 'research_director', 'grammarian', 'it_office', 'osa', 'qa', 'crad', 'crad_officer', 'research_coordinator', 'department_chair', 'research_office', 'vpaa', 'research_grant', 'review_committee', 'student'];
 $validModules = [
     'enrollment', 'registrar', 'curriculum', 'accreditation',
     'payment', 'faculty', 'scheduling', 'cocurricular', 'lms', 'crad',
 ];
 
 $defaults = [
-    'superadmin'   => ['user-management', 'student_portal'],
+    'superadmin'   => ['user-management'],
     'sms_admin'    => ['enrollment', 'registrar', 'curriculum', 'accreditation', 'payment', 'faculty', 'scheduling', 'cocurricular', 'lms', 'crad'],
     'admission'    => ['enrollment'],
     'registrar'    => ['registrar', 'curriculum', 'scheduling'],
@@ -70,6 +70,7 @@ $defaults = [
     'crad_officer' => ['crad'],
     'research_coordinator' => ['crad'],
     'research_grant' => ['crad_grant'],
+    'review_committee' => ['crad_grant'],
 ];
 
 try {
@@ -99,13 +100,18 @@ try {
         exit;
     }
 
-    if ($module === 'student_portal' && !in_array($role, ['superadmin', 'student'], true)) {
-        echo json_encode(['ok' => false, 'error' => 'Student Portal is locked to Super Admin and Student only']);
+    if ($module === 'student_portal' && $role !== 'student') {
+        echo json_encode(['ok' => false, 'error' => 'Student Portal is locked to Student accounts only']);
         exit;
     }
 
     if ($role === 'student' && ($module !== 'student_portal' || !$granted)) {
         echo json_encode(['ok' => false, 'error' => 'Student role is locked to Student Portal only']);
+        exit;
+    }
+
+    if ($role === 'adviser') {
+        echo json_encode(['ok' => false, 'error' => 'Adviser permissions are managed separately and are not editable here']);
         exit;
     }
 

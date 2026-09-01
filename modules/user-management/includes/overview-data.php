@@ -26,8 +26,12 @@ function umOverviewRoleBadgeClass(string $role, string $label = ''): string
         'admissionoffice' => 'admission',
         'admission_office' => 'admission',
         'crad_officer' => 'crad',
-        'research_grant' => 'crad',
+        'research_grant' => 'research_grant',
+        'review_committee' => 'review_committee',
         'research_coordinator' => 'research_coordinator',
+        'department_chair' => 'department_chair',
+        'research_office' => 'research_office',
+        'vpaa' => 'vpaa',
         'grammarian' => 'grammarian',
         'qa_office' => 'qa',
     ];
@@ -133,7 +137,7 @@ try {
     if (!$users): ?>
         <tr>
             <td colspan="4" class="text-center py-5 text-muted">
-                <i class="fas fa-users fa-2x mb-2 d-block opacity-50"></i>
+                <?= smsIcon('users', ['class' => 'fa-2x mb-2 d-block opacity-50']) ?>
                 No users found.
             </td>
         </tr>

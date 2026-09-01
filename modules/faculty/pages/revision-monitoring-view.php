@@ -34,7 +34,7 @@ try {
         throw new Exception('Research Progress module not installed.');
     }
 } catch (Throwable $e) {
-    echo '<div class="alert alert-warning m-3"><i class="fas fa-exclamation-triangle me-2"></i><strong>Module Not Installed</strong></div>';
+    echo '<div class="alert alert-warning m-3">' . smsIcon('exclamation-triangle', ['class' => 'me-2']) . '<strong>Module Not Installed</strong></div>';
     require_once ROOT_PATH . '/includes/layout-end.php';
     exit;
 }
@@ -46,16 +46,16 @@ $groupNumber   = (string) ($_GET['group'] ?? '');
 $detail = rpGetRevisionDetail($crad, $adviserUserId, $adviserEmail, $groupNumber);
 
 if (!$detail) {
-    echo '<div class="glass-dashboard"><div class="glass-board">
-        <div class="glass-panel"><div class="glass-panel-body rm-empty">
-            <div class="rm-empty-icon"><i class="fas fa-ban" style="color:#ef4444;"></i></div>
-            <h6>Case Not Available</h6>
-            <p>This revision case is not available or you do not have access to it.</p>
-            <a href="' . BASE_URL . '/modules/faculty/pages/revision-monitoring.php" class="btn btn-primary mt-3">
-                <i class="fas fa-redo me-2"></i>Back to Revision Monitoring
-            </a>
-        </div></div>
-    </div></div>';
+    echo '<div class="glass-dashboard"><div class="glass-board">'
+        . '<div class="glass-panel"><div class="glass-panel-body rm-empty">'
+        . '<div class="rm-empty-icon">' . smsIcon('ban', ['style' => 'color:#ef4444;']) . '</div>'
+        . '<h6>Case Not Available</h6>'
+        . '<p>This revision case is not available or you do not have access to it.</p>'
+        . '<a href="' . BASE_URL . '/modules/faculty/pages/revision-monitoring.php" class="btn btn-primary mt-3">'
+        . smsIcon('redo', ['class' => 'me-2']) . 'Back to Revision Monitoring'
+        . '</a>'
+        . '</div></div>'
+        . '</div></div>';
     require_once ROOT_PATH . '/includes/layout-end.php';
     exit;
 }
@@ -123,11 +123,11 @@ $defenseDate = !empty($group['defense_datetime'])
                             <?= htmlspecialchars((string) ($group['research_title'] ?? 'Research title pending')) ?>
                         </p>
                         <div class="d-flex align-items-center flex-wrap gap-3 mt-2" style="font-size:0.8rem;color:var(--sms-text);overflow-wrap:anywhere;">
-                            <span><i class="fas fa-gavel me-1"></i>Pre-Oral Defense: <?= $defenseDate ?></span>
+                            <span><?= smsIcon('gavel', ['class' => 'me-1']) ?>Pre-Oral Defense: <?= $defenseDate ?></span>
                             <?php if (!empty($group['venue'])): ?>
-                                <span><i class="fas fa-map-marker-alt me-1"></i><?= htmlspecialchars((string) $group['venue']) ?></span>
+                                <span><?= smsIcon('map-marker-alt', ['class' => 'me-1']) ?><?= htmlspecialchars((string) $group['venue']) ?></span>
                             <?php endif; ?>
-                            <span><i class="fas fa-user-tie me-1"></i>Adviser: <?= htmlspecialchars((string) ($group['adviser_name'] ?? $group['defense_adviser_name'] ?? '')) ?></span>
+                            <span><?= smsIcon('user-tie', ['class' => 'me-1']) ?>Adviser: <?= htmlspecialchars((string) ($group['adviser_name'] ?? $group['defense_adviser_name'] ?? '')) ?></span>
                         </div>
                     </div>
                     <div class="d-flex align-items-center gap-3">
@@ -149,19 +149,19 @@ $defenseDate = !empty($group['defense_datetime'])
         <div class="glass-panel mb-4">
             <div class="glass-panel-body">
                 <h5 class="mb-3" style="font-weight:800;">
-                    <i class="fas fa-clipboard-check me-2" style="color:#6366f1;"></i>Panel Evaluation Consensus
+                    <?= smsIcon('clipboard-check', ['class' => 'me-2', 'style' => 'color:#6366f1;']) ?>Panel Evaluation Consensus
                 </h5>
                 <div class="d-flex align-items-center gap-3 flex-wrap" style="font-size:0.9rem;">
-                    <span><i class="fas fa-users me-1"></i>Assigned Panel Members: <strong><?= (int) ($group['assigned_panel_count'] ?? 0) ?></strong></span>
-                    <span><i class="fas fa-poll me-1"></i>Submitted Evaluations: <strong><?= (int) ($group['submitted_eval_count'] ?? 0) ?></strong></span>
-                    <span><i class="fas fa-file-signature me-1"></i>Panel Decision: <strong style="color:#b47814;">APPROVED WITH REVISION (<?= (int) ($group['awr_count'] ?? 0) ?> of <?= (int) ($group['assigned_panel_count'] ?? 0) ?>)</strong></span>
+                    <span><?= smsIcon('users', ['class' => 'me-1']) ?>Assigned Panel Members: <strong><?= (int) ($group['assigned_panel_count'] ?? 0) ?></strong></span>
+                    <span><?= smsIcon('poll', ['class' => 'me-1']) ?>Submitted Evaluations: <strong><?= (int) ($group['submitted_eval_count'] ?? 0) ?></strong></span>
+                    <span><?= smsIcon('file-signature', ['class' => 'me-1']) ?>Panel Decision: <strong style="color:#b47814;">APPROVED WITH REVISION (<?= (int) ($group['awr_count'] ?? 0) ?> of <?= (int) ($group['assigned_panel_count'] ?? 0) ?>)</strong></span>
                 </div>
             </div>
         </div>
 
         <!-- ── Panel Member Evaluations ──────────────── -->
         <h5 class="mb-3" style="font-weight:800;">
-            <i class="fas fa-file-signature me-2" style="color:#3b82f6;"></i>Panel Evaluation Summary
+            <?= smsIcon('file-signature', ['class' => 'me-2', 'style' => 'color:#3b82f6;']) ?>Panel Evaluation Summary
         </h5>
 
         <div class="row g-4">
@@ -184,28 +184,28 @@ $defenseDate = !empty($group['defense_datetime'])
                                 </span>
                             </div>
                             <div class="d-flex align-items-center gap-2 mb-2">
-                                <i class="fas fa-user-tie" style="color:#6366f1;"></i>
+                                <?= smsIcon('user-tie', ['style' => 'color:#6366f1;']) ?>
                                 <strong class="rm-panel-result <?= $resultCls ?>">
                                     <?= htmlspecialchars((string) ($panel['panel_name'] ?? 'Panel Member')) ?>
                                 </strong>
                             </div>
                             <?php if (!empty($panel['panel_email'])): ?>
                                 <div class="d-flex align-items-center gap-2 mb-2" style="font-size:0.8rem;color:var(--sms-text-muted);">
-                                    <i class="fas fa-envelope me-1"></i>
+                                    <?= smsIcon('envelope', ['class' => 'me-1']) ?>
                                     <?= htmlspecialchars((string) $panel['panel_email']) ?>
                                 </div>
                             <?php endif; ?>
                             <div class="d-flex align-items-center gap-3 mb-2" style="font-size:0.8rem;color:var(--sms-text);">
                                 <?php if ($panel['overall_score'] !== null): ?>
-                                    <span><i class="fas fa-star me-1"></i>Overall Score: <strong><?= number_format((float) $panel['overall_score'], 2) ?></strong></span>
+                                    <span><?= smsIcon('star', ['class' => 'me-1']) ?>Overall Score: <strong><?= number_format((float) $panel['overall_score'], 2) ?></strong></span>
                                 <?php endif; ?>
-                                <span><i class="fas fa-clock me-1"></i>Evaluated: <?= $panel['evaluated_at'] ? date('M j, Y g:i A', strtotime($panel['evaluated_at'])) : 'Not recorded' ?></span>
+                                <span><?= smsIcon('clock', ['class' => 'me-1']) ?>Evaluated: <?= $panel['evaluated_at'] ? date('M j, Y g:i A', strtotime($panel['evaluated_at'])) : 'Not recorded' ?></span>
                             </div>
 
                             <!-- Remarks -->
                             <div class="mb-2">
                                 <div class="rm-section-block-label" style="color:var(--sms-heading);font-weight:700;">
-                                    <i class="fas fa-<?= $resultIcon ?> me-1"></i>Remarks
+                                    <?= smsIcon($resultIcon, ['class' => 'me-1']) ?>Remarks
                                 </div>
                                 <div class="rm-remarks-box">
                                     <?php if (!empty($panel['remarks'])): ?>
@@ -239,7 +239,7 @@ $defenseDate = !empty($group['defense_datetime'])
         <div class="glass-panel mb-4">
             <div class="glass-panel-body">
                 <h5 class="mb-3" style="font-weight:800;">
-                    <i class="fas fa-redo me-2" style="color:#10b981;"></i>Revision Workflow
+                    <?= smsIcon('redo', ['class' => 'me-2', 'style' => 'color:#10b981;']) ?>Revision Workflow
                 </h5>
                 <p style="font-size:0.85rem;color:var(--sms-text-muted);">
                     The student works on revisions and submits progress updates through the
@@ -249,11 +249,11 @@ $defenseDate = !empty($group['defense_datetime'])
                 <div class="d-flex gap-2 flex-wrap">
                     <a href="<?= BASE_URL ?>/modules/faculty/pages/revision-monitoring.php"
                        class="btn btn-sm btn-outline-secondary">
-                        <i class="fas fa-list me-1"></i>Back to Revision Monitoring
+                        <?= smsIcon('list', ['class' => 'me-1']) ?>Back to Revision Monitoring
                     </a>
                     <a href="<?= BASE_URL ?>/modules/faculty/pages/submitted-updates.php?group=<?= urlencode((string) $group['group_number']) ?>"
                        class="btn btn-sm btn-primary">
-                        <i class="fas fa-inbox me-1"></i>Open Progress Review
+                        <?= smsIcon('inbox', ['class' => 'me-1']) ?>Open Progress Review
                     </a>
                 </div>
 
@@ -295,7 +295,7 @@ $defenseDate = !empty($group['defense_datetime'])
 
         <!-- Live refresh indicator -->
         <div class="rm-refresh-bar" id="rmRefreshBar">
-            <i class="fas fa-sync-alt rm-refresh-icon" id="rmRefreshIcon"></i>
+            <?= smsIcon('sync-alt', ['class' => 'rm-refresh-icon']) ?>
             <span id="rmRefreshText">Last updated: <?= date('g:i:s A') ?></span>
         </div>
 

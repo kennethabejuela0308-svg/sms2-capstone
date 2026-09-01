@@ -10,7 +10,7 @@ require_once ROOT_PATH . '/modules/crad/includes/chapter-evaluation-workflow.php
 
 requireAuth();
 $roleKey = getCurrentUserRoleKey();
-if (!in_array($roleKey, ['crad_officer', 'research_coordinator', 'research_director', 'superadmin', 'admin'], true)) {
+if (!smsRoleAllowedForModule(['crad_officer', 'research_coordinator', 'research_director'], 'crad')) {
     http_response_code(403);
     exit('Forbidden');
 }
@@ -441,7 +441,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 '<td>' + esc(row.detail || 'Ready for venue') + '</td>' +
                 '<td>' + esc(row.updated || '') + '</td>' +
                 '<td><span class="mpl-status ' + esc(statusClass(status)) + '">' + esc(status) + '</span></td>' +
-                '<td><div class="mpl-actions"><a href="?process=view&amp;ref=' + encodeURIComponent(row.reference || '') + '" title="View" aria-label="View"><i class="fas fa-eye"></i></a></div></td>' +
+                '<td><div class="mpl-actions"><a href="?process=view&amp;ref=' + encodeURIComponent(row.reference || '') + '" title="View" aria-label="View"><?= smsIcon('eye') ?></a></div></td>' +
             '</tr>';
         }).join('');
         const meta = document.querySelector('.mpl-foot .meta');

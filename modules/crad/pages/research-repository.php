@@ -13,7 +13,7 @@ require_once ROOT_PATH . '/modules/crad/includes/final-phase-helpers.php';
 require_once ROOT_PATH . '/includes/breadcrumbs.php';
 
 requireAuth();
-if (!in_array(getCurrentUserRoleKey(), ['crad_officer', 'research_coordinator', 'superadmin', 'admin'], true)) {
+if (!smsRoleAllowedForModule(['crad_officer', 'research_coordinator'], 'crad')) {
     http_response_code(403);
     exit('Forbidden');
 }
@@ -281,7 +281,7 @@ renderBreadcrumbs($breadcrumbs);
                                 <td><?= e((string) (($row['publication_outlet'] ?? '') ?: 'Not recorded')) ?></td>
                                 <td><span class="repo-status <?= repositoryStatusClass((string) $row['status']) ?>"><?= e((string) $row['status']) ?></span></td>
                                 <td><?= e((string) $row['updated_at']) ?></td>
-                                <td><a class="repo-open-btn" href="<?= htmlspecialchars(repositoryRecordUrl((int) $row['id'])) ?>"><i class="fas fa-folder-open" aria-hidden="true"></i>Open</a></td>
+                                <td><a class="repo-open-btn" href="<?= htmlspecialchars(repositoryRecordUrl((int) $row['id'])) ?>"><?= smsIcon('folder-open', ['aria-hidden' => 'true']) ?>Open</a></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -323,7 +323,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 '<td>' + esc(row.publication_outlet || 'Not recorded') + '</td>' +
                 '<td><span class="repo-status ' + statusClass(row.status || '') + '">' + esc(row.status || '') + '</span></td>' +
                 '<td>' + esc(row.updated_at || '') + '</td>' +
-                '<td><a class="repo-open-btn" href="' + esc(baseDetailUrl + id) + '"><i class="fas fa-folder-open" aria-hidden="true"></i>Open</a></td>' +
+                '<td><a class="repo-open-btn" href="' + esc(baseDetailUrl + id) + '"><?= smsIcon('folder-open', ['aria-hidden' => 'true']) ?>Open</a></td>' +
             '</tr>';
         }).join('');
     };

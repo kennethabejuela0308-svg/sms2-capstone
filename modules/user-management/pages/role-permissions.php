@@ -18,15 +18,13 @@ require_once __DIR__ . '/../../../includes/breadcrumbs.php';
 require_once __DIR__ . '/../../../includes/layout-start.php';
 requireSuperAdmin();
 
-/* ── Role definitions ──────────────────────────────────────── */
+/* ── Role definitions (Super Admin omitted — system-level, not matrix-editable) ── */
 $roles = [
-    'superadmin' => ['label' => 'Super Admin', 'icon' => 'fa-user-shield',      'color' => 'superadmin'],
     'sms_admin'  => ['label' => 'Admin',        'icon' => 'fa-user-cog',         'color' => 'sms_admin'],
     'admission'  => ['label' => 'Admission',   'icon' => 'fa-user-check',       'color' => 'admission'],
     'registrar'  => ['label' => 'Registrar',   'icon' => 'fa-folder-open',      'color' => 'registrar'],
     'finance'    => ['label' => 'Finance',      'icon' => 'fa-credit-card',      'color' => 'finance'],
     'hr'         => ['label' => 'Dean',         'icon' => 'fa-user-tie',         'color' => 'hr'],
-    'adviser'    => ['label' => 'Adviser',      'icon' => 'fa-user-graduate',    'color' => 'adviser'],
     'it_office'  => ['label' => 'IT Office',    'icon' => 'fa-laptop',           'color' => 'it_office'],
     'osa'        => ['label' => 'OSA',          'icon' => 'fa-users',            'color' => 'osa'],
     'qa'         => ['label' => 'QA',           'icon' => 'fa-award',            'color' => 'qa'],
@@ -48,12 +46,11 @@ $defaultMatrix = [
 ];
 
 foreach ($defaultMatrix as $modKey => &$modDefaults) {
-    // superadmin has no editable modules (all controlled at system level)
-    $modDefaults['superadmin'] = false;
     $modDefaults['sms_admin']  = true;
     $modDefaults['admission']  = ($modKey === 'enrollment');
     unset($modDefaults['admin']);
     unset($modDefaults['panel']);
+    unset($modDefaults['superadmin']);
 }
 unset($modDefaults);
 
@@ -104,18 +101,19 @@ $csrf = csrfToken();
 
 <?php
 $pageBannerIcon        = 'fa-shield-alt';
-$pageBannerDescription = 'Check or uncheck modules per role. Changes take effect immediately — the role\'s sidebar updates on their next page load.';
+$pageBannerDescription = 'Check or uncheck modules per role. Super Admin uses User Management only — not shown here. Student Portal is for Student accounts only.';
 renderBreadcrumbs($breadcrumbs);
 ?>
 
-<div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-2">
-    <div></div>
-    <div class="d-flex gap-2 align-items-center flex-wrap">
-        <span id="permSaveStatus" class="text-muted" style="font-size:.78rem;"></span>
-        <button type="button" class="btn btn-outline-warning btn-sm" id="permResetBtn">
-            <i class="fas fa-undo me-1"></i>Reset to Defaults
-        </button>
-        <span class="placeholder-badge"><i class="fas fa-lock me-1"></i>Superadmin Only</span>
+<div class="page-header d-flex justify-content-end align-items-start flex-wrap gap-2">
+    <span id="permSaveStatus" class="text-muted" style="font-size:.78rem;"></span>
+</div>
+
+<div class="alert alert-info py-2 px-3 mb-4 d-flex align-items-start gap-2" style="font-size:.84rem;">
+    <?= smsIcon('user-shield', ['class' => 'mt-1', 'aria-hidden' => 'true']) ?>
+    <div>
+        <strong>Super Admin</strong> is not listed here — that account uses <strong>User Management</strong> only.
+        <strong>Student Portal</strong> is reserved for Student accounts.
     </div>
 </div>
 
@@ -127,7 +125,7 @@ renderBreadcrumbs($breadcrumbs);
         <div class="col-6 col-md-4 col-lg-3 col-xl-2" id="roleCard_<?= $key ?>">
             <div class="card text-center" style="padding:.85rem .5rem;">
                 <div style="font-size:1.35rem;margin-bottom:.45rem;color:var(--sms-primary);">
-                    <i class="fas <?= $role['icon'] ?>"></i>
+                    <?= smsIcon($role['icon']) ?>
                 </div>
                 <span class="role-badge <?= $key ?> d-inline-flex mx-auto mb-1">
                     <?= htmlspecialchars($role['label']) ?>
@@ -151,7 +149,7 @@ renderBreadcrumbs($breadcrumbs);
                         <th style="min-width:220px;padding-left:1.2rem;">Module</th>
                         <?php foreach ($roles as $key => $role): ?>
                             <th class="role-col-head" data-role="<?= $key ?>">
-                                <i class="fas <?= $role['icon'] ?> d-block mb-1" style="font-size:.85rem;"></i>
+                                <?= smsIcon($role['icon'], ['class' => 'd-block mb-1', 'style' => 'font-size:.85rem;']) ?>
                                 <?= htmlspecialchars($role['label']) ?>
                             </th>
                         <?php endforeach; ?>
@@ -163,7 +161,7 @@ renderBreadcrumbs($breadcrumbs);
                     ?>
                     <tr class="<?= $rowClass ?>">
                         <td class="module-label" style="padding-left:1.2rem;">
-                            <i class="fas <?= $mod['icon'] ?> me-2"></i>
+                            <?= smsIcon($mod['icon'], ['class' => 'me-2']) ?>
                             <?= htmlspecialchars($mod['label']) ?>
                         </td>
                         <?php foreach ($roleKeys as $rk):
@@ -177,11 +175,11 @@ renderBreadcrumbs($breadcrumbs);
                                     <!-- Locked — always checked for admin, show static icon -->
                                     <?php if ($isChecked): ?>
                                         <span class="perm-yes" data-role="<?= $rk ?>" title="Always granted">
-                                            <i class="fas fa-check-circle"></i>
+                                            <?= smsIcon('check-circle') ?>
                                         </span>
                                     <?php else: ?>
                                         <span class="perm-no" title="Locked — no access">
-                                            <i class="fas fa-minus"></i>
+                                            <?= smsIcon('minus') ?>
                                         </span>
                                     <?php endif; ?>
                                 <?php else: ?>
@@ -207,10 +205,10 @@ renderBreadcrumbs($breadcrumbs);
 
 <!-- Legend -->
 <div class="d-flex align-items-center gap-3 mt-3 flex-wrap" style="font-size:.78rem;color:var(--sms-text-muted);">
-    <span><i class="fas fa-check-circle text-success me-1"></i> Access granted</span>
-    <span><i class="fas fa-minus me-1"></i> No access</span>
+    <span><?= smsIcon('check-circle', ['class' => 'text-success me-1']) ?> Access granted</span>
+    <span><?= smsIcon('minus', ['class' => 'me-1']) ?> No access</span>
     <span class="perm-cb-visual" style="display:inline-block;pointer-events:none;"></span><span>= Editable</span>
-    <span class="ms-auto"><i class="fas fa-info-circle text-primary me-1"></i>
+    <span class="ms-auto"><?= smsIcon('info-circle', ['class' => 'text-primary me-1']) ?>
         Changes apply on the role's next page load.
     </span>
 </div>
@@ -302,7 +300,7 @@ renderBreadcrumbs($breadcrumbs);
         container.insertAdjacentHTML('beforeend',
             '<div id="' + id + '" class="toast align-items-center text-bg-' + type + ' border-0 mb-2" role="alert" aria-atomic="true">'
             + '<div class="d-flex"><div class="toast-body d-flex align-items-center gap-2">'
-            + '<i class="fas ' + (icons[type]||icons.info) + '"></i> ' + msg
+            + (window.smsIconHtml ? window.smsIconHtml((icons[type] || icons.info).replace(/^fa-/, '')) : '') + ' ' + msg
             + '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>'
             + '</div></div>');
         var el = document.getElementById(id);
@@ -363,39 +361,6 @@ renderBreadcrumbs($breadcrumbs);
             cb.checked = !granted; // revert
             if (status) status.textContent = '';
             toast('Network error — permission not saved.', 'danger');
-        });
-    }
-
-    /* ── Reset all overrides ────────────────────────────────── */
-    document.getElementById('permResetBtn').addEventListener('click', function () {
-        if (!window.confirm) {
-            doReset();
-            return;
-        }
-        /* Use custom confirm if available */
-        if (typeof window.umConfirm === 'function') {
-            window.umConfirm(
-                'Reset all permissions to their original defaults?',
-                doReset,
-                { type: 'warning', title: 'Reset to defaults' }
-            );
-        } else {
-            if (window.confirm('Reset all permissions to their original defaults?')) doReset();
-        }
-    });
-
-    function doReset() {
-        fetch(ENDPOINT, {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ role: '__reset__', module: '__all__', granted: false, csrf_token: CSRF }),
-        })
-        .then(function () {
-            toast('Permissions reset to defaults. Reloading…', 'info');
-            setTimeout(function () { location.reload(); }, 1200);
-        })
-        .catch(function () {
-            toast('Network error during reset.', 'danger');
         });
     }
 

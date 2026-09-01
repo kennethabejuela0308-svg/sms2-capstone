@@ -67,19 +67,24 @@
     function buildConfirmModal() {
         if (document.getElementById('umConfirmModal')) return;
         var html = [
-            '<div class="modal fade um-confirm-modal" id="umConfirmModal" tabindex="-1" aria-modal="true" role="dialog">',
-            '  <div class="modal-dialog modal-dialog-centered um-confirm-dialog">',
-            '    <div class="modal-content um-confirm-content">',
-            '      <div class="um-confirm-header">',
-            '        <h6 class="um-confirm-title" id="umConfirmTitle">Are you sure?</h6>',
-            '        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>',
+            '<div class="modal fade sms-confirm-modal um-confirm-modal" id="umConfirmModal" tabindex="-1" aria-modal="true" role="dialog">',
+            '  <div class="modal-dialog modal-dialog-centered sms-confirm-dialog um-confirm-dialog">',
+            '    <div class="modal-content sms-confirm-content um-confirm-content">',
+            '      <div class="sms-confirm-header um-confirm-header">',
+            '        <div class="sms-confirm-header-text um-confirm-header-text">',
+            '          <span class="sms-confirm-kicker">Confirm</span>',
+            '          <h6 class="sms-confirm-title um-confirm-title" id="umConfirmTitle">Are you sure?</h6>',
+            '        </div>',
+            '        <button type="button" class="sms-confirm-close" data-bs-dismiss="modal" aria-label="Close">'
+            + '<span class="sms-confirm-close__glyph" aria-hidden="true">×</span></button>',
             '      </div>',
-            '      <div class="um-confirm-body">',
-            '        <p class="um-confirm-msg" id="umConfirmMsg"></p>',
+            '      <div class="sms-confirm-body um-confirm-body">',
+            '        <div class="sms-confirm-icon um-confirm-icon" id="umConfirmIcon" aria-hidden="true"></div>',
+            '        <p class="sms-confirm-msg um-confirm-msg" id="umConfirmMsg"></p>',
             '      </div>',
-            '      <div class="um-confirm-footer">',
-            '        <button type="button" class="btn btn-outline-secondary btn-sm um-confirm-cancel" data-bs-dismiss="modal">Cancel</button>',
-            '        <button type="button" class="btn btn-sm um-confirm-ok"    id="umConfirmOk">Confirm</button>',
+            '      <div class="sms-confirm-footer um-confirm-footer">',
+            '        <button type="button" class="btn btn-outline-secondary sms-confirm-cancel um-confirm-cancel" data-bs-dismiss="modal">Cancel</button>',
+            '        <button type="button" class="btn sms-confirm-ok um-confirm-ok" id="umConfirmOk">Confirm</button>',
             '      </div>',
             '    </div>',
             '  </div>',
@@ -96,6 +101,17 @@
      */
     window.umConfirm = function (message, onOk, opts) {
         opts = opts || {};
+        if (typeof window.smsConfirm === 'function') {
+            var type = opts.type || 'danger';
+            var titles = { danger: 'Delete confirmation', warning: 'Please confirm', info: 'Confirm action', primary: 'Save changes' };
+            window.smsConfirm(message, onOk, {
+                title: opts.title || titles[type] || 'Are you sure?',
+                type: type,
+                okText: opts.okText
+            });
+            return;
+        }
+
         buildConfirmModal();
 
         var modal    = document.getElementById('umConfirmModal');
@@ -113,11 +129,13 @@
         // icon + colour per type
         var icons = { danger:'fa-trash-alt', warning:'fa-exclamation-triangle', info:'fa-sign-out-alt', primary:'fa-save' };
         if (iconWrap) {
-            iconWrap.className = 'um-confirm-icon um-confirm-icon--' + type;
-            iconWrap.innerHTML = '<i class="fas ' + (icons[type] || 'fa-question-circle') + '"></i>';
+            iconWrap.className = 'sms-confirm-icon um-confirm-icon sms-confirm-icon--' + type + ' um-confirm-icon--' + type;
+            iconWrap.innerHTML = window.smsIconHtml
+                ? window.smsIconHtml((icons[type] || 'question-circle').replace(/^fa-/, ''))
+                : '';
         }
         if (okBtn) {
-            okBtn.className = 'btn btn-sm um-confirm-ok um-confirm-ok--' + type;
+            okBtn.className = 'btn sms-confirm-ok um-confirm-ok sms-confirm-ok--' + type + ' um-confirm-ok--' + type;
             var labels = { danger:'Yes, delete', warning:'Yes, proceed', info:'Yes, leave', primary:'Yes, save' };
             okBtn.textContent = labels[type] || 'Confirm';
         }
@@ -183,12 +201,38 @@
                 form.querySelector('[name="user_id"]').value    = trigger.dataset.uid    || '';
 
                 var pwRow = form.querySelector('.um-pw-row');
-                if (pwRow) pwRow.querySelector('label').textContent = 'New Password (leave blank to keep current)';
+                var pwLabel = pwRow && pwRow.querySelector('.um-pw-label');
+                var pwInput = form.querySelector('[name="password"]');
+                var pwRequired = pwRow && pwRow.querySelector('.um-pw-required');
+                var pwStrength = form.querySelector('.um-pw-strength-row');
+                if (pwLabel) {
+                    pwLabel.innerHTML = 'New Password <span class="text-muted fw-normal">(leave blank to keep current)</span>';
+                }
+                if (pwInput) {
+                    pwInput.removeAttribute('required');
+                    pwInput.value = '';
+                }
+                if (pwRequired) pwRequired.hidden = true;
+                if (pwStrength) pwStrength.hidden = true;
             } else if (form) {
                 form.reset();
                 form.querySelector('[name="user_id"]').value = '';
                 var pwRow = form.querySelector('.um-pw-row');
-                if (pwRow) pwRow.querySelector('label').textContent = 'Password';
+                var pwLabel = pwRow && pwRow.querySelector('.um-pw-label');
+                var pwInput = form.querySelector('[name="password"]');
+                var pwRequired = pwRow && pwRow.querySelector('.um-pw-required');
+                var pwStrength = form.querySelector('.um-pw-strength-row');
+                if (pwLabel) {
+                    pwLabel.innerHTML = 'Password <span class="text-danger um-pw-required">*</span>';
+                }
+                if (pwInput) pwInput.setAttribute('required', 'required');
+                if (pwRequired) pwRequired.hidden = false;
+                if (pwStrength) pwStrength.hidden = false;
+            }
+
+            var pwField = form && form.querySelector('[name="password"]');
+            if (pwField) {
+                pwField.dispatchEvent(new Event('input', { bubbles: true }));
             }
 
             // Update avatar initial
@@ -277,22 +321,27 @@
     function buildLeaveModal() {
         if (document.getElementById('umLeaveModal')) return;
         var html = [
-            '<div class="modal fade um-confirm-modal" id="umLeaveModal" tabindex="-1" aria-modal="true" role="dialog" data-bs-backdrop="static" data-bs-keyboard="false">',
-            '  <div class="modal-dialog modal-dialog-centered um-confirm-dialog">',
-            '    <div class="modal-content um-confirm-content">',
-            '      <div class="um-confirm-icon-wrap">',
-            '        <div class="um-confirm-icon um-confirm-icon--warning">',
-            '          <i class="fas fa-sign-out-alt"></i>',
+            '<div class="modal fade sms-confirm-modal um-confirm-modal" id="umLeaveModal" tabindex="-1" aria-modal="true" role="dialog" data-bs-backdrop="static" data-bs-keyboard="false">',
+            '  <div class="modal-dialog modal-dialog-centered sms-confirm-dialog um-confirm-dialog">',
+            '    <div class="modal-content sms-confirm-content um-confirm-content">',
+            '      <div class="sms-confirm-header um-confirm-header">',
+            '        <div class="sms-confirm-header-text um-confirm-header-text">',
+            '          <span class="sms-confirm-kicker">Unsaved changes</span>',
+            '          <h6 class="sms-confirm-title um-confirm-title">Leave page?</h6>',
             '        </div>',
+            '        <button type="button" class="sms-confirm-close" data-bs-dismiss="modal" aria-label="Close" id="umLeaveCancel">'
+            + '<span class="sms-confirm-close__glyph" aria-hidden="true">×</span></button>',
             '      </div>',
-            '      <div class="um-confirm-body">',
-            '        <h6 class="um-confirm-title">Leave page?</h6>',
-            '        <p  class="um-confirm-msg">Changes you made may not be saved.</p>',
+            '      <div class="sms-confirm-body um-confirm-body">',
+            '        <div class="sms-confirm-icon um-confirm-icon sms-confirm-icon--warning um-confirm-icon--warning" aria-hidden="true">',
+            '          <i class="ti ti-alert-triangle"></i>',
+            '        </div>',
+            '        <p class="sms-confirm-msg um-confirm-msg">Changes you made may not be saved.</p>',
             '      </div>',
-            '      <div class="um-confirm-footer">',
-            '        <button type="button" class="btn btn-outline-secondary btn-sm" id="umLeaveCancel">Stay</button>',
-            '        <button type="button" class="btn btn-sm um-confirm-ok um-confirm-ok--warning" id="umLeaveOk">',
-            '          <i class="fas fa-sign-out-alt me-1"></i>Leave',
+            '      <div class="sms-confirm-footer um-confirm-footer">',
+            '        <button type="button" class="btn btn-outline-secondary sms-confirm-cancel um-confirm-cancel" id="umLeaveStay">Stay</button>',
+            '        <button type="button" class="btn sms-confirm-ok um-confirm-ok sms-confirm-ok--warning um-confirm-ok--warning" id="umLeaveOk">',
+            '          <i class="ti ti-logout me-1"></i>Leave',
             '        </button>',
             '      </div>',
             '    </div>',
@@ -331,27 +380,30 @@
             var leaveModal  = document.getElementById('umLeaveModal');
             var leaveOk     = document.getElementById('umLeaveOk');
             var leaveCancel = document.getElementById('umLeaveCancel');
+            var leaveStay   = document.getElementById('umLeaveStay');
+
+            function hideLeaveModal() {
+                var bsModal = bootstrap.Modal.getInstance(leaveModal);
+                if (bsModal) bsModal.hide();
+            }
 
             // clone to remove stale listeners
             if (leaveOk) {
                 var newOk = leaveOk.cloneNode(true);
                 leaveOk.parentNode.replaceChild(newOk, leaveOk);
                 newOk.addEventListener('click', function () {
-                    var bsModal = bootstrap.Modal.getInstance(leaveModal);
-                    if (bsModal) bsModal.hide();
+                    hideLeaveModal();
                     dirty = false;
                     leavingViaModal = true;
                     window.location.href = pendingHref;
                 });
             }
-            if (leaveCancel) {
-                var newCancel = leaveCancel.cloneNode(true);
-                leaveCancel.parentNode.replaceChild(newCancel, leaveCancel);
-                newCancel.addEventListener('click', function () {
-                    var bsModal = bootstrap.Modal.getInstance(leaveModal);
-                    if (bsModal) bsModal.hide();
-                });
-            }
+            [leaveCancel, leaveStay].forEach(function (btn) {
+                if (!btn) return;
+                var newBtn = btn.cloneNode(true);
+                btn.parentNode.replaceChild(newBtn, btn);
+                newBtn.addEventListener('click', hideLeaveModal);
+            });
 
             var bsModal = bootstrap.Modal.getOrCreateInstance(leaveModal);
             bsModal.show();
@@ -370,7 +422,7 @@
 
         var html = '<div id="' + id + '" class="toast align-items-center text-bg-' + type + ' border-0 mb-2" role="alert" aria-live="assertive" aria-atomic="true">'
             + '<div class="d-flex"><div class="toast-body d-flex align-items-center gap-2">'
-            + '<i class="fas ' + icon + '"></i> ' + message
+            + (window.smsIconHtml ? window.smsIconHtml(icon.replace(/^fa-/, '')) : '') + ' ' + message
             + '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>'
             + '</div></div>';
 

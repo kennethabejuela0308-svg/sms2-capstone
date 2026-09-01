@@ -105,7 +105,7 @@ out('Roles seeded.');
  * Session role_key remains "crad_officer".
  */
 $defaults = [
-    'superadmin'   => ['user-management', 'student_portal'],
+    'superadmin'   => ['user-management'],
     'admission'    => ['enrollment'],
     'registrar'    => ['registrar', 'curriculum', 'scheduling'],
     'finance'      => ['payment'],
@@ -126,7 +126,7 @@ $defaults = [
 // Simplest: store permissions with role_key = crad_officer for CRAD modules.
 
 $permRows = [
-    'superadmin'    => ['user-management', 'student_portal'],
+    'superadmin'    => ['user-management'],
     'admission'     => ['enrollment'],
     'registrar'     => ['registrar', 'curriculum', 'scheduling'],
     'finance'       => ['payment'],

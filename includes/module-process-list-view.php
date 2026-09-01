@@ -96,12 +96,12 @@ $statusClass = static function (string $class, string $status): string {
         <div class="mpl-toolbar">
             <?php if ($isArchiveView): ?>
                 <a class="mpl-btn mpl-btn-ghost" href="?">
-                    <i class="fas fa-arrow-left" aria-hidden="true"></i>Active list
+                    <?= smsIcon('arrow-left', ['aria-hidden' => 'true']) ?>Active list
                 </a>
             <?php else: ?>
                 <?php if ($showArchiveButton): ?>
                     <a class="mpl-btn mpl-btn-soft" href="?view=archive">
-                        <i class="fas fa-archive" aria-hidden="true"></i>Archive
+                        <?= smsIcon('archive', ['aria-hidden' => 'true']) ?>Archive
                         <?php if ($archiveCount > 0): ?>
                             <span class="mpl-btn-count"><?= (int) $archiveCount ?></span>
                         <?php endif; ?>
@@ -109,7 +109,7 @@ $statusClass = static function (string $class, string $status): string {
                 <?php endif; ?>
                 <?php if ($showAddButton): ?>
                     <a class="mpl-btn mpl-btn-primary" href="?process=<?= htmlspecialchars(urlencode($addProcess)) ?>">
-                        <i class="fas fa-plus" aria-hidden="true"></i><?= htmlspecialchars($addLabelDisplay) ?>
+                        <?= smsIcon('plus', ['aria-hidden' => 'true']) ?><?= htmlspecialchars($addLabelDisplay) ?>
                     </a>
                 <?php endif; ?>
             <?php endif; ?>
@@ -118,7 +118,7 @@ $statusClass = static function (string $class, string $status): string {
 
     <?php if ($alert !== ''): ?>
         <div class="mpl-alert" role="alert">
-            <i class="fas fa-check-circle me-1"></i><?= htmlspecialchars($alert) ?>
+            <?= smsIcon('check-circle', ['class' => 'me-1']) ?><?= htmlspecialchars($alert) ?>
         </div>
     <?php endif; ?>
 
@@ -133,7 +133,7 @@ $statusClass = static function (string $class, string $status): string {
                 ?>
                 <article class="mpl-stat">
                     <div class="mpl-stat-icon <?= htmlspecialchars($toneClass) ?>">
-                        <i class="fas <?= htmlspecialchars($stat['icon'] ?? 'fa-circle') ?>"></i>
+                        <?= smsIcon((string) ($stat['icon'] ?? 'circle')) ?>
                     </div>
                     <div>
                         <span><?= htmlspecialchars($stat['label'] ?? '') ?></span>
@@ -146,7 +146,7 @@ $statusClass = static function (string $class, string $status): string {
 
     <div class="mpl-filters">
         <label class="mpl-search">
-            <i class="fas fa-search"></i>
+            <?= smsIcon('search') ?>
             <input type="search" id="mplSearch" placeholder="<?= htmlspecialchars($searchPlaceholder) ?>" aria-label="Search records">
         </label>
         <select id="mplStatus" aria-label="Filter by status">
@@ -160,7 +160,7 @@ $statusClass = static function (string $class, string $status): string {
             <?php endforeach; ?>
         </select>
         <input type="date" id="mplDate" aria-label="Filter by date">
-        <a class="mpl-btn mpl-btn-ghost mpl-btn-sm" href="?"><i class="fas fa-sync-alt" aria-hidden="true"></i> Refresh</a>
+        <a class="mpl-btn mpl-btn-ghost mpl-btn-sm" href="?"><?= smsIcon('sync-alt', ['aria-hidden' => 'true']) ?> Refresh</a>
     </div>
 
     <section class="mpl-panel">
@@ -169,7 +169,7 @@ $statusClass = static function (string $class, string $status): string {
                 <h2><?= htmlspecialchars($listTitle) ?></h2>
                 <p><?= htmlspecialchars($listSubtitle) ?></p>
             </div>
-            <a class="mpl-btn mpl-btn-ghost mpl-btn-sm" href="?process=report"><i class="fas fa-file-export" aria-hidden="true"></i> Export</a>
+            <a class="mpl-btn mpl-btn-ghost mpl-btn-sm" href="?process=report"><?= smsIcon('file-export', ['aria-hidden' => 'true']) ?> Export</a>
         </div>
 
         <div class="mpl-table-wrap">
@@ -241,12 +241,12 @@ $statusClass = static function (string $class, string $status): string {
                                 </td>
                                 <td>
                                     <div class="mpl-actions">
-                                        <a href="?process=view&ref=<?= $refQ ?><?= $isArchiveView ? '&view=archive' : '' ?>" title="View" aria-label="View"><i class="fas fa-eye"></i></a>
+                                        <a href="?process=view&ref=<?= $refQ ?><?= $isArchiveView ? '&view=archive' : '' ?>" title="View" aria-label="View"><?= smsIcon('eye') ?></a>
                                         <?php if ($isArchiveView): ?>
-                                            <a class="warning" href="?process=restore&ref=<?= $refQ ?>&view=archive" title="Restore to active list" aria-label="Restore"><i class="fas fa-undo"></i></a>
+                                            <a class="warning" href="?process=restore&ref=<?= $refQ ?>&view=archive" title="Restore to active list" aria-label="Restore"><?= smsIcon('undo') ?></a>
                                         <?php else: ?>
-                                            <a href="?process=edit&ref=<?= $refQ ?>" title="Edit" aria-label="Edit"><i class="fas fa-pen"></i></a>
-                                            <a class="warning" href="?process=archive&ref=<?= $refQ ?>" title="Move to Archive" aria-label="Archive"><i class="fas fa-archive"></i></a>
+                                            <a href="?process=edit&ref=<?= $refQ ?>" title="Edit" aria-label="Edit"><?= smsIcon('pen') ?></a>
+                                            <a class="warning" href="?process=archive&ref=<?= $refQ ?>" title="Move to Archive" aria-label="Archive"><?= smsIcon('archive') ?></a>
                                         <?php endif; ?>
                                     </div>
                                 </td>

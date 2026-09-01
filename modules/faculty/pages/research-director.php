@@ -692,6 +692,8 @@ function rdScheduleConflictMessages(PDO $pdo, int $groupId, int $venueId, string
     return array_values(array_unique($messages));
 }
 
+require_once __DIR__ . '/../includes/rd-scheduling-optimizer.php';
+
 $requestedDefenseType = trim((string) ($_GET['defense_type'] ?? CRAD_DEFENSE_TYPE_PRE_ORAL));
 if (!in_array($requestedDefenseType, [CRAD_DEFENSE_TYPE_PRE_ORAL, CRAD_DEFENSE_TYPE_FINAL], true)) {
     $requestedDefenseType = CRAD_DEFENSE_TYPE_PRE_ORAL;
@@ -793,6 +795,31 @@ if ($crad) {
         exit;
     }
 
+    if ($view === 'venues' && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['venue_action'] ?? '') === 'update_capacity') {
+        header('Content-Type: application/json; charset=utf-8');
+        if (!csrfVerify()) {
+            echo json_encode(['ok' => false, 'message' => 'Security token expired.']);
+            exit;
+        }
+        $venueId  = (int) ($_POST['venue_id'] ?? 0);
+        $capacity = (int) ($_POST['capacity'] ?? 0);
+        if ($venueId < 1 || $capacity < 1) {
+            echo json_encode(['ok' => false, 'message' => 'Capacity must be at least 1.']);
+            exit;
+        }
+        try {
+            $upd = $crad->prepare(
+                "UPDATE research_venues SET capacity = :capacity, updated_at = NOW() WHERE id = :id"
+            );
+            $upd->execute([':capacity' => $capacity, ':id' => $venueId]);
+            echo json_encode(['ok' => true, 'capacity' => $capacity]);
+        } catch (Throwable $e) {
+            error_log('Research director update venue capacity failed: ' . $e->getMessage());
+            echo json_encode(['ok' => false, 'message' => 'Database error.']);
+        }
+        exit;
+    }
+
     if ($view === 'venues' && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['venue_action'] ?? '') === 'add') {
         if (!csrfVerify()) {
             $venueMessage = ['type' => 'danger', 'text' => 'Security token expired. Refresh the page and try again.'];
@@ -832,6 +859,38 @@ if ($crad) {
                 }
             }
         }
+    }
+
+    if ($view === 'manual-scheduling-optimizer'
+        && $_SERVER['REQUEST_METHOD'] === 'POST'
+        && ($_POST['schedule_action'] ?? '') === 'ai_generate_slots') {
+        header('Content-Type: application/json; charset=utf-8');
+        if (!csrfVerify()) {
+            echo json_encode(['ok' => false, 'message' => 'Security token expired.']);
+            exit;
+        }
+
+        $groupId = (int) ($_POST['research_group_id'] ?? ($_GET['group_id'] ?? 0));
+        $defenseType = trim((string) ($_POST['defense_type'] ?? $requestedDefenseType));
+        if (!in_array($defenseType, [CRAD_DEFENSE_TYPE_PRE_ORAL, CRAD_DEFENSE_TYPE_FINAL], true)) {
+            $defenseType = CRAD_DEFENSE_TYPE_PRE_ORAL;
+        }
+
+        $periodStart = trim((string) ($_POST['period_start'] ?? ''));
+        $periodEnd   = trim((string) ($_POST['period_end'] ?? ''));
+        $expectedAttendees = max(1, (int) ($_POST['expected_attendees'] ?? 15));
+
+        $result = rdScheduleGenerateOptimizedSlots(
+            $crad,
+            $groupId,
+            $defenseType,
+            $periodStart,
+            $periodEnd,
+            $expectedAttendees
+        );
+
+        echo json_encode($result);
+        exit;
     }
 
     if (in_array($view, ['manual-scheduling-optimizer', 'alternative-time-slots'], true)
@@ -1928,6 +1987,91 @@ renderBreadcrumbs($breadcrumbs);
         width: 100%;
     }
     .director-scheduler-form .is-wide { grid-column: 1 / -1; }
+    .director-ai-scheduler {
+        grid-column: 1 / -1;
+        padding: 1rem 1.1rem;
+        border: 1px solid #c7d2fe;
+        border-radius: 12px;
+        background: linear-gradient(180deg, rgba(99,102,241,.06), rgba(59,130,246,.04));
+        display: grid;
+        gap: .75rem;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .director-ai-scheduler h3 {
+        grid-column: 1 / -1;
+        margin: 0;
+        font-size: .95rem;
+        font-weight: 800;
+        color: var(--sms-primary);
+    }
+    .director-ai-scheduler p {
+        grid-column: 1 / -1;
+        margin: 0;
+        font-size: .82rem;
+        color: var(--sms-text-muted);
+    }
+    .director-ai-scheduler label span {
+        color: var(--sms-text-muted);
+        display: block;
+        font-size: .72rem;
+        font-weight: 800;
+        letter-spacing: .04em;
+        margin-bottom: .25rem;
+        text-transform: uppercase;
+    }
+    .director-ai-scheduler input {
+        background: var(--sms-input-bg);
+        border: 1px solid var(--sms-input-border);
+        border-radius: 10px;
+        color: var(--sms-text);
+        min-height: 40px;
+        outline: 0;
+        padding: .45rem .65rem;
+        width: 100%;
+    }
+    .director-ai-generate-btn {
+        align-self: end;
+        background: linear-gradient(135deg, #4f46e5, #2563eb);
+        border: 0;
+        border-radius: 10px;
+        color: #fff;
+        cursor: pointer;
+        font-size: .8rem;
+        font-weight: 800;
+        min-height: 40px;
+        padding: .5rem .85rem;
+    }
+    .director-ai-generate-btn:hover { filter: brightness(1.05); }
+    .director-ai-generate-btn:disabled { opacity: .65; cursor: wait; }
+    .director-ai-summary {
+        grid-column: 1 / -1;
+        display: none;
+        padding: .75rem .85rem;
+        border-radius: 10px;
+        background: rgba(16,185,129,.08);
+        border: 1px solid rgba(16,185,129,.25);
+        color: #047857;
+        font-size: .82rem;
+    }
+    .director-ai-summary.is-error {
+        background: rgba(239,68,68,.08);
+        border-color: rgba(239,68,68,.25);
+        color: #b91c1c;
+    }
+    .director-ai-slot-hints {
+        grid-column: 1 / -1;
+        display: grid;
+        gap: .5rem;
+    }
+    .director-ai-slot-hint {
+        padding: .55rem .7rem;
+        border-radius: 8px;
+        background: var(--sms-surface-muted, #f8fafc);
+        border: 1px solid var(--sms-border);
+        font-size: .78rem;
+        color: var(--sms-text-muted);
+    }
+    .director-ai-slot-hint strong { color: var(--sms-text); }
     .director-action-btn,
     .director-finalize-btn {
         align-items: center;
@@ -2118,6 +2262,29 @@ renderBreadcrumbs($breadcrumbs);
     [data-theme="dark"] .venue-status-select--available   { background-color: rgba(52,211,153,.18);  color: #6ee7b7;  border-color: rgba(52,211,153,.35); }
     [data-theme="dark"] .venue-status-select--reserved    { background-color: rgba(139,92,246,.20);  color: #c4b5fd;  border-color: rgba(139,92,246,.38); }
     [data-theme="dark"] .venue-status-select--unavailable { background-color: rgba(248,113,113,.18); color: #fca5a5;  border-color: rgba(248,113,113,.35); }
+    .venue-capacity-input {
+        width: 5.5rem;
+        padding: .35rem .55rem;
+        border: 1px solid var(--sms-border, #dbe4f0);
+        border-radius: 8px;
+        font-size: .88rem;
+        font-weight: 700;
+        color: var(--sms-text, #0f172a);
+        background: var(--sms-surface, #fff);
+        text-align: center;
+    }
+    .venue-capacity-input:focus {
+        border-color: var(--sms-primary-light);
+        box-shadow: 0 0 0 3px var(--sms-input-focus);
+        outline: none;
+    }
+    .venue-capacity-input:disabled { opacity: .55; cursor: wait; }
+    .venue-capacity-input.is-saving { opacity: .65; }
+    [data-theme="dark"] .venue-capacity-input {
+        background: var(--sms-surface-muted, #1e293b);
+        color: var(--sms-text, #e2e8f0);
+        border-color: rgba(148,163,184,.28);
+    }
     /* ── Responsive ───────────────────────────────────────────────────── */
     @media (max-width: 1100px) {
         .director-stats            { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -2133,34 +2300,35 @@ renderBreadcrumbs($breadcrumbs);
         .director-verify-grid      { grid-template-columns: 1fr; }
         .director-venue-grid       { grid-template-columns: 1fr; }
         .director-scheduler-form   { grid-template-columns: 1fr; }
+        .director-ai-scheduler     { grid-template-columns: 1fr; }
         .director-venue-grid > div { grid-column: 1; }
     }
 </style>
 
 <div class="director-stats">
     <section class="director-stat">
-        <span class="director-stat__icon director-stat__icon--blue"><i class="fas fa-list-alt" aria-hidden="true"></i></span>
+        <span class="director-stat__icon director-stat__icon--blue"><?= smsIcon('list-alt', ['aria-hidden' => 'true']) ?></span>
         <div>
             <small><?= $view === 'venues' ? 'Total Venues' : 'Ready for Scheduling' ?></small>
             <strong data-director-stat="ready"><?= (int) $readyCount ?></strong>
         </div>
     </section>
     <section class="director-stat">
-        <span class="director-stat__icon director-stat__icon--amber"><i class="fas fa-check-double" aria-hidden="true"></i></span>
+        <span class="director-stat__icon director-stat__icon--amber"><?= smsIcon('check-double', ['aria-hidden' => 'true']) ?></span>
         <div>
             <small><?= $view === 'venues' ? 'Reserved' : 'Needs Verification' ?></small>
             <strong data-director-stat="needs_verification"><?= (int) $needsVerification ?></strong>
         </div>
     </section>
     <section class="director-stat">
-        <span class="director-stat__icon director-stat__icon--cyan"><i class="fas fa-calendar-check" aria-hidden="true"></i></span>
+        <span class="director-stat__icon director-stat__icon--cyan"><?= smsIcon('calendar-check', ['aria-hidden' => 'true']) ?></span>
         <div>
             <small><?= $view === 'venues' ? 'Available' : 'Scheduled Defenses' ?></small>
             <strong data-director-stat="scheduled"><?= (int) $scheduledCount ?></strong>
         </div>
     </section>
     <section class="director-stat">
-        <span class="director-stat__icon director-stat__icon--green"><i class="fas fa-check-circle" aria-hidden="true"></i></span>
+        <span class="director-stat__icon director-stat__icon--green"><?= smsIcon('check-circle', ['aria-hidden' => 'true']) ?></span>
         <div>
             <small><?= $view === 'venues' ? 'Unavailable' : 'Completed' ?></small>
             <strong data-director-stat="completed"><?= (int) $completedCount ?></strong>
@@ -2172,7 +2340,7 @@ renderBreadcrumbs($breadcrumbs);
     <div class="director-tracking__title"><?= htmlspecialchars($pageTitle) ?> Tracking</div>
     <div class="director-tracking__controls">
         <label class="director-search">
-            <i class="fas fa-search" aria-hidden="true"></i>
+            <?= smsIcon('search', ['aria-hidden' => 'true']) ?>
             <input type="search" data-director-search placeholder="<?= $view === 'venues' ? 'Search by venue, capacity, type, or status...' : 'Search by group, title, adviser, or panel...' ?>">
         </label>
         <select class="director-filter" data-director-status>
@@ -2219,7 +2387,7 @@ renderBreadcrumbs($breadcrumbs);
                     <h3>No Research Selected</h3>
                     <p>Please select a defense-ready research before creating a <?= htmlspecialchars($defenseTypeLabel) ?> schedule.</p>
                     <a class="director-action-btn" href="<?= htmlspecialchars(rdScheduleTypedUrl('defense-scheduling-queue', $requestedDefenseType)) ?>">
-                        <i class="fas fa-list-alt" aria-hidden="true"></i>
+                        <?= smsIcon('list-alt', ['aria-hidden' => 'true']) ?>
                         View Ready for Scheduling
                     </a>
                 </div>
@@ -2230,7 +2398,7 @@ renderBreadcrumbs($breadcrumbs);
                     <h3><?= !$selectedGroupIsOfficial ? 'Research group is no longer available in the official Capstone Group/Student Registry.' : 'Scheduling is currently unavailable for this research.' ?></h3>
                     <p><?= !$selectedGroupIsOfficial ? 'This group can no longer be used in ' . htmlspecialchars($defenseTypeLabel) . ' scheduling.' : 'One or more required records are no longer complete.' ?></p>
                     <a class="director-action-btn" href="<?= htmlspecialchars(rdScheduleTypedUrl('defense-scheduling-queue', $requestedDefenseType)) ?>">
-                        <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                        <?= smsIcon('arrow-left', ['aria-hidden' => 'true']) ?>
                         Back to Ready for Scheduling
                     </a>
                 </div>
@@ -2252,11 +2420,34 @@ renderBreadcrumbs($breadcrumbs);
                     </div>
                     <small><?= count($selectedPanelRows) ?> of <?= RD_SCHEDULE_MAX_PANEL_MEMBERS ?> Panel Members assigned</small>
                 </div>
-                <form method="post" class="director-scheduler-box director-scheduler-form">
+                <form method="post" class="director-scheduler-box director-scheduler-form" id="directorSchedulerForm" data-group-id="<?= (int) $selectedGroupId ?>" data-defense-type="<?= htmlspecialchars($requestedDefenseType) ?>">
                     <?= csrfField() ?>
                     <input type="hidden" name="schedule_action" value="save_proposed">
                     <input type="hidden" name="research_group_id" value="<?= (int) $selectedGroupId ?>">
                     <input type="hidden" name="defense_type" value="<?= htmlspecialchars($requestedDefenseType) ?>">
+                    <?php if ($view === 'manual-scheduling-optimizer'): ?>
+                    <div class="director-ai-scheduler" id="directorAiScheduler">
+                        <h3><?= smsIcon('magic', ['class' => 'me-1']) ?> AI Scheduling Optimizer</h3>
+                        <p>Set your defense period (e.g. one month). AI will pick conflict-free slots with comfortable venue capacity for adviser, panel, and venue availability.</p>
+                        <label>
+                            <span>Period Start</span>
+                            <input type="date" id="aiPeriodStart" min="<?= htmlspecialchars(date('Y-m-d')) ?>" value="<?= htmlspecialchars(date('Y-m-d')) ?>">
+                        </label>
+                        <label>
+                            <span>Period End</span>
+                            <input type="date" id="aiPeriodEnd" min="<?= htmlspecialchars(date('Y-m-d')) ?>" value="<?= htmlspecialchars(date('Y-m-d', strtotime('+30 days'))) ?>">
+                        </label>
+                        <label>
+                            <span>Expected Attendees</span>
+                            <input type="number" id="aiExpectedAttendees" min="1" max="500" value="15" inputmode="numeric">
+                        </label>
+                        <button type="button" class="director-ai-generate-btn" id="aiGenerateSlotsBtn">
+                            <?= smsIcon('robot', ['class' => 'me-1']) ?> Generate Optimal Slots
+                        </button>
+                        <div class="director-ai-summary" id="aiScheduleSummary" role="status"></div>
+                        <div class="director-ai-slot-hints" id="aiSlotHints"></div>
+                    </div>
+                    <?php endif; ?>
                     <label class="is-wide">
                         <span>Research Group</span>
                         <input type="text" value="<?= htmlspecialchars((string) ($selectedReadyGroup['group_name'] ?? 'Research Group')) ?>" readonly>
@@ -2265,11 +2456,11 @@ renderBreadcrumbs($breadcrumbs);
                     <?php for ($slotNumber = 1; $slotNumber <= $visibleSlotCount; $slotNumber++): ?>
                         <label>
                             <span>Slot <?= $slotNumber ?> Date</span>
-                            <input type="date" name="defense_date[]" min="<?= htmlspecialchars(date('Y-m-d')) ?>" <?= $slotNumber <= 2 && $view === 'manual-scheduling-optimizer' ? 'required' : '' ?>>
+                            <input type="date" name="defense_date[]" class="js-defense-date" min="<?= htmlspecialchars(date('Y-m-d')) ?>" <?= $slotNumber <= 2 && $view === 'manual-scheduling-optimizer' ? 'required' : '' ?>>
                         </label>
                         <label>
                             <span>Slot <?= $slotNumber ?> Venue</span>
-                            <select name="venue_id[]" <?= $slotNumber <= 2 && $view === 'manual-scheduling-optimizer' ? 'required' : '' ?>>
+                            <select name="venue_id[]" class="js-venue-id" <?= $slotNumber <= 2 && $view === 'manual-scheduling-optimizer' ? 'required' : '' ?>>
                                 <option value="">Select venue</option>
                                 <?php foreach ($allVenueRows as $venueRow): ?>
                                     <option value="<?= (int) ($venueRow['id'] ?? 0) ?>">
@@ -2280,16 +2471,16 @@ renderBreadcrumbs($breadcrumbs);
                         </label>
                         <label>
                             <span>Slot <?= $slotNumber ?> Start</span>
-                            <input type="time" name="start_time[]" <?= $slotNumber <= 2 && $view === 'manual-scheduling-optimizer' ? 'required' : '' ?>>
+                            <input type="time" name="start_time[]" class="js-start-time" <?= $slotNumber <= 2 && $view === 'manual-scheduling-optimizer' ? 'required' : '' ?>>
                         </label>
                         <label>
                             <span>Slot <?= $slotNumber ?> End</span>
-                            <input type="time" name="end_time[]" <?= $slotNumber <= 2 && $view === 'manual-scheduling-optimizer' ? 'required' : '' ?>>
+                            <input type="time" name="end_time[]" class="js-end-time" <?= $slotNumber <= 2 && $view === 'manual-scheduling-optimizer' ? 'required' : '' ?>>
                         </label>
                     <?php endfor; ?>
                     <div class="is-wide">
                         <button type="submit" class="director-action-btn">
-                            <i class="fas fa-save" aria-hidden="true"></i>
+                            <?= smsIcon('save', ['aria-hidden' => 'true']) ?>
                             Save Proposed Slots
                         </button>
                     </div>
@@ -2308,7 +2499,7 @@ renderBreadcrumbs($breadcrumbs);
         </div>
         <?php if ($view === 'venues'): ?>
             <button type="button" class="director-add-venue-btn" data-director-add-venue>
-                <i class="fas fa-plus" aria-hidden="true"></i>
+                <?= smsIcon('plus', ['aria-hidden' => 'true']) ?>
                 Add Venue
             </button>
         <?php endif; ?>
@@ -2341,11 +2532,11 @@ renderBreadcrumbs($breadcrumbs);
                 </label>
                 <div style="display:flex; gap:.5rem; align-items:flex-end;">
                     <button type="submit" class="director-add-venue-btn">
-                        <i class="fas fa-save" aria-hidden="true"></i>
+                        <?= smsIcon('save', ['aria-hidden' => 'true']) ?>
                         Save Venue
                     </button>
                     <button type="button" class="director-add-venue-btn is-cancel" data-director-cancel-venue>
-                        <i class="fas fa-times" aria-hidden="true"></i>
+                        <?= smsIcon('times', ['aria-hidden' => 'true']) ?>
                         Cancel
                     </button>
                 </div>
@@ -2372,7 +2563,17 @@ renderBreadcrumbs($breadcrumbs);
                         ?>
                         <tr data-director-row data-status="<?= htmlspecialchars($vStatusKey) ?>" data-venue-id="<?= $vid ?>">
                             <td><strong><?= htmlspecialchars((string) ($row['venue_name'] ?? 'Venue')) ?></strong></td>
-                            <td><?= (int) ($row['capacity'] ?? 0) ?></td>
+                            <td>
+                                <input type="number"
+                                       class="venue-capacity-input"
+                                       data-venue-capacity-input
+                                       data-venue-id="<?= $vid ?>"
+                                       value="<?= (int) ($row['capacity'] ?? 0) ?>"
+                                       min="1"
+                                       step="1"
+                                       inputmode="numeric"
+                                       aria-label="Capacity for <?= htmlspecialchars((string) ($row['venue_name'] ?? 'venue')) ?>">
+                            </td>
                             <td><?= htmlspecialchars((string) ($row['venue_type'] ?? '')) ?></td>
                             <td>
                                 <select class="venue-status-select venue-status-select--<?= htmlspecialchars($vStatusKey) ?>"
@@ -2420,7 +2621,7 @@ renderBreadcrumbs($breadcrumbs);
                     <div class="director-verify-grid">
                         <?php foreach ($checks as $label => $isOk): ?>
                             <span class="director-check <?= $isOk ? 'is-ok' : 'is-missing' ?>">
-                                <i class="fas <?= $isOk ? 'fa-check' : 'fa-times' ?>" aria-hidden="true"></i>
+                                <?= smsIcon($isOk ? 'check' : 'times', ['aria-hidden' => 'true']) ?>
                                 <?= htmlspecialchars($label) ?>
                             </span>
                         <?php endforeach; ?>
@@ -2428,7 +2629,7 @@ renderBreadcrumbs($breadcrumbs);
                     <?php if ($statusKey === 'verified'): ?>
                         <div class="director-verify-actions">
                             <a class="director-proceed-btn" href="<?= htmlspecialchars((string) ($row['proceed_url'] ?? '#')) ?>">
-                                <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                                <?= smsIcon('arrow-right', ['aria-hidden' => 'true']) ?>
                                 VERIFY &amp; PROCEED
                             </a>
                         </div>
@@ -2504,7 +2705,7 @@ renderBreadcrumbs($breadcrumbs);
                                         class="director-action-btn"
                                         data-review-schedule
                                         data-schedule-id="<?= (int) ($row['id'] ?? 0) ?>">
-                                    <i class="fas fa-eye" aria-hidden="true"></i>
+                                    <?= smsIcon('eye', ['aria-hidden' => 'true']) ?>
                                     Review
                                 </button>
                             <?php elseif ($view === 'finalize-defense-schedule' && $lowerStatus === 'selected'): ?>
@@ -2512,12 +2713,12 @@ renderBreadcrumbs($breadcrumbs);
                                         class="director-finalize-btn"
                                         data-finalize-schedule
                                         data-schedule-id="<?= (int) ($row['id'] ?? 0) ?>">
-                                    <i class="fas fa-clipboard-check" aria-hidden="true"></i>
+                                    <?= smsIcon('clipboard-check', ['aria-hidden' => 'true']) ?>
                                     Finalize
                                 </button>
                             <?php elseif (!empty($row['action_url']) && !empty($row['action_label'])): ?>
                                 <a class="director-action-btn" href="<?= htmlspecialchars((string) $row['action_url']) ?>">
-                                    <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                                    <?= smsIcon('arrow-right', ['aria-hidden' => 'true']) ?>
                                     <?= htmlspecialchars((string) $row['action_label']) ?>
                                 </a>
                             <?php else: ?>
@@ -2544,7 +2745,7 @@ renderBreadcrumbs($breadcrumbs);
             <div class="director-confirm__actions">
                 <button type="button" class="director-add-venue-btn is-cancel" data-finalize-cancel>Cancel</button>
                 <button type="button" class="director-finalize-btn" data-finalize-confirm>
-                    <i class="fas fa-check" aria-hidden="true"></i>
+                    <?= smsIcon('check', ['aria-hidden' => 'true']) ?>
                     Confirm
                 </button>
             </div>
@@ -2559,11 +2760,11 @@ renderBreadcrumbs($breadcrumbs);
             <div class="director-review-modal__body" data-review-body>Loading...</div>
             <div class="director-confirm__actions">
                 <a class="director-add-venue-btn is-cancel" data-review-alternative href="#">
-                    <i class="fas fa-clock" aria-hidden="true"></i>
+                    <?= smsIcon('clock', ['aria-hidden' => 'true']) ?>
                     Find Alternative Slots
                 </a>
                 <button type="button" class="director-finalize-btn" data-review-choose>
-                    <i class="fas fa-check" aria-hidden="true"></i>
+                    <?= smsIcon('check', ['aria-hidden' => 'true']) ?>
                     Choose This Schedule
                 </button>
                 <button type="button" class="director-add-venue-btn is-cancel" data-review-close>Close</button>
@@ -2577,7 +2778,7 @@ renderBreadcrumbs($breadcrumbs);
             <div class="director-confirm__actions">
                 <button type="button" class="director-add-venue-btn is-cancel" data-choose-cancel>Cancel</button>
                 <button type="button" class="director-finalize-btn" data-choose-confirm>
-                    <i class="fas fa-check" aria-hidden="true"></i>
+                    <?= smsIcon('check', ['aria-hidden' => 'true']) ?>
                     Choose Schedule
                 </button>
             </div>
@@ -2592,6 +2793,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const isFinalizeView = <?= $view === 'finalize-defense-schedule' ? 'true' : 'false' ?>;
     const currentDefenseType = <?= json_encode($requestedDefenseType) ?>;
     const isProposedView = <?= $view === 'proposed-schedules' ? 'true' : 'false' ?>;
+    const isManualOptimizerView = <?= $view === 'manual-scheduling-optimizer' ? 'true' : 'false' ?>;
     const csrfToken    = <?= json_encode(csrfToken()) ?>;
     const pageUrl      = window.location.pathname + '?view=venues';
     const search = document.querySelector('[data-director-search]');
@@ -2638,7 +2840,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return labels.map(function (item) {
             const ok = checks && checks[item[0]] === true;
             return '<span class="director-check ' + (ok ? 'is-ok' : 'is-missing') + '">' +
-                '<i class="fas ' + (ok ? 'fa-check' : 'fa-times') + '" aria-hidden="true"></i>' +
+                (window.smsIconHtml ? window.smsIconHtml(ok ? 'check' : 'times', '', {'aria-hidden': 'true'}) : '') +
                 esc(item[1]) +
             '</span>';
         }).join('');
@@ -2672,7 +2874,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 }).join('');
                 return '<tr data-director-row data-status="' + esc(s) + '" data-venue-id="' + vid + '">' +
                     '<td><strong>' + esc(row.venue_name || 'Venue') + '</strong></td>' +
-                    '<td>' + (parseInt(row.capacity, 10) || 0) + '</td>' +
+                    '<td><input type="number" class="venue-capacity-input" data-venue-capacity-input ' +
+                        'data-venue-id="' + vid + '" value="' + (parseInt(row.capacity, 10) || 0) + '" ' +
+                        'min="1" step="1" inputmode="numeric" ' +
+                        'aria-label="Capacity for ' + esc(row.venue_name || 'venue') + '"></td>' +
                     '<td>' + esc(row.venue_type || '') + '</td>' +
                     '<td><select class="venue-status-select venue-status-select--' + esc(s) + '" ' +
                         'data-venue-status-select data-venue-id="' + vid + '" ' +
@@ -2684,6 +2889,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }).join('');
             rows = Array.from(document.querySelectorAll('[data-director-row]'));
             bindStatusSelects();
+            bindCapacityInputs();
             applyFilters();
             return;
         }
@@ -2702,7 +2908,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     '</div>' +
                     '<div class="director-verify-grid">' + renderVerificationChecks(row.verification || {}) + '</div>' +
                     (key === 'verified'
-                        ? '<div class="director-verify-actions"><a class="director-proceed-btn" href="' + esc(row.proceed_url || '#') + '"><i class="fas fa-arrow-right" aria-hidden="true"></i>VERIFY &amp; PROCEED</a></div>'
+                        ? '<div class="director-verify-actions"><a class="director-proceed-btn" href="' + esc(row.proceed_url || '#') + '"><?= smsIcon('arrow-right', ['aria-hidden' => 'true']) ?>VERIFY &amp; PROCEED</a></div>'
                         : '') +
                 '</article>';
             }).join('');
@@ -2724,11 +2930,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 }).join('') + '</div>'
                 : esc(row.detail || 'Ready for venue');
             const action = isProposedView && (String(row.status || '').toLowerCase() === 'proposed' || String(row.status || '').toLowerCase() === 'selected')
-                ? '<button type="button" class="director-action-btn" data-review-schedule data-schedule-id="' + (parseInt(row.id, 10) || 0) + '"><i class="fas fa-eye" aria-hidden="true"></i>Review</button>'
+                ? '<button type="button" class="director-action-btn" data-review-schedule data-schedule-id="' + (parseInt(row.id, 10) || 0) + '"><?= smsIcon('eye', ['aria-hidden' => 'true']) ?>Review</button>'
                 : (isFinalizeView && String(row.status || '').toLowerCase() === 'selected'
-                ? '<button type="button" class="director-finalize-btn" data-finalize-schedule data-schedule-id="' + (parseInt(row.id, 10) || 0) + '"><i class="fas fa-clipboard-check" aria-hidden="true"></i>Finalize</button>'
+                ? '<button type="button" class="director-finalize-btn" data-finalize-schedule data-schedule-id="' + (parseInt(row.id, 10) || 0) + '"><?= smsIcon('clipboard-check', ['aria-hidden' => 'true']) ?>Finalize</button>'
                 : (row.action_url && row.action_label
-                    ? '<a class="director-action-btn" href="' + esc(row.action_url) + '"><i class="fas fa-arrow-right" aria-hidden="true"></i>' + esc(row.action_label) + '</a>'
+                    ? '<a class="director-action-btn" href="' + esc(row.action_url) + '"><?= smsIcon('arrow-right', ['aria-hidden' => 'true']) ?>' + esc(row.action_label) + '</a>'
                     : '<span class="text-muted">-</span>'));
             return '<tr data-director-row data-status="' + esc(key) + '">' +
                 '<td class="fw-semibold">' + esc(row.reference || 'For Scheduling') + '</td>' +
@@ -2793,6 +2999,69 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
                 sel.disabled = false;
                 sel.classList.remove('is-saving');
+            });
+        });
+    };
+
+    const bindCapacityInputs = function () {
+        document.querySelectorAll('[data-venue-capacity-input]').forEach(function (inp) {
+            if (inp.dataset.bound === '1') return;
+            inp.dataset.bound = '1';
+            inp.dataset.lastSaved = String(parseInt(inp.value, 10) || 0);
+
+            const saveCapacity = async function () {
+                const venueId = parseInt(inp.dataset.venueId, 10);
+                const capacity = parseInt(inp.value, 10);
+                const lastSaved = parseInt(inp.dataset.lastSaved, 10) || 0;
+                if (!capacity || capacity < 1) {
+                    inp.value = String(lastSaved || 1);
+                    return;
+                }
+                if (capacity === lastSaved) return;
+
+                const row = inp.closest('[data-director-row]');
+                const updCell = row ? row.querySelector('.venue-updated-cell') : null;
+                inp.disabled = true;
+                inp.classList.add('is-saving');
+                try {
+                    const body = new URLSearchParams();
+                    body.set('venue_action', 'update_capacity');
+                    body.set('venue_id', venueId);
+                    body.set('capacity', capacity);
+                    body.set('csrf_token', csrfToken);
+                    const res = await fetch(pageUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'Accept': 'application/json'
+                        },
+                        credentials: 'same-origin',
+                        body: body.toString()
+                    });
+                    const data = await res.json();
+                    if (!data.ok) throw new Error(data.message || 'Save failed');
+                    inp.dataset.lastSaved = String(capacity);
+                    if (updCell) {
+                        const now = new Date();
+                        updCell.textContent = now.toLocaleString('en-US', {
+                            month: 'short', day: 'numeric', year: 'numeric',
+                            hour: 'numeric', minute: '2-digit', hour12: true
+                        });
+                    }
+                } catch (err) {
+                    inp.value = String(lastSaved || capacity);
+                    alert('Could not save capacity. Please try again.');
+                }
+                inp.disabled = false;
+                inp.classList.remove('is-saving');
+            };
+
+            inp.addEventListener('blur', saveCapacity);
+            inp.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    inp.blur();
+                }
             });
         });
     };
@@ -3072,11 +3341,11 @@ document.addEventListener('DOMContentLoaded', function () {
             const isVisible = venueForm.style.display !== 'none';
             if (isVisible) {
                 venueForm.style.display = 'none';
-                addVenueBtn.innerHTML = '<i class="fas fa-plus" aria-hidden="true"></i> Add Venue';
+                addVenueBtn.innerHTML = '<?= smsIcon('plus', ['aria-hidden' => 'true']) ?> Add Venue';
                 addVenueBtn.classList.remove('is-cancel');
             } else {
                 venueForm.style.display = '';
-                addVenueBtn.innerHTML = '<i class="fas fa-chevron-up" aria-hidden="true"></i> Hide Form';
+                addVenueBtn.innerHTML = '<?= smsIcon('chevron-up', ['aria-hidden' => 'true']) ?> Hide Form';
                 addVenueBtn.classList.add('is-cancel');
                 venueForm.querySelector('input[name="venue_name"]')?.focus();
             }
@@ -3086,7 +3355,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (cancelVenueBtn && venueForm && addVenueBtn) {
         cancelVenueBtn.addEventListener('click', function () {
             venueForm.style.display = 'none';
-            addVenueBtn.innerHTML = '<i class="fas fa-plus" aria-hidden="true"></i> Add Venue';
+            addVenueBtn.innerHTML = '<?= smsIcon('plus', ['aria-hidden' => 'true']) ?> Add Venue';
             addVenueBtn.classList.remove('is-cancel');
         });
     }
@@ -3095,13 +3364,96 @@ document.addEventListener('DOMContentLoaded', function () {
     <?php if ($view === 'venues' && $venueMessage): ?>
     if (venueForm && addVenueBtn) {
         venueForm.style.display = '';
-        addVenueBtn.innerHTML = '<i class="fas fa-chevron-up" aria-hidden="true"></i> Hide Form';
+        addVenueBtn.innerHTML = '<?= smsIcon('chevron-up', ['aria-hidden' => 'true']) ?> Hide Form';
         addVenueBtn.classList.add('is-cancel');
     }
     <?php endif; ?>
 
+    const bindAiScheduler = function () {
+        const schedulerForm = document.getElementById('directorSchedulerForm');
+        const generateBtn = document.getElementById('aiGenerateSlotsBtn');
+        const summaryEl = document.getElementById('aiScheduleSummary');
+        const hintsEl = document.getElementById('aiSlotHints');
+        const periodStart = document.getElementById('aiPeriodStart');
+        const periodEnd = document.getElementById('aiPeriodEnd');
+        const expectedAttendees = document.getElementById('aiExpectedAttendees');
+        if (!schedulerForm || !generateBtn || !summaryEl) return;
+
+        generateBtn.addEventListener('click', async function () {
+            const groupId = parseInt(schedulerForm.getAttribute('data-group-id') || '0', 10);
+            if (groupId < 1) {
+                summaryEl.style.display = '';
+                summaryEl.classList.add('is-error');
+                summaryEl.textContent = 'Select a defense-ready research group first.';
+                return;
+            }
+
+            generateBtn.disabled = true;
+            summaryEl.style.display = 'none';
+            summaryEl.classList.remove('is-error');
+            if (hintsEl) hintsEl.innerHTML = '';
+
+            const body = new URLSearchParams();
+            body.set('schedule_action', 'ai_generate_slots');
+            body.set('research_group_id', String(groupId));
+            body.set('defense_type', schedulerForm.getAttribute('data-defense-type') || '');
+            body.set('period_start', periodStart ? periodStart.value : '');
+            body.set('period_end', periodEnd ? periodEnd.value : '');
+            body.set('expected_attendees', expectedAttendees ? expectedAttendees.value : '15');
+            body.set('csrf_token', csrfToken);
+
+            try {
+                const res = await fetch(window.location.href, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'same-origin',
+                    body: body.toString()
+                });
+                const data = await res.json();
+                if (!data.ok) throw new Error(data.message || 'AI scheduling failed.');
+
+                const dates = schedulerForm.querySelectorAll('.js-defense-date');
+                const venues = schedulerForm.querySelectorAll('.js-venue-id');
+                const starts = schedulerForm.querySelectorAll('.js-start-time');
+                const ends = schedulerForm.querySelectorAll('.js-end-time');
+
+                (data.slots || []).forEach(function (slot, index) {
+                    if (dates[index]) dates[index].value = slot.date || '';
+                    if (venues[index]) venues[index].value = String(slot.venue_id || '');
+                    if (starts[index]) starts[index].value = slot.start_time || '';
+                    if (ends[index]) ends[index].value = slot.end_time || '';
+                });
+
+                summaryEl.style.display = '';
+                summaryEl.textContent = data.summary || 'AI generated optimal slots. Review and save when ready.';
+
+                if (hintsEl && Array.isArray(data.slots)) {
+                    hintsEl.innerHTML = data.slots.map(function (slot, index) {
+                        return '<div class="director-ai-slot-hint"><strong>Slot ' + (index + 1) + ':</strong> '
+                            + esc(slot.date) + ' · ' + esc(slot.start_time) + '–' + esc(slot.end_time)
+                            + ' · ' + esc(slot.venue_name) + ' (' + esc(slot.capacity) + ' cap) — '
+                            + esc(slot.reason || '') + '</div>';
+                    }).join('');
+                }
+            } catch (err) {
+                summaryEl.style.display = '';
+                summaryEl.classList.add('is-error');
+                summaryEl.textContent = err.message || 'Could not generate slots. Try a wider period.';
+            }
+
+            generateBtn.disabled = false;
+        });
+    };
+
     applyFilters();
-    if (isVenueView) bindStatusSelects();
+    if (isVenueView) {
+        bindStatusSelects();
+        bindCapacityInputs();
+    }
+    if (isManualOptimizerView) bindAiScheduler();
     if (isFinalizeView) bindFinalizeButtons();
     if (isProposedView) bindReviewButtons();
     refreshRows();

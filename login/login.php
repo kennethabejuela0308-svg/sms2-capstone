@@ -30,7 +30,7 @@ if ($systemMaintenance && !$adminAccess && !isAuthenticated()) {
 
 // Redirect if already logged in
 if (isAuthenticated()) {
-    if ($systemMaintenance && !in_array(getCurrentUserRoleKey(), ['superadmin', 'admin'], true)) {
+    if ($systemMaintenance && !smsCanBypassSystemControls()) {
         logout();
         header('Location: ' . BASE_URL . '/account/maintenance.php');
         exit;
@@ -242,7 +242,7 @@ body.login-page {
     padding: 0 !important;
     background-image:
         linear-gradient(90deg, rgba(5, 22, 55, 0.88) 0%, rgba(8, 42, 97, 0.8) 46%, rgba(15, 80, 153, 0.72) 100%),
-        url("<?= BASE_URL ?>/images/school2.png") !important;
+        url("<?= e(smsLoginHeroImageUrl()) ?>") !important;
     background-size: cover !important;
     background-position: center !important;
     background-repeat: no-repeat !important;
@@ -363,10 +363,10 @@ body.login-page {
 }
 
 .login-admit a::after {
-    content: "\f061";
-    font-family: "Font Awesome 6 Free";
-    font-size: 0.78em;
-    font-weight: 800;
+    content: "→";
+    font-family: inherit;
+    font-size: 0.95em;
+    font-weight: 700;
     transition: transform 0.15s ease;
 }
 
@@ -392,54 +392,18 @@ body.login-page {
 }
 
 .login-brand {
-    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
-    gap: 0.3rem;
     margin-bottom: 0.55rem;
 }
 
-.login-brand::before {
-    content: '';
-    position: absolute;
-    width: 112px;
-    height: 112px;
-    border: 1px solid rgba(83, 80, 214, 0.16);
-    border-radius: 30px;
-    background: linear-gradient(145deg, rgba(238,242,255,0.95), rgba(224,242,254,0.58));
-    transform: rotate(8deg);
-    pointer-events: none;
-}
-
-.login-brand-mark {
-    position: relative;
-    z-index: 2;
-    width: 28px;
-    height: 28px;
-    display: grid;
-    place-items: center;
-    margin-bottom: -0.35rem;
-    border: 1px solid rgba(83, 80, 214, 0.18);
-    border-radius: 9px;
-    color: #5350d6;
-    background: #fff;
-    box-shadow: 0 5px 12px rgba(30,64,175,0.12);
-    font-size: 0.75rem;
-}
-
 .login-brand img {
-    position: relative;
-    z-index: 1;
     width: 82px;
     height: 82px;
     object-fit: contain;
     filter: drop-shadow(0 8px 16px rgba(11, 42, 107, 0.18));
-}
-
-.login-brand strong {
-    display: none;
 }
 
 .login-heading {
@@ -1251,28 +1215,16 @@ html[data-theme="dark"] .login-glass .sms-cf-widget.is-verified {
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .login-video-bg video {
-        display: none;
-    }
-
     .login-video-bg {
         background: #071c48;
     }
 }
 </style>
 
-<div class="login-video-bg" aria-hidden="true">
-    <video autoplay muted loop playsinline>
-        <source src="<?= BASE_URL ?>/assets/videos/bcp-campus.mp4?v=bcp4" type="video/mp4">
-    </video>
-</div>
-
 <main class="login-stage">
     <div class="login-glass" aria-label="Student Management System login">
         <div class="login-brand">
-            <span class="login-brand-mark" aria-hidden="true"><i class="fas fa-shield-halved"></i></span>
-            <img src="<?= BASE_URL ?>/images/bcp-logo-source.png?v=crest3" alt="Bestlink College of the Philippines" width="82" height="82">
-            <strong>Bestlink College of the Philippines</strong>
+            <img src="<?= e(smsBrandLogoUrl()) ?>?v=crest3" alt="Bestlink College of the Philippines" width="82" height="82">
         </div>
         <div class="login-heading">
             <h1><?= $systemMaintenance && $adminAccess ? 'Administrator sign-in' : 'Sign in' ?></h1>
@@ -1280,19 +1232,19 @@ html[data-theme="dark"] .login-glass .sms-cf-widget.is-verified {
 
         <?php if ($systemMaintenance && $adminAccess): ?>
             <div class="alert alert-warning login-alert" role="status">
-                <i class="fas fa-exclamation-triangle me-2"></i>System maintenance is on. Only Super Admin can enter.
+                <?= smsIcon('exclamation-triangle', ['class' => 'me-2']) ?>System maintenance is on. Only Super Admin can enter.
             </div>
         <?php endif; ?>
 
         <?php if ($info): ?>
             <div class="alert alert-info login-alert" role="alert">
-                <i class="fas fa-info-circle me-2"></i><?= e($info) ?>
+                <?= smsIcon('info-circle', ['class' => 'me-2']) ?><?= e($info) ?>
             </div>
         <?php endif; ?>
 
         <?php if ($error && !$loginLocked): ?>
             <div class="alert alert-<?= $alertType === 'warning' ? 'warning' : 'danger' ?> login-alert" role="alert">
-                <i class="fas fa-<?= $alertType === 'warning' ? 'exclamation-triangle' : 'exclamation-circle' ?> me-2"></i><?= e($error) ?>
+                <?= smsIcon($alertType === 'warning' ? 'alert-triangle' : 'alert-circle', ['class' => 'me-2']) ?><?= e($error) ?>
                 <?php if ($showResetHint): ?>
                     <div class="mt-2">
                         <a href="<?= BASE_URL ?>/login/forgot-password.php" class="alert-link" data-auth-transition data-auth-direction="left">Forgot password? Reset it here</a>
@@ -1306,7 +1258,7 @@ html[data-theme="dark"] .login-glass .sms-cf-widget.is-verified {
                  data-lock-until="<?= (int) $lockUntilTs ?>"
                  data-reload-url="<?= e(BASE_URL . '/login/login.php') ?>">
                 <div class="lock-row">
-                    <p class="lock-copy"><i class="fas fa-lock me-1"></i>Login locked. Try again when the timer ends.</p>
+                    <p class="lock-copy"><?= smsIcon('lock', ['class' => 'me-1']) ?>Login locked. Try again when the timer ends.</p>
                     <div class="login-countdown" aria-live="polite">
                         <span class="count-label">Left</span>
                         <span class="count-value" id="loginCountdownValue">--:--</span>
@@ -1356,7 +1308,7 @@ html[data-theme="dark"] .login-glass .sms-cf-widget.is-verified {
                            placeholder="Enter your password" required autocomplete="current-password"
                            aria-describedby="passwordError">
                     <button class="password-toggle" type="button" aria-label="Show password" title="Show password" data-pw-target="password" aria-pressed="false">
-                        <i class="fas fa-eye"></i>
+                        <?= smsIcon('eye') ?>
                     </button>
                 </div>
                 <div class="login-field-error" id="passwordError" role="alert">Password is required.</div>
@@ -1375,7 +1327,7 @@ html[data-theme="dark"] .login-glass .sms-cf-widget.is-verified {
             <div id="smsPasskeyLoginMsg" class="small mb-2 text-center" hidden></div>
             <button type="button" class="btn login-passkey-btn" id="smsPasskeyLoginBtn"
                     data-passkey-api="<?= e(BASE_URL . '/api/passkey.php') ?>">
-                <i class="fas fa-key" aria-hidden="true"></i>Sign in with Passkey
+                <?= smsIcon('key', ['aria-hidden' => 'true']) ?>Sign in with Passkey
             </button>
             <div class="login-links">
                 <a href="<?= BASE_URL ?>/login/forgot-password.php" data-auth-transition data-auth-direction="left">Forgot password?</a>

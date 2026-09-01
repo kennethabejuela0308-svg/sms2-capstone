@@ -34,11 +34,11 @@ try {
         throw new Exception('Research Progress module not installed.');
     }
 } catch (Throwable $e) {
-    echo '<div class="alert alert-warning m-3">
-        <i class="fas fa-exclamation-triangle me-2"></i>
-        <strong>Module Not Installed</strong><br>
-        The Research Progress module database tables are not yet installed.
-    </div>';
+    echo '<div class="alert alert-warning m-3">'
+        . smsIcon('exclamation-triangle', ['class' => 'me-2'])
+        . '<strong>Module Not Installed</strong><br>'
+        . 'The Research Progress module database tables are not yet installed.'
+        . '</div>';
     require_once ROOT_PATH . '/includes/layout-end.php';
     exit;
 }
@@ -79,7 +79,7 @@ $counts = rpRevisionMonitoringCounts($groups);
             </div>
             <?php if (!empty($groups)): ?>
                 <span class="badge bg-warning text-dark" style="font-size:0.82rem;padding:0.45rem 0.85rem;border-radius:999px;font-weight:800;">
-                    <i class="fas fa-redo me-1"></i><?= count($groups) ?> Active Revision Case(s)
+                    <?= smsIcon('redo', ['class' => 'me-1']) ?><?= count($groups) ?> Active Revision Case(s)
                 </span>
             <?php endif; ?>
         </div>
@@ -92,17 +92,17 @@ $counts = rpRevisionMonitoringCounts($groups);
         <?php if (!empty($groups)): ?>
         <div class="rm-stats-row">
             <div class="rm-stat-chip">
-                <div class="rm-stat-chip-icon" style="background:rgba(99,102,241,0.12);color:#6366f1;"><i class="fas fa-redo"></i></div>
+                <div class="rm-stat-chip-icon" style="background:rgba(99,102,241,0.12);color:#6366f1;"><?= smsIcon('redo') ?></div>
                 <div class="rm-stat-chip-value" style="color:#6366f1;" data-live-active-count><?= $counts['active'] ?></div>
                 <div class="rm-stat-chip-label">Active Revisions</div>
             </div>
             <div class="rm-stat-chip">
-                <div class="rm-stat-chip-icon" style="background:rgba(59,130,246,0.12);color:#3b82f6;"><i class="fas fa-clock"></i></div>
+                <div class="rm-stat-chip-icon" style="background:rgba(59,130,246,0.12);color:#3b82f6;"><?= smsIcon('clock') ?></div>
                 <div class="rm-stat-chip-value" style="color:#3b82f6;" data-live-pending-count><?= $counts['pending'] ?></div>
                 <div class="rm-stat-chip-label">Pending Review</div>
             </div>
             <div class="rm-stat-chip">
-                <div class="rm-stat-chip-icon" style="background:rgba(16,185,129,0.12);color:#10b981;"><i class="fas fa-check-circle"></i></div>
+                <div class="rm-stat-chip-icon" style="background:rgba(16,185,129,0.12);color:#10b981;"><?= smsIcon('check-circle') ?></div>
                 <div class="rm-stat-chip-value" style="color:#10b981;" data-live-completed-count><?= $counts['completed'] ?></div>
                 <div class="rm-stat-chip-label">Completed</div>
             </div>
@@ -139,7 +139,7 @@ $counts = rpRevisionMonitoringCounts($groups);
                                         <?= htmlspecialchars((string) $group['academic_year']) ?>
                                     </span>
                                     <span class="badge rm-panel-badge" style="font-size:0.72rem;font-weight:800;">
-                                        <i class="fas fa-users me-1"></i><?= $panelCount ?>/3 Panels
+                                        <?= smsIcon('users', ['class' => 'me-1']) ?><?= $panelCount ?>/3 Panels
                                     </span>
                                 </div>
 
@@ -149,12 +149,12 @@ $counts = rpRevisionMonitoringCounts($groups);
 
                                 <!-- Meta -->
                                 <div class="rm-group-meta">
-                                    <i class="fas fa-gavel"></i>
+                                    <?= smsIcon('gavel') ?>
                                     Pre-Oral Defense &middot; <?= $defenseDate ?>
                                 </div>
                                 <?php if (!empty($group['venue'])): ?>
                                     <div class="rm-group-meta">
-                                        <i class="fas fa-map-marker-alt"></i>
+                                        <?= smsIcon('map-marker-alt') ?>
                                         <?= htmlspecialchars((string) $group['venue']) ?>
                                     </div>
                                 <?php endif; ?>
@@ -179,7 +179,7 @@ $counts = rpRevisionMonitoringCounts($groups);
                                     </span>
                                 </div>
                                 <div class="mt-1" style="font-size:0.74rem;color:var(--sms-text-muted);">
-                                    <i class="fas fa-clock me-1"></i>
+                                    <?= smsIcon('clock', ['class' => 'me-1']) ?>
                                     Last updated: <?= !empty($group['revision_last_activity_at'])
                                         ? date('M j, Y g:i A', strtotime($group['revision_last_activity_at']))
                                         : 'Just now' ?>
@@ -189,11 +189,11 @@ $counts = rpRevisionMonitoringCounts($groups);
                                 <div class="rm-group-actions">
                                     <a href="<?= BASE_URL ?>/modules/faculty/pages/revision-monitoring-view.php?group=<?= urlencode((string) $group['group_number']) ?>"
                                        class="rm-primary-action">
-                                        <i class="fas fa-eye me-1"></i>View Revision
+                                        <?= smsIcon('eye', ['class' => 'me-1']) ?>View Revision
                                     </a>
                                     <a href="<?= BASE_URL ?>/modules/faculty/pages/submitted-updates.php?group=<?= urlencode((string) $group['group_number']) ?>"
                                        class="rm-sec-action">
-                                        <i class="fas fa-inbox me-1"></i>Progress Review
+                                        <?= smsIcon('inbox', ['class' => 'me-1']) ?>Progress Review
                                     </a>
                                 </div>
 
@@ -206,7 +206,7 @@ $counts = rpRevisionMonitoringCounts($groups);
         <?php else: ?>
             <div class="glass-panel">
                 <div class="glass-panel-body rm-empty">
-                    <div class="rm-empty-icon"><i class="fas fa-redo"></i></div>
+                    <div class="rm-empty-icon"><?= smsIcon('redo') ?></div>
                     <h6>No Revision Cases</h6>
                     <p>
                         No research groups currently meet the 3/3 Panel
@@ -218,7 +218,7 @@ $counts = rpRevisionMonitoringCounts($groups);
 
         <!-- Live refresh indicator -->
         <div class="rm-refresh-bar" id="rmRefreshBar">
-            <i class="fas fa-sync-alt rm-refresh-icon" id="rmRefreshIcon"></i>
+            <?= smsIcon('sync-alt', ['class' => 'rm-refresh-icon']) ?>
             <span id="rmRefreshText">Last updated: <?= date('g:i:s A') ?></span>
         </div>
 

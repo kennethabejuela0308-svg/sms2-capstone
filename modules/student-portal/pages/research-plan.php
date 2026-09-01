@@ -35,12 +35,12 @@ try {
         throw new Exception('Research Progress module not installed.');
     }
 } catch (Throwable $e) {
-    echo '<div class="alert alert-warning">
-        <i class="fas fa-exclamation-triangle me-2"></i>
-        <strong>Module Not Installed</strong><br>
-        The Research Progress module database tables are not yet installed.
-        Please contact your system administrator.
-    </div>';
+    echo '<div class="alert alert-warning">'
+        . smsIcon('exclamation-triangle', ['class' => 'me-2'])
+        . '<strong>Module Not Installed</strong><br>'
+        . 'The Research Progress module database tables are not yet installed.'
+        . ' Please contact your system administrator.'
+        . '</div>';
     require_once ROOT_PATH . '/includes/layout-end.php';
     exit;
 }
@@ -52,14 +52,12 @@ $studentUserId = (int) ($_SESSION['user_id'] ?? 0);
 $researchGroup = rpGetRegisteredResearchGroup($crad, $studentId, $studentUserId);
 
 if (!$researchGroup) {
-    echo '<div class="alert alert-info">
-        <i class="fas fa-info-circle me-2"></i>
-        <strong>Research Development is not yet available.</strong><br>
-        Your research group must be officially registered in the
-        Capstone Group/Student Registry before you can access this section.
-        Please ensure your title approval is fully signed and your adviser
-        and coordinator assignments are in place.
-    </div>';
+    echo '<div class="alert alert-info">'
+        . smsIcon('info-circle', ['class' => 'me-2'])
+        . '<strong>Research Development is not yet available.</strong><br>'
+        . 'Your research group must be officially registered in the Capstone Group/Student Registry before you can access this section.'
+        . ' Please ensure your title approval is fully signed and your adviser and coordinator assignments are in place.'
+        . '</div>';
     require_once ROOT_PATH . '/includes/layout-end.php';
     exit;
 }
@@ -89,7 +87,7 @@ $overallProgress = (float) $plan['overall_progress'];
                         <p class="glass-panel-sub">Research timeline and progress tracking</p>
                     </div>
                     <span class="glass-chip">
-                        <i class="fas fa-project-diagram me-1"></i> Active Plan
+                        <?= smsIcon('project-diagram', ['class' => 'me-1']) ?> Active Plan
                     </span>
                 </div>
                 
@@ -112,14 +110,14 @@ $overallProgress = (float) $plan['overall_progress'];
                         <div class="mb-3">
                             <label class="form-label text-muted" style="font-size:0.8rem;font-weight:700;">Start Date</label>
                             <div style="font-weight:700;color:var(--sms-heading);">
-                                <i class="fas fa-calendar-alt me-2" style="color:var(--sms-primary);"></i>
+                                <?= smsIcon('calendar-alt', ['class' => 'me-2', 'style' => 'color:var(--sms-primary);']) ?>
                                 <?= date('F d, Y', strtotime($plan['start_date'])) ?>
                             </div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label text-muted" style="font-size:0.8rem;font-weight:700;">Target Completion</label>
                             <div style="font-weight:700;color:var(--sms-heading);">
-                                <i class="fas fa-flag-checkered me-2" style="color:var(--sms-primary);"></i>
+                                <?= smsIcon('flag-checkered', ['class' => 'me-2', 'style' => 'color:var(--sms-primary);']) ?>
                                 <?= $plan['target_completion_date'] ? date('F d, Y', strtotime($plan['target_completion_date'])) : 'Not set' ?>
                             </div>
                         </div>
@@ -128,7 +126,7 @@ $overallProgress = (float) $plan['overall_progress'];
                         <div class="mb-3">
                             <label class="form-label text-muted" style="font-size:0.8rem;font-weight:700;">Current Stage</label>
                             <div style="font-weight:700;color:var(--sms-heading);font-size:1.05rem;">
-                                <i class="fas fa-tasks me-2" style="color:var(--sms-primary);"></i>
+                                <?= smsIcon('tasks', ['class' => 'me-2', 'style' => 'color:var(--sms-primary);']) ?>
                                 <?= htmlspecialchars($plan['current_stage']) ?>
                                 <span class="ms-2"><?= htmlspecialchars($academicPhase) ?></span>
                             </div>
@@ -213,7 +211,7 @@ $overallProgress = (float) $plan['overall_progress'];
                                     </td>
                                     <td style="color:var(--sms-text);font-size:0.85rem;">
                                         <?php if (!empty($milestone['target_date'])): ?>
-                                            <i class="fas fa-calendar me-1"></i>
+                                            <?= smsIcon('calendar', ['class' => 'me-1']) ?>
                                             <?= date('M d, Y', strtotime($milestone['target_date'])) ?>
                                         <?php else: ?>
                                             <span class="text-muted">Not set</span>
@@ -223,7 +221,7 @@ $overallProgress = (float) $plan['overall_progress'];
                                         <?php if (!empty($milestone['researcher_notes'])): ?>
                                             <button class="btn btn-sm btn-outline-primary" 
                                                     onclick="viewMilestoneNotes(<?= $milestone['id'] ?>, <?= htmlspecialchars(json_encode($milestone['researcher_notes']), ENT_QUOTES) ?>)">
-                                                <i class="fas fa-eye"></i> View
+                                                <?= smsIcon('eye') ?> View
                                             </button>
                                         <?php else: ?>
                                             <span class="text-muted" style="font-size:0.85rem;">No notes</span>
@@ -250,15 +248,15 @@ $overallProgress = (float) $plan['overall_progress'];
                 <div class="d-flex gap-3 flex-wrap">
                     <a href="<?= BASE_URL ?>/modules/student-portal/pages/milestones.php" 
                        class="btn btn-primary">
-                        <i class="fas fa-tasks me-2"></i>View Detailed Milestones
+                        <?= smsIcon('tasks', ['class' => 'me-2']) ?>View Detailed Milestones
                     </a>
                     <a href="<?= BASE_URL ?>/modules/student-portal/pages/progress-updates.php" 
                        class="btn btn-success">
-                        <i class="fas fa-plus-circle me-2"></i>Submit Progress Update
+                        <?= smsIcon('plus-circle', ['class' => 'me-2']) ?>Submit Progress Update
                     </a>
                     <a href="<?= BASE_URL ?>/modules/student-portal/pages/adviser-feedback.php" 
                        class="btn btn-outline-primary">
-                        <i class="fas fa-comments me-2"></i>View Adviser Feedback
+                        <?= smsIcon('comments', ['class' => 'me-2']) ?>View Adviser Feedback
                     </a>
                 </div>
             </div>

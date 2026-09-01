@@ -45,7 +45,7 @@ function renderFinalManuscriptEligibilityBlock(bool $eligible): void
             <?= csrfField() ?>
             <div class="mb-3"><label class="form-label">Full Chapter 1-5 Manuscript</label><input class="form-control" type="file" name="manuscript_file" accept=".pdf,.doc,.docx" required></div>
             <div class="mb-3"><label class="form-label">Submission Notes</label><textarea class="form-control" name="submission_notes" rows="3"></textarea></div>
-            <button class="btn btn-primary" type="submit"><i class="fas fa-upload me-1"></i>Submit Manuscript</button>
+            <button class="btn btn-primary" type="submit"><?= smsIcon('upload', ['class' => 'me-1']) ?>Submit Manuscript</button>
         </form>
     <?php else: ?>
         <div class="alert alert-warning">Not yet eligible. Final Defense Recommendation is required.</div>

@@ -15,8 +15,10 @@ require_once __DIR__ . '/../config/config.php';
 if (PHP_SAPI !== 'cli') {
     // Web-based execution with basic protection
     session_start();
-    $isAuthorized = !empty($_SESSION['user_role_key']) && 
-                    in_array($_SESSION['user_role_key'], ['superadmin', 'admin', 'crad_officer'], true);
+    require_once __DIR__ . '/../../../config/config.php';
+    require_once ROOT_PATH . '/includes/authentication.php';
+    $isAuthorized = !empty($_SESSION['user_role_key'])
+        && (smsRoleAllowedForModule(['crad_officer'], 'crad') || smsCanBypassSystemControls((string) $_SESSION['user_role_key']));
     
     if (!$isAuthorized) {
         http_response_code(403);

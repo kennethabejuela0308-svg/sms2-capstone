@@ -97,11 +97,7 @@ body.sms-app { overflow-x: hidden; }
 /* ============================================================
    Welcome & Login — fluid
    ============================================================ */
-.welcome-hero { padding: clamp(1rem,4vw,2rem); }
-.welcome-card { padding: clamp(1.5rem,5vw,3rem); border-radius: clamp(12px,3vw,20px); }
-.welcome-logo { width: clamp(72px,18vw,100px); height: clamp(72px,18vw,100px); font-size: clamp(1.8rem,5vw,2.5rem); }
-.welcome-card h1 { font-size: clamp(1.1rem,3.5vw,1.5rem); }
-.welcome-card h2 { font-size: clamp(0.95rem,2.8vw,1.25rem); }
+/* Welcome — see assets/css/welcome.css */
 .login-page { padding: clamp(1rem,4vw,2rem); align-items: center; }
 .login-shell { min-height: min(560px,calc(100vh - 2rem)); }
 .login-showcase, .login-card { min-height: min(560px,calc(100vh - 2rem)); }
@@ -232,9 +228,8 @@ body.sms-app { overflow-x: hidden; }
    Landscape phones
    ============================================================ */
 @media (max-height: 500px) and (orientation: landscape) {
-    .welcome-hero, .login-page { padding-top: 0.5rem; padding-bottom: 0.5rem; }
-    .welcome-card { padding: 1rem 1.25rem; }
-    .welcome-logo { width: 56px; height: 56px; font-size: 1.5rem; margin-bottom: 0.75rem; }
+    .login-page { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+    .sms-welcome-main { padding-top: 0.5rem; padding-bottom: 0.5rem; }
     .login-shell { min-height: 0; }
     .login-showcase { display: none; }
     .login-card { min-height: 0; padding-top: 1.5rem; padding-bottom: 1.5rem; }
@@ -269,7 +264,6 @@ body.sms-app { overflow-x: hidden; }
 
 .navbar-inner {
     min-width: 0;
-    flex-wrap: nowrap;
 }
 
 .navbar-right {
@@ -278,26 +272,30 @@ body.sms-app { overflow-x: hidden; }
     flex-shrink: 0;
 }
 
-/* Keep search from colliding into the steady clock/actions cluster */
-.navbar-center {
-    max-width: min(500px, calc(100vw - 22rem));
+/* Dashboard & main content — full fluid width */
+.dashboard-shell,
+.glass-dashboard,
+.glass-board,
+.academic-dashboard,
+.module-page-banner,
+.sms-page-header {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
 }
 
-/* Mid desktop with sidebar open: content gets tight */
+/* Hide messages dropdown when navbar is crowded */
+@media (max-width: 1100px) {
+    .navbar-right > .dropdown:first-of-type { display: none !important; }
+}
+
 @media (max-width: 1280px) {
     .sms-main { padding-left: 1.15rem; padding-right: 1.15rem; }
-    .navbar-center { max-width: min(420px, calc(100vw - 20rem)); }
 }
 
 @media (max-width: 991.98px) {
-    .navbar-center {
-        max-width: min(320px, calc(100vw - 18rem));
-    }
-}
-
-@media (max-width: 767.98px) {
-    .navbar-right .dropdown .btn-link span.d-none { display: none !important; }
-    .navbar-center { max-width: min(240px, calc(100vw - 16rem)); }
+    .sms-footer { padding-left: 1rem; padding-right: 1rem; }
 }
 
 /* Process / report boards fill available width */
@@ -323,7 +321,6 @@ video {
 
 .card,
 .dropdown-menu,
-.modal-dialog,
 .alert,
 .list-group,
 .table-responsive,
@@ -413,7 +410,7 @@ table {
         font-size: 0.72rem;
     }
 
-    .navbar-right .dropdown-menu {
+    .navbar-right .dropdown-menu:not(.sms-notification-dropdown) {
         max-width: min(320px, calc(100vw - 1.5rem));
     }
 }
@@ -442,6 +439,78 @@ table {
 /* ============================================================
    Print
    ============================================================ */
+@media (max-width: 991.98px) {
+    .sms-navbar .navbar-ph-clock {
+        display: none !important;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .sms-navbar .navbar-center {
+        position: fixed;
+        inset: calc(var(--sms-navbar-height) + 0.5rem) 0.75rem auto;
+        left: 0.75rem;
+        right: 0.75rem;
+        display: block;
+        max-width: none;
+        z-index: 1040;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateY(-6px);
+        transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+    }
+
+    .sms-navbar.search-open .navbar-center {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transform: translateY(0);
+    }
+
+    .sms-navbar.search-open .navbar-search-dropdown {
+        width: 100%;
+        max-width: none;
+        left: 0;
+        transform: none;
+    }
+
+    .sms-navbar.search-open .navbar-search {
+        width: 100%;
+        max-width: none;
+    }
+
+    .sms-modal.modal .modal-dialog,
+    .modal.sms-modal .modal-dialog {
+        margin: 0;
+        max-width: none;
+        min-height: 100%;
+    }
+
+    .sms-modal.modal .modal-content,
+    .modal.sms-modal .modal-content {
+        min-height: 100vh;
+        border-radius: 0;
+    }
+}
+
+/* Focus rings for keyboard navigation */
+a:focus-visible,
+button:focus-visible,
+.btn:focus-visible,
+.form-control:focus-visible,
+.form-select:focus-visible,
+.nav-link:focus-visible {
+    outline: 2px solid var(--sms-primary-light);
+    outline-offset: 2px;
+}
+
+.sidebar-nav .nav-link[aria-current="page"] {
+    background: var(--sms-sidebar-active);
+    font-weight: 700;
+    box-shadow: inset 3px 0 0 var(--sms-sidebar-active-accent);
+}
+
 @media print {
     .sms-sidebar,
     .sms-navbar,
@@ -462,5 +531,105 @@ table {
         padding: 0 !important;
         margin: 0 !important;
         opacity: 1 !important;
+    }
+}
+
+/* ============================================================
+   System-wide responsive — all authenticated pages
+   ============================================================ */
+
+/* Navbar: 2 columns on mobile (brand + actions; search via toggle) */
+@media (max-width: 767.98px) {
+    .navbar-inner {
+        grid-template-columns: auto 1fr;
+    }
+
+    .navbar-right {
+        justify-self: end;
+    }
+
+    .sms-page-header,
+    .dashboard-page-header,
+    .go-page-header,
+    .module-page-banner.sms-page-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+
+    .sms-page-header .btn,
+    .dashboard-page-header .btn,
+    .module-page-banner__action,
+    .page-header.d-flex > .btn,
+    .page-header.d-flex > .btn-group {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .student-portal-header {
+        flex-direction: column;
+        align-items: flex-start !important;
+    }
+
+    .student-term-badge {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .sms-table-toolbar,
+    .mpl-filters,
+    .mpl-toolbar,
+    .um-filter-bar,
+    .ra-filter-bar,
+    .ra-summary-tools,
+    .mpl-top {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .sms-table-toolbar .form-control,
+    .sms-table-toolbar .form-select,
+    .mpl-filters select,
+    .mpl-filters input[type="date"],
+    .mpl-search,
+    .um-filter-bar .form-control,
+    .um-filter-bar .form-select {
+        max-width: 100% !important;
+        width: 100%;
+    }
+
+    .form-actions {
+        flex-direction: column-reverse;
+        align-items: stretch;
+    }
+
+    .form-actions .btn {
+        width: 100%;
+    }
+
+    .modal-dialog,
+    .modal:not(.sms-confirm-modal) .modal-dialog {
+        max-width: calc(100vw - 1rem) !important;
+        width: auto !important;
+        margin: 0.5rem auto;
+    }
+
+    .modal-dialog.modal-lg,
+    .modal-dialog.modal-xl {
+        max-width: calc(100vw - 1rem) !important;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .perm-table {
+        font-size: 0.72rem;
+    }
+
+    .perm-table .role-col-head {
+        min-width: 3.5rem;
+    }
+
+    .glass-badges {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }

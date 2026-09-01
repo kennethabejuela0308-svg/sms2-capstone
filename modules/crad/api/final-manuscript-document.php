@@ -11,7 +11,7 @@ $id = (int) ($_GET['id'] ?? 0);
 $stmt = $crad->prepare('SELECT ms.*, rg.leader_id FROM manuscript_submissions ms INNER JOIN research_groups rg ON rg.id = ms.research_group_id WHERE ms.id = ? LIMIT 1');
 $stmt->execute([$id]); $row = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$row) { http_response_code(404); exit('Document not found.'); }
-$role = getCurrentUserRoleKey(); $allowed = in_array($role, ['crad_officer','research_coordinator','adviser','superadmin','admin'], true);
+$role = getCurrentUserRoleKey(); $allowed = smsRoleAllowedForModule(['crad_officer','research_coordinator','adviser'], 'crad');
 if ($role === 'adviser') {
 	$allowed = fpIsAssignedAdviser($crad, (int) $row['research_group_id'], (int) ($_SESSION['user_id'] ?? 0), (string) ($_SESSION['user_email'] ?? ''));
 } elseif ($role === 'student' && (int) ($row['leader_id'] ?? 0) === (int) ($_SESSION['user_id'] ?? 0)) {

@@ -26,34 +26,33 @@ if ($isStudentPortal):
             <p>Profile, student ID, schedule, records, subjects, professors, and payments.</p>
         </div>
         <div class="student-term-badge">
-            <i class="fas fa-calendar-check"></i>
+            <?= smsIcon('calendar-check') ?>
             <span>SY 2026-2027</span>
         </div>
     </div>
 
-    <section class="ai-insight-panel" aria-labelledby="studentAiInsightTitle" data-ai-state="preview">
-        <div class="ai-insight-icon" aria-hidden="true"><i class="fas fa-wand-magic-sparkles"></i></div>
+    <section class="academic-notices-panel" aria-labelledby="studentAcademicNoticesTitle">
+        <div class="academic-notices-icon" aria-hidden="true"><?= smsIcon('bullhorn') ?></div>
         <div>
-            <span class="ai-insight-kicker">AI Study Assistant</span>
-            <h2 class="ai-insight-title" id="studentAiInsightTitle">Your next best actions</h2>
-            <p class="ai-insight-copy">A focused preview based on the information already visible in your student portal.</p>
+            <span class="ai-insight-kicker">Academic notices</span>
+            <h2 class="ai-insight-title" id="studentAcademicNoticesTitle">Important reminders</h2>
+            <p class="ai-insight-copy">Stay on track with registration, payments, and academic records this term.</p>
             <ul class="ai-insight-list">
                 <li>Review your class schedule before the next payment or registration activity.</li>
                 <li>Keep your academic records and subject details ready for advising.</li>
             </ul>
             <div class="ai-insight-actions">
-                <a class="ai-insight-action" href="#class-schedule"><i class="fas fa-calendar-check" aria-hidden="true"></i> Open schedule</a>
-                <a class="ai-insight-action" href="#academic-records"><i class="fas fa-file-lines" aria-hidden="true"></i> View records</a>
+                <a class="ai-insight-action" href="#class-schedule"><?= smsIcon('calendar-check', ['aria-hidden' => 'true']) ?> Open schedule</a>
+                <a class="ai-insight-action" href="#academic-records"><?= smsIcon('file-lines', ['aria-hidden' => 'true']) ?> View records</a>
             </div>
         </div>
-        <span class="ai-insight-status"><i class="fas fa-flask" aria-hidden="true"></i> Preview mode</span>
     </section>
 
     <div class="row g-3 mb-4 dashboard-stats">
         <div class="col-12 col-sm-6 col-xl-3">
             <section class="card stat-card primary" id="student-id">
                 <div class="card-body d-flex align-items-center">
-                    <div class="stat-icon me-3"><i class="fas fa-id-card"></i></div>
+                    <div class="stat-icon me-3"><?= smsIcon('id-card') ?></div>
                     <div>
                         <h6 class="text-muted mb-0 small">Student ID</h6>
                         <h4 class="mb-0 fw-bold"><?= htmlspecialchars($studentId) ?></h4>
@@ -64,7 +63,7 @@ if ($isStudentPortal):
         <div class="col-12 col-sm-6 col-xl-3">
             <section class="card stat-card warning" id="account-balance">
                 <div class="card-body d-flex align-items-center">
-                    <div class="stat-icon me-3"><i class="fas fa-wallet"></i></div>
+                    <div class="stat-icon me-3"><?= smsIcon('wallet') ?></div>
                     <div>
                         <h6 class="text-muted mb-0 small">Account Balance</h6>
                         <h4 class="mb-0 fw-bold">PHP 8,450.00</h4>
@@ -75,7 +74,7 @@ if ($isStudentPortal):
         <div class="col-12 col-sm-6 col-xl-3">
             <section class="card stat-card success">
                 <div class="card-body d-flex align-items-center">
-                    <div class="stat-icon me-3"><i class="fas fa-book-open"></i></div>
+                    <div class="stat-icon me-3"><?= smsIcon('book-open') ?></div>
                     <div>
                         <h6 class="text-muted mb-0 small">Enrolled Subjects</h6>
                         <h4 class="mb-0 fw-bold">6</h4>
@@ -86,7 +85,7 @@ if ($isStudentPortal):
         <div class="col-12 col-sm-6 col-xl-3">
             <section class="card stat-card info">
                 <div class="card-body d-flex align-items-center">
-                    <div class="stat-icon me-3"><i class="fas fa-chart-line"></i></div>
+                    <div class="stat-icon me-3"><?= smsIcon('chart-line') ?></div>
                     <div>
                         <h6 class="text-muted mb-0 small">GWA</h6>
                         <h4 class="mb-0 fw-bold">1.75</h4>
@@ -101,7 +100,7 @@ if ($isStudentPortal):
             <section class="card student-profile-card h-100" id="my-profile">
                 <div class="card-body">
                     <div class="student-avatar mb-3">
-                        <i class="fas fa-user-graduate"></i>
+                        <?= smsIcon('user-graduate') ?>
                     </div>
                     <h5 class="fw-semibold mb-1"><?= htmlspecialchars(getCurrentUserName()) ?></h5>
                     <p class="text-muted mb-3">Bachelor of Science in Information Technology</p>
@@ -118,7 +117,7 @@ if ($isStudentPortal):
             <section class="card h-100" id="class-schedule">
                 <div class="card-body">
                     <h5 class="card-title fw-semibold mb-3">
-                        <i class="fas fa-calendar-alt text-sms-primary me-2"></i>Class Schedule
+                        <?= smsIcon('calendar-alt', ['class' => 'text-sms-primary me-2']) ?>Class Schedule
                     </h5>
                     <div class="table-responsive">
                         <table class="table student-table align-middle mb-0">
@@ -147,7 +146,7 @@ if ($isStudentPortal):
             <section class="card h-100" id="academic-records">
                 <div class="card-body">
                     <h5 class="card-title fw-semibold mb-3">
-                        <i class="fas fa-file-alt text-sms-primary me-2"></i>Academic Records
+                        <?= smsIcon('file-alt', ['class' => 'text-sms-primary me-2']) ?>Academic Records
                     </h5>
                     <div class="student-record-grid">
                         <div><span>Current Semester</span><strong>1st Semester</strong></div>
@@ -162,7 +161,7 @@ if ($isStudentPortal):
             <section class="card h-100" id="subjects-professors">
                 <div class="card-body">
                     <h5 class="card-title fw-semibold mb-3">
-                        <i class="fas fa-chalkboard-teacher text-sms-primary me-2"></i>Subject & Professors
+                        <?= smsIcon('chalkboard-teacher', ['class' => 'text-sms-primary me-2']) ?>Subject & Professors
                     </h5>
                     <div class="student-list">
                         <div><strong>Web Systems and Technologies</strong><span>Prof. Maria Santos</span></div>
@@ -176,7 +175,7 @@ if ($isStudentPortal):
             <section class="card" id="payment-history">
                 <div class="card-body">
                     <h5 class="card-title fw-semibold mb-3">
-                        <i class="fas fa-receipt text-sms-primary me-2"></i>Payment History
+                        <?= smsIcon('receipt', ['class' => 'text-sms-primary me-2']) ?>Payment History
                     </h5>
                     <div class="table-responsive">
                         <table class="table student-table align-middle mb-0">
@@ -242,15 +241,15 @@ if (false):
 <div class="crad-officer-dashboard">
     <section class="crad-metric-grid" aria-label="Proposal summary">
         <article class="crad-metric-card">
-            <div class="crad-metric-icon submitted"><i class="far fa-file-alt"></i></div>
+            <div class="crad-metric-icon submitted"><?= smsIcon('file-alt') ?></div>
             <div><span>Submitted Proposals</span><strong>2</strong></div>
         </article>
         <article class="crad-metric-card">
-            <div class="crad-metric-icon approved"><i class="far fa-check-circle"></i></div>
+            <div class="crad-metric-icon approved"><?= smsIcon('check-circle') ?></div>
             <div><span>Approved Titles</span><strong>1</strong></div>
         </article>
         <article class="crad-metric-card">
-            <div class="crad-metric-icon pending"><i class="far fa-clock"></i></div>
+            <div class="crad-metric-icon pending"><?= smsIcon('clock') ?></div>
             <div><span>Pending Review</span><strong>1</strong></div>
         </article>
     </section>
@@ -263,7 +262,7 @@ if (false):
                 <p>Review submissions, monitor evaluation status, and print registered approval forms.</p>
             </div>
             <label class="crad-search-box">
-                <i class="fas fa-search"></i>
+                <?= smsIcon('search') ?>
                 <input type="search" id="cradProposalSearch" placeholder="Search by title, team, or reference..." aria-label="Search proposals">
             </label>
         </header>
@@ -277,10 +276,10 @@ if (false):
                             <span><?= htmlspecialchars($proposal['reference']) ?></span>
                             <span>Date: <?= htmlspecialchars($proposal['date']) ?></span>
                             <span class="crad-meta-pill college"><?= htmlspecialchars($proposal['college']) ?></span>
-                            <span class="crad-meta-pill sdg"><i class="fas fa-circle"></i><?= htmlspecialchars($proposal['sdg']) ?></span>
+                            <span class="crad-meta-pill sdg"><?= smsIcon('circle') ?><?= htmlspecialchars($proposal['sdg']) ?></span>
                         </div>
                         <h2><?= htmlspecialchars($proposal['title']) ?></h2>
-                        <p><i class="fas fa-users"></i> Team: <?= htmlspecialchars($proposal['team']) ?></p>
+                        <p><?= smsIcon('users') ?> Team: <?= htmlspecialchars($proposal['team']) ?></p>
                     </div>
                     <div class="crad-proposal-actions">
                         <span class="crad-status <?= htmlspecialchars($proposal['status_class']) ?>">
@@ -298,7 +297,7 @@ if (false):
                                     class="crad-icon-btn"
                                     title="Print proposal"
                                     data-print-proposal="<?= $index ?>">
-                                <i class="fas fa-print"></i>
+                                <?= smsIcon('print') ?>
                             </button>
                         </div>
                     </div>
@@ -306,7 +305,7 @@ if (false):
             <?php endforeach; ?>
 
             <div class="crad-empty-state" id="cradEmptyState" hidden>
-                <i class="fas fa-search"></i>
+                <?= smsIcon('search') ?>
                 <strong>No proposals found</strong>
                 <span>Try another title, team, or reference number.</span>
             </div>
@@ -314,7 +313,7 @@ if (false):
     </section>
 
     <aside class="crad-policy-notice">
-        <div class="crad-policy-icon"><i class="fas fa-info-circle"></i></div>
+        <div class="crad-policy-icon"><?= smsIcon('info-circle') ?></div>
         <div>
             <h2>Institutional Research Agenda Policy</h2>
             <p>All research titles must align with Bestlink College of the Philippines' institutional research agenda and support one United Nations Sustainable Development Goal. Evaluation requires approval marks on all screening criteria.</p>
@@ -336,17 +335,17 @@ if (false):
                 <h3 id="cradModalProposalTitle"></h3>
                 <div class="crad-modal-meta" id="cradModalProposalMeta"></div>
                 <div class="crad-assessment-checklist">
-                    <div><i class="fas fa-check-circle"></i><span>Research title is clear, specific, and measurable.</span></div>
-                    <div><i class="fas fa-check-circle"></i><span>Study aligns with the selected discipline cluster.</span></div>
-                    <div><i class="fas fa-check-circle"></i><span>Institutional research agenda alignment is established.</span></div>
-                    <div><i class="fas fa-check-circle"></i><span>Primary SDG contribution is properly justified.</span></div>
-                    <div><i class="fas fa-check-circle"></i><span>Initial feasibility, originality, and ethics checks are complete.</span></div>
+                    <div><?= smsIcon('check-circle') ?><span>Research title is clear, specific, and measurable.</span></div>
+                    <div><?= smsIcon('check-circle') ?><span>Study aligns with the selected discipline cluster.</span></div>
+                    <div><?= smsIcon('check-circle') ?><span>Institutional research agenda alignment is established.</span></div>
+                    <div><?= smsIcon('check-circle') ?><span>Primary SDG contribution is properly justified.</span></div>
+                    <div><?= smsIcon('check-circle') ?><span>Initial feasibility, originality, and ethics checks are complete.</span></div>
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
                 <button type="button" class="btn btn-sms-primary" onclick="window.print()">
-                    <i class="fas fa-print me-2"></i>Print Assessment
+                    <?= smsIcon('print', ['class' => 'me-2']) ?>Print Assessment
                 </button>
             </div>
         </div>
@@ -533,7 +532,7 @@ endif;
 $roleKey   = getCurrentUserRoleKey();
 $statCards = [];
 
-if (in_array($roleKey, ['superadmin', 'admin'], true)) {
+if (smsIsGrantedAdminRole($roleKey)) {
     $statCards = [
         ['icon'=>'fa-users-cog',  'label'=>'Managed Accounts', 'value'=>'14', 'type'=>'primary', 'delta'=>'+3', 'deltaDir'=>'up', 'deltaLabel'=>'this month'],
         ['icon'=>'fa-shield-alt', 'label'=>'Secured Modules',  'value'=>(string) max(1, count($visibleModules)), 'type'=>'success', 'delta'=>'Active', 'deltaDir'=>'neutral', 'deltaLabel'=>'role scoped'],
@@ -590,11 +589,30 @@ if (in_array($roleKey, ['superadmin', 'admin'], true)) {
         ['icon'=>'fa-calendar-alt',       'label'=>'Next Visit',          'value'=>'Sep 2026', 'type'=>'info',    'delta'=>'On track', 'deltaDir'=>'neutral', 'deltaLabel'=>'schedule'],
     ];
 } elseif ($roleKey === 'crad_officer') {
+    $grantDashboardMetrics = [
+        'total_grant_calls' => 0, 'submitted_proposals' => 0, 'under_review' => 0,
+        'revision_required' => 0, 'rejected_proposals' => 0, 'approved_funded_projects' => 0,
+        'total_funding' => 0.0, 'ongoing_research' => 0, 'completed_research' => 0,
+        'publications' => 0, 'ip_records' => 0, 'updated_at' => '',
+    ];
+    $grantDashStats = ['submitted' => 0, 'in_progress' => 0, 'completed' => 0, 'committee_scored' => 0];
+    try {
+        require_once ROOT_PATH . '/modules/crad/config/config.php';
+        require_once ROOT_PATH . '/modules/crad/includes/grant-helpers.php';
+        require_once ROOT_PATH . '/modules/crad/includes/grant-approval-helpers.php';
+        $cradDb = cradDb();
+        if ($cradDb) {
+            $grantDashboardMetrics = grantGetDashboardMetrics($cradDb);
+            $grantDashStats = grantApprovalDashboardStats($cradDb);
+        }
+    } catch (Throwable $e) {
+        error_log('dashboard crad_officer grant stats: ' . $e->getMessage());
+    }
     $statCards = [
-        ['icon'=>'fa-file-alt',     'label'=>'Submitted Proposals', 'value'=>'24', 'type'=>'primary', 'delta'=>'+4',  'deltaDir'=>'up',   'deltaLabel'=>'this month'],
-        ['icon'=>'fa-check-circle', 'label'=>'Approved Titles',     'value'=>'11', 'type'=>'success', 'delta'=>'+2',  'deltaDir'=>'up',   'deltaLabel'=>'vs last month'],
-        ['icon'=>'fa-clock',        'label'=>'Pending Review',      'value'=>'7',  'type'=>'warning', 'delta'=>'-1',  'deltaDir'=>'down', 'deltaLabel'=>'vs last week'],
-        ['icon'=>'fa-user-tie',     'label'=>'Active Advisers',     'value'=>'12', 'type'=>'info',    'delta'=>'+1',  'deltaDir'=>'up',   'deltaLabel'=>'assigned'],
+        ['icon'=>'fa-bullhorn',         'label'=>'Total Grant Calls',          'value'=>grantFormatDashboardMetricValue('total_grant_calls', $grantDashboardMetrics),         'metricKey'=>'total_grant_calls',        'type'=>'primary', 'delta'=>'Live', 'deltaDir'=>'neutral', 'deltaLabel'=>'from CRAD database'],
+        ['icon'=>'fa-file-alt',         'label'=>'Submitted Proposals',        'value'=>grantFormatDashboardMetricValue('submitted_proposals', $grantDashboardMetrics),       'metricKey'=>'submitted_proposals',      'type'=>'info',    'delta'=>'Live', 'deltaDir'=>'neutral', 'deltaLabel'=>'all applications'],
+        ['icon'=>'fa-check-circle',     'label'=>'Approved & Funded',        'value'=>grantFormatDashboardMetricValue('approved_funded_projects', $grantDashboardMetrics), 'metricKey'=>'approved_funded_projects', 'type'=>'success', 'delta'=>'Live', 'deltaDir'=>'neutral', 'deltaLabel'=>'active funded projects'],
+        ['icon'=>'fa-peso-sign',        'label'=>'Total Funding Released',   'value'=>grantFormatDashboardMetricValue('total_funding', $grantDashboardMetrics),            'metricKey'=>'total_funding',            'type'=>'warning', 'delta'=>'Live', 'deltaDir'=>'neutral', 'deltaLabel'=>'disbursements'],
     ];
 } elseif ($roleKey === 'research_coordinator') {
     $statCards = [
@@ -633,9 +651,22 @@ if (in_array($roleKey, ['superadmin', 'admin'], true)) {
     ];
 }
 
+require_once __DIR__ . '/period-filter.php';
+$dashboardPeriodKey    = smsDashboardCurrentPeriod();
+$dashboardPeriods      = smsDashboardPeriods();
+$dashboardPeriodMeta   = $dashboardPeriods[$dashboardPeriodKey];
+$dashboardPeriodFactor = $dashboardPeriodMeta['factor'];
+if ($roleKey !== 'crad_officer') {
+    $statCards = smsDashboardScaleStatCards($statCards, $dashboardPeriodFactor);
+}
+
 require_once __DIR__ . '/glass-board.php';
 ?>
 
 <script src="<?= BASE_URL ?>/assets/js/dashboard-glass.js"></script>
+<?php if ($roleKey === 'crad_officer'): ?>
+<link href="<?= BASE_URL ?>/assets/css/grant-approval-workflows.css?v=4" rel="stylesheet">
+<script src="<?= BASE_URL ?>/assets/js/crad-approval-dashboard-live.js?v=1"></script>
+<?php endif; ?>
 
 <?php require_once __DIR__ . '/../includes/layout-end.php'; ?>

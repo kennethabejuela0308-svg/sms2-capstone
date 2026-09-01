@@ -50,7 +50,7 @@ function smsPasswordInput(array $opts = []): string
     }
     $html .= '>';
     $html .= '<button class="password-toggle sms-pw-toggle" type="button" aria-label="Show password" title="Show password" data-pw-target="' . e($id) . '" aria-pressed="false">';
-    $html .= '<i class="fas fa-eye" aria-hidden="true"></i>';
+    $html .= smsIcon('eye', ['aria-hidden' => 'true']);
     $html .= '</button></div>';
 
     return $html;
@@ -110,7 +110,7 @@ function smsSecCardStart(string $title, string $icon = 'fa-shield-alt', string $
     $html .= '<div class="card-body">';
     $html .= '<div class="sms-sec-card-head">';
     $html .= '<div class="sms-sec-card-title">';
-    $html .= '<span class="sms-sec-icon"><i class="fas ' . e($icon) . '" aria-hidden="true"></i></span>';
+    $html .= '<span class="sms-sec-icon">' . smsIcon($icon, ['aria-hidden' => 'true']) . '</span>';
     $html .= '<h2 class="h5 fw-bold mb-0">' . $title . '</h2>';
     $html .= '</div>';
     if ($badgeHtml !== '') {
@@ -134,7 +134,7 @@ function smsSecBoxStart(string $title, string $icon = 'fa-shield-alt', string $b
     $html = '<div class="sms-sec-pw-box h-100">';
     $html .= '<div class="d-flex justify-content-between align-items-start gap-2 mb-2">';
     $html .= '<h3 class="h6 fw-bold mb-0">';
-    $html .= '<i class="fas ' . e($icon) . ' text-sms-primary me-1" aria-hidden="true"></i>' . $title;
+    $html .= smsIcon($icon, ['class' => 'text-sms-primary me-1', 'aria-hidden' => 'true']) . $title;
     $html .= '</h3>';
     if ($badgeHtml !== '') {
         $html .= '<div class="sms-sec-card-badge flex-shrink-0">' . $badgeHtml . '</div>';
@@ -167,7 +167,7 @@ function smsRenderAuthPasskeySplit(
         <div class="card-body">
             <div class="sms-sec-card-head">
                 <div class="sms-sec-card-title">
-                    <span class="sms-sec-icon"><i class="fas fa-fingerprint" aria-hidden="true"></i></span>
+                    <span class="sms-sec-icon"><?= smsIcon('fingerprint', ['aria-hidden' => 'true']) ?></span>
                     <div>
                         <h2 class="h5 fw-bold mb-0"><?= e($heading) ?></h2>
                         <p class="sms-sec-lead mb-0 mt-1"><?= e($lead) ?></p>

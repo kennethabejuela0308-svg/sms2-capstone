@@ -424,14 +424,14 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
 
 <?php if ($formError !== ''): ?>
 <div class="rgn-alert rgn-alert-danger" role="alert">
-    <i class="fas fa-exclamation-circle"></i>
+    <?= smsIcon('exclamation-circle') ?>
     <span><?= $formError ?></span>
 </div>
 <?php endif; ?>
 
 <?php if ($formSuccess !== ''): ?>
 <div class="rgn-alert rgn-alert-success" role="alert">
-    <i class="fas fa-check-circle"></i>
+    <?= smsIcon('check-circle') ?>
     <span><?= $formSuccess ?></span>
 </div>
 <?php endif; ?>
@@ -603,15 +603,15 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
 <div class="rgn-wrap">
     <div class="rgn-stats">
         <div class="rgn-stat">
-            <div class="rgn-stat-icon blue"><i class="fas fa-file-signature"></i></div>
+            <div class="rgn-stat-icon blue"><?= smsIcon('file-signature') ?></div>
             <div><strong><?= count($registeredProposals) ?></strong><span>Registered Proposals</span></div>
         </div>
         <div class="rgn-stat">
-            <div class="rgn-stat-icon green"><i class="fas fa-link"></i></div>
+            <div class="rgn-stat-icon green"><?= smsIcon('link') ?></div>
             <div><strong><?= $totalLinked ?></strong><span>Linked Groups</span></div>
         </div>
         <div class="rgn-stat">
-            <div class="rgn-stat-icon amber"><i class="fas fa-clock"></i></div>
+            <div class="rgn-stat-icon amber"><?= smsIcon('clock') ?></div>
             <div><strong><?= $totalPending ?></strong><span>Waiting</span></div>
         </div>
     </div>
@@ -624,14 +624,14 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
              data-csrf="<?= htmlspecialchars(csrfToken()) ?>">
         <div class="rgn-card-head">
             <div class="rgn-card-title">
-                <h2><i class="fas fa-file-signature"></i> CRAD-Approved Title Approvals</h2>
+                <h2><?= smsIcon('file-signature') ?> CRAD-Approved Title Approvals</h2>
                 <span data-rgn-count><?= count($approvedTitleApprovals) ?> record<?= count($approvedTitleApprovals) === 1 ? '' : 's' ?> • <?= (int) $titleApprovalPending ?> waiting</span>
             </div>
             <div class="rgn-meta" data-rgn-title-sync>Synced <?= htmlspecialchars(date('M j, Y g:i:s A')) ?></div>
         </div>
         <div class="rgn-card-tools">
             <label class="rgn-search">
-                <i class="fas fa-search"></i>
+                <?= smsIcon('search') ?>
                 <input type="search" data-rgn-search placeholder="Search by title, student, or group..." aria-label="Search CRAD-approved title approvals">
             </label>
             <select class="rgn-filter" data-rgn-status aria-label="Filter title approval group status">
@@ -688,14 +688,14 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
                                 </td>
                                 <td>
                                     <?php if ($hasGroup): ?>
-                                        <span class="rgn-btn rgn-btn-done"><i class="fas fa-check"></i> Generated</span>
+                                        <span class="rgn-btn rgn-btn-done"><?= smsIcon('check') ?> Generated</span>
                                     <?php else: ?>
                                         <form method="post" action="" style="margin:0;">
                                             <?= csrfField() ?>
                                             <input type="hidden" name="process" value="generate-title-approval-group">
                                             <input type="hidden" name="title_approval_id" value="<?= (int) $approval['id'] ?>">
                                             <button type="submit" class="rgn-btn rgn-btn-primary">
-                                                <i class="fas fa-hashtag"></i> Generate
+                                                <?= smsIcon('hashtag') ?> Generate
                                             </button>
                                         </form>
                                     <?php endif; ?>
@@ -722,7 +722,7 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
         </div>
         <div class="rgn-card-tools">
             <label class="rgn-search">
-                <i class="fas fa-search"></i>
+                <?= smsIcon('search') ?>
                 <input type="search" data-rgn-search placeholder="Search by title, researcher, proposal, or group..." aria-label="Search registered proposals">
             </label>
             <select class="rgn-filter" data-rgn-status aria-label="Filter research group status">
@@ -776,14 +776,14 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
                                 </td>
                                 <td>
                                     <?php if ($hasGroup): ?>
-                                        <span class="rgn-btn rgn-btn-done"><i class="fas fa-check"></i> Generated</span>
+                                        <span class="rgn-btn rgn-btn-done"><?= smsIcon('check') ?> Generated</span>
                                     <?php else: ?>
                                         <form method="post" action="" style="margin:0;">
                                             <?= csrfField() ?>
                                             <input type="hidden" name="process" value="generate-research-group">
                                             <input type="hidden" name="proposal_id" value="<?= (int) $proposal['id'] ?>">
                                             <button type="submit" class="rgn-btn rgn-btn-primary">
-                                                <i class="fas fa-hashtag"></i> Generate
+                                                <?= smsIcon('hashtag') ?> Generate
                                             </button>
                                         </form>
                                     <?php endif; ?>
@@ -883,12 +883,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 </td>
                 <td>
                     ${hasGroup
-                        ? `<span class="rgn-btn rgn-btn-done"><i class="fas fa-check"></i> Generated</span>`
+                        ? `<span class="rgn-btn rgn-btn-done"><?= smsIcon('check') ?> Generated</span>`
                         : `<form method="post" action="" style="margin:0;">
                             <input type="hidden" name="csrf_token" value="${esc(csrf)}">
                             <input type="hidden" name="process" value="generate-title-approval-group">
                             <input type="hidden" name="title_approval_id" value="${Number(row.id) || 0}">
-                            <button type="submit" class="rgn-btn rgn-btn-primary"><i class="fas fa-hashtag"></i> Generate</button>
+                            <button type="submit" class="rgn-btn rgn-btn-primary"><?= smsIcon('hashtag') ?> Generate</button>
                         </form>`}
                 </td>
             </tr>`;

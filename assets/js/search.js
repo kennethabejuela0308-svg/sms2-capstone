@@ -135,7 +135,7 @@
 
                 var iconDiv = document.createElement('div');
                 iconDiv.className = 'search-result-icon';
-                iconDiv.innerHTML = '<i class="fas ' + esc(s.icon) + '"></i>';
+                iconDiv.innerHTML = window.smsIconHtml ? window.smsIconHtml(s.icon) : '<i class="ti ti-layout-grid"></i>';
 
                 var textDiv = document.createElement('div');
                 textDiv.className = 'search-result-text';
@@ -249,16 +249,45 @@
 
         /* ── close on outside click ────────────────────────────── */
         document.addEventListener('click', function (e) {
-            var wrapper = document.querySelector('.navbar-search-wrapper');
+            var wrapper = document.querySelector('.navbar-search');
+            var navbar = document.querySelector('.sms-navbar');
             if (wrapper && !wrapper.contains(e.target)) {
                 closeDropdown();
             }
+            if (navbar && navbar.classList.contains('search-open')) {
+                var toggle = document.getElementById('navbarSearchToggle');
+                if (toggle && !toggle.contains(e.target) && wrapper && !wrapper.contains(e.target)) {
+                    navbar.classList.remove('search-open');
+                    if (toggle) toggle.setAttribute('aria-expanded', 'false');
+                }
+            }
         });
+
+        /* ── mobile search toggle ────────────────────────────────── */
+        var searchToggle = document.getElementById('navbarSearchToggle');
+        var navbarEl = document.querySelector('.sms-navbar');
+        if (searchToggle && navbarEl) {
+            searchToggle.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var open = navbarEl.classList.toggle('search-open');
+                searchToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+                if (open) {
+                    input.focus();
+                } else {
+                    closeDropdown();
+                }
+            });
+        }
 
         /* ── Ctrl+K / Cmd+K shortcut ───────────────────────────── */
         document.addEventListener('keydown', function (e) {
             if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
                 e.preventDefault();
+                if (navbarEl && window.matchMedia('(max-width: 767.98px)').matches) {
+                    navbarEl.classList.add('search-open');
+                    if (searchToggle) searchToggle.setAttribute('aria-expanded', 'true');
+                }
                 input.focus();
                 input.select();
             }

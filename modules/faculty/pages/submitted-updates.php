@@ -30,7 +30,7 @@ try {
     $tablesCheck = $crad->query("SHOW TABLES LIKE 'research_plans'")->fetch();
     if (!$tablesCheck) throw new Exception('Not installed.');
 } catch (Throwable $e) {
-    echo '<div class="alert alert-warning m-3"><i class="fas fa-exclamation-triangle me-2"></i><strong>Module Not Installed</strong></div>';
+    echo '<div class="alert alert-warning m-3">' . smsIcon('exclamation-triangle', ['class' => 'me-2']) . '<strong>Module Not Installed</strong></div>';
     require_once ROOT_PATH . '/includes/layout-end.php';
     exit;
 }
@@ -232,7 +232,7 @@ $statusMeta = [
                 <input type="hidden" name="group" value="<?= htmlspecialchars($groupNumber) ?>">
                 <div class="col-md-4">
                     <label class="form-label" style="font-weight:700;font-size:0.8rem;color:var(--sms-heading);margin-bottom:0.3rem;">
-                        <i class="fas fa-bookmark me-1"></i>Milestone
+                        <?= smsIcon('bookmark', ['class' => 'me-1']) ?>Milestone
                     </label>
                     <select name="milestone_id" class="form-select form-select-sm">
                         <option value="">All Milestones</option>
@@ -245,7 +245,7 @@ $statusMeta = [
                 </div>
                 <div class="col-md-4">
                     <label class="form-label" style="font-weight:700;font-size:0.8rem;color:var(--sms-heading);margin-bottom:0.3rem;">
-                        <i class="fas fa-filter me-1"></i>Status
+                        <?= smsIcon('filter', ['class' => 'me-1']) ?>Status
                     </label>
                     <select name="status" class="form-select form-select-sm">
                         <option value="all"                    <?= $statusFilter === 'all'                    ? 'selected' : '' ?>>All Statuses</option>
@@ -258,7 +258,7 @@ $statusMeta = [
                 </div>
                 <div class="col-md-4">
                     <button type="submit" class="btn btn-primary btn-sm w-100">
-                        <i class="fas fa-filter me-2"></i>Apply Filters
+                        <?= smsIcon('filter', ['class' => 'me-2']) ?>Apply Filters
                     </button>
                 </div>
             </form>
@@ -286,19 +286,19 @@ $statusMeta = [
                                         </span>
                                         <?php if ($update['milestone_name']): ?>
                                             <span class="badge bg-secondary" style="font-size:0.72rem;font-weight:700;">
-                                                <i class="fas fa-bookmark me-1"></i><?= htmlspecialchars($update['milestone_name']) ?>
+                                                <?= smsIcon('bookmark', ['class' => 'me-1']) ?><?= htmlspecialchars($update['milestone_name']) ?>
                                             </span>
                                         <?php endif; ?>
                                         <?php if ($feedbackCount > 0): ?>
                                             <span class="badge" style="background:rgba(99,102,241,0.12);color:#6366f1;font-size:0.72rem;font-weight:700;">
-                                                <i class="fas fa-comments me-1"></i><?= $feedbackCount ?> feedback
+                                                <?= smsIcon('comments', ['class' => 'me-1']) ?><?= $feedbackCount ?> feedback
                                             </span>
                                         <?php endif; ?>
                                     </div>
                                     <h6 class="rm-update-title"><?= htmlspecialchars($update['update_title']) ?></h6>
                                     <div class="d-flex align-items-center gap-3 flex-wrap" style="font-size:0.8rem;color:var(--sms-text-muted);">
-                                        <span><i class="fas fa-user me-1"></i><strong><?= htmlspecialchars($update['submitted_by_name']) ?></strong></span>
-                                        <span><i class="fas fa-clock me-1"></i><?= date('M d, Y g:i A', strtotime($update['submitted_at'])) ?></span>
+                                        <span><?= smsIcon('user', ['class' => 'me-1']) ?><strong><?= htmlspecialchars($update['submitted_by_name']) ?></strong></span>
+                                        <span><?= smsIcon('clock', ['class' => 'me-1']) ?><?= date('M d, Y g:i A', strtotime($update['submitted_at'])) ?></span>
                                     </div>
                                 </div>
                                 <!-- Progress value -->
@@ -314,7 +314,7 @@ $statusMeta = [
                             <?php if (!empty($update['accomplishments'])): ?>
                                 <div class="rm-section-block" style="background:#f0fdf4;border-left:3px solid #10b981;">
                                     <div class="rm-section-block-label" style="color:#059669;">
-                                        <i class="fas fa-check-circle"></i>Accomplishments
+                                        <?= smsIcon('check-circle') ?>Accomplishments
                                     </div>
                                     <div class="rm-section-block-body" style="color:#065f46;">
                                         <?= nl2br(htmlspecialchars($update['accomplishments'])) ?>
@@ -325,7 +325,7 @@ $statusMeta = [
                             <?php if (!empty($update['problems_blockers'])): ?>
                                 <div class="rm-section-block" style="background:#fef9c3;border-left:3px solid #f59e0b;">
                                     <div class="rm-section-block-label" style="color:#92400e;">
-                                        <i class="fas fa-exclamation-triangle"></i>Problems / Blockers
+                                        <?= smsIcon('exclamation-triangle') ?>Problems / Blockers
                                     </div>
                                     <div class="rm-section-block-body" style="color:#78350f;">
                                         <?= nl2br(htmlspecialchars($update['problems_blockers'])) ?>
@@ -336,7 +336,7 @@ $statusMeta = [
                             <?php if (!empty($update['next_planned_activity'])): ?>
                                 <div class="rm-section-block" style="background:#eff6ff;border-left:3px solid #3b82f6;">
                                     <div class="rm-section-block-label" style="color:#1e40af;">
-                                        <i class="fas fa-arrow-right"></i>Next Planned Activity
+                                        <?= smsIcon('arrow-right') ?>Next Planned Activity
                                     </div>
                                     <div class="rm-section-block-body" style="color:#1e40af;">
                                         <?= nl2br(htmlspecialchars($update['next_planned_activity'])) ?>
@@ -346,7 +346,7 @@ $statusMeta = [
 
                             <div class="rm-section-block" style="background:#f8fafc;border-left:3px solid #64748b;">
                                 <div class="rm-section-block-label" style="color:#334155;">
-                                    <i class="fas fa-paperclip"></i>Attached Document
+                                    <?= smsIcon('paperclip') ?>Attached Document
                                 </div>
                                 <div class="rm-section-block-body" style="color:#334155;">
                                     <?php if (!empty($update['attachment_id'])): ?>
@@ -355,11 +355,11 @@ $statusMeta = [
                                             <span class="d-flex gap-2">
                                                 <a class="btn btn-sm btn-outline-primary" target="_blank"
                                                    href="<?= htmlspecialchars(rpProgressAttachmentUrl((int) $update['attachment_id'])) ?>">
-                                                    <i class="fas fa-eye me-1"></i>View
+                                                    <?= smsIcon('eye', ['class' => 'me-1']) ?>View
                                                 </a>
                                                 <a class="btn btn-sm btn-outline-secondary"
                                                    href="<?= htmlspecialchars(rpProgressAttachmentUrl((int) $update['attachment_id'], true)) ?>">
-                                                    <i class="fas fa-download me-1"></i>Download
+                                                    <?= smsIcon('download', ['class' => 'me-1']) ?>Download
                                                 </a>
                                             </span>
                                         </div>
@@ -373,20 +373,20 @@ $statusMeta = [
                             <div class="rm-action-row" data-action-controls>
                                 <button type="button" class="rm-btn rm-btn-comment"
                                         data-bs-toggle="modal" data-bs-target="#feedbackModal<?= $updateId ?>">
-                                    <i class="fas fa-comment"></i>Comment
+                                    <?= smsIcon('comment') ?>Comment
                                 </button>
                                 <button type="button" class="rm-btn rm-btn-revision"
                                         data-bs-toggle="modal" data-bs-target="#revisionModal<?= $updateId ?>">
-                                    <i class="fas fa-redo"></i>Request Revision
+                                    <?= smsIcon('redo') ?>Request Revision
                                 </button>
                                 <button type="button" class="rm-btn rm-btn-approve"
                                         data-bs-toggle="modal" data-bs-target="#approveModal<?= $updateId ?>">
-                                    <i class="fas fa-check-circle"></i>Approve
+                                    <?= smsIcon('check-circle') ?>Approve
                                 </button>
                                 <?php if ($feedbackCount > 0): ?>
                                     <button type="button" class="rm-btn rm-btn-history"
                                             data-bs-toggle="collapse" data-bs-target="#feedbackThread<?= $updateId ?>">
-                                        <i class="fas fa-history"></i>History (<?= $feedbackCount ?>)
+                                        <?= smsIcon('history') ?>History (<?= $feedbackCount ?>)
                                     </button>
                                 <?php endif; ?>
                             </div>
@@ -413,7 +413,7 @@ $statusMeta = [
                                 <div class="collapse" id="feedbackThread<?= $updateId ?>">
                                     <div class="rm-feedback-thread mt-2">
                                         <div class="rm-feedback-thread-title">
-                                            <i class="fas fa-comments"></i>Feedback History
+                                            <?= smsIcon('comments') ?>Feedback History
                                         </div>
                                         <?php foreach ($feedbacks as $fb):
                                             $fbc = $fbTypeMeta[$fb['feedback_type']] ?? ['color'=>'#64748b','bg'=>'#f1f5f9','icon'=>'info'];
@@ -421,7 +421,7 @@ $statusMeta = [
                                             <div class="rm-feedback-item" style="background:<?= $fbc['bg'] ?>;border-left:3px solid <?= $fbc['color'] ?>;">
                                                 <div class="rm-feedback-item-meta">
                                                     <span class="rm-feedback-item-type" style="background:<?= $fbc['color'] ?>;color:#fff;">
-                                                        <i class="fas fa-<?= $fbc['icon'] ?>"></i><?= htmlspecialchars($fb['feedback_type']) ?>
+                                                        <?= smsIcon($fbc['icon']) ?><?= htmlspecialchars($fb['feedback_type']) ?>
                                                     </span>
                                                     <span class="rm-feedback-item-time">
                                                         <?= date('M d, Y g:i A', strtotime($fb['created_at'])) ?>
@@ -447,7 +447,7 @@ $statusMeta = [
                             <div class="modal-content">
                                 <div class="modal-header">
                                     <h5 class="modal-title" id="feedbackModalTitle<?= $updateId ?>">
-                                        <i class="fas fa-comment me-2" style="color:#3b82f6;"></i>Add Comment
+                                        <?= smsIcon('comment', ['class' => 'me-2', 'style' => 'color:#3b82f6;']) ?>Add Comment
                                     </h5>
                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                 </div>
@@ -461,7 +461,7 @@ $statusMeta = [
                                         </div>
                                         <div class="rm-modal-actions">
                                             <button type="submit" class="btn btn-primary">
-                                                <i class="fas fa-paper-plane me-2"></i>Submit Comment
+                                                <?= smsIcon('paper-plane', ['class' => 'me-2']) ?>Submit Comment
                                             </button>
                                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                                         </div>
@@ -477,13 +477,13 @@ $statusMeta = [
                             <div class="modal-content">
                                 <div class="modal-header" style="background:#fff9c4;border-bottom:1px solid #fde68a;">
                                     <h5 class="modal-title" id="revisionModalTitle<?= $updateId ?>" style="color:#92400e;">
-                                        <i class="fas fa-redo me-2"></i>Request Revision
+                                        <?= smsIcon('redo', ['class' => 'me-2']) ?>Request Revision
                                     </h5>
                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                 </div>
                                 <div class="modal-body">
                                     <div class="alert alert-warning py-2 mb-3" style="font-size:0.85rem;">
-                                        <i class="fas fa-info-circle me-2"></i>
+                                        <?= smsIcon('info-circle', ['class' => 'me-2']) ?>
                                         Milestone status will change to <strong>Revision Requested</strong> and the student will be notified.
                                     </div>
                                     <form class="feedback-form" data-action="revision" data-update-id="<?= $updateId ?>">
@@ -495,7 +495,7 @@ $statusMeta = [
                                         </div>
                                         <div class="rm-modal-actions">
                                             <button type="submit" class="btn btn-warning">
-                                                <i class="fas fa-redo me-2"></i>Request Revision
+                                                <?= smsIcon('redo', ['class' => 'me-2']) ?>Request Revision
                                             </button>
                                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                                         </div>
@@ -511,13 +511,13 @@ $statusMeta = [
                             <div class="modal-content">
                                 <div class="modal-header" style="background:#dcfce7;border-bottom:1px solid #bbf7d0;">
                                     <h5 class="modal-title" id="approveModalTitle<?= $updateId ?>" style="color:#065f46;">
-                                        <i class="fas fa-check-circle me-2"></i>Approve Progress
+                                        <?= smsIcon('check-circle', ['class' => 'me-2']) ?>Approve Progress
                                     </h5>
                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                 </div>
                                 <div class="modal-body">
                                     <div class="alert alert-success py-2 mb-3" style="font-size:0.85rem;">
-                                        <i class="fas fa-info-circle me-2"></i>
+                                        <?= smsIcon('info-circle', ['class' => 'me-2']) ?>
                                         Milestone status will change to <strong>Approved</strong> and the student will be notified.
                                     </div>
                                     <form class="feedback-form" data-action="approve" data-update-id="<?= $updateId ?>">
@@ -529,7 +529,7 @@ $statusMeta = [
                                         </div>
                                         <div class="rm-modal-actions">
                                             <button type="submit" class="btn btn-success">
-                                                <i class="fas fa-check-circle me-2"></i>Approve Progress
+                                                <?= smsIcon('check-circle', ['class' => 'me-2']) ?>Approve Progress
                                             </button>
                                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                                         </div>
@@ -545,7 +545,7 @@ $statusMeta = [
         <?php else: ?>
             <div class="glass-panel">
                 <div class="glass-panel-body rm-empty">
-                    <div class="rm-empty-icon"><i class="fas fa-inbox"></i></div>
+                    <div class="rm-empty-icon"><?= smsIcon('inbox') ?></div>
                     <h6>No Progress Updates</h6>
                     <p>
                         <?php if ($statusFilter !== 'all' || $milestoneFilter): ?>
@@ -560,7 +560,7 @@ $statusMeta = [
 
         <!-- Live refresh bar -->
         <div class="rm-refresh-bar" id="rmRefreshBar">
-            <i class="fas fa-sync-alt rm-refresh-icon" id="rmRefreshIcon"></i>
+            <?= smsIcon('sync-alt', ['class' => 'rm-refresh-icon']) ?>
             <span id="rmRefreshText">Last updated: <?= date('g:i:s A') ?></span>
         </div>
 
@@ -612,7 +612,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Submitting…';
+            submitBtn.innerHTML = '<?= smsIcon('spinner', ['class' => 'fa-spin me-2']) ?>Submitting…';
 
             try {
                 const resp = await fetch('<?= BASE_URL ?>/modules/crad/api/adviser-progress.php', {

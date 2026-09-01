@@ -3,6 +3,7 @@
  * SMS 2 - Top Navigation Bar
  */
 require_once __DIR__ . '/authentication.php';
+require_once __DIR__ . '/navigation-context.php';
 require_once __DIR__ . '/notifications.php';
 if (!isset($MODULES)) {
     require_once __DIR__ . '/../config/config.php';
@@ -90,10 +91,10 @@ $navNotificationUnreadCount = count(array_filter($navNotifications, static fn(ar
         <!-- Left: Toggle + Brand -->
         <div class="navbar-left d-flex align-items-center gap-2">
             <button class="btn btn-link text-white sidebar-toggle p-2" type="button" id="sidebarToggle" aria-label="Toggle sidebar">
-                <i class="fas fa-bars"></i>
+                <?= smsIcon('menu-2') ?>
             </button>
-            <a class="navbar-brand d-flex align-items-center gap-2" href="<?= BASE_URL ?>/dashboard/index.php">
-                <img src="<?= BASE_URL ?>/images/bcp-logo-source.png" alt="BCP" style="height:32px;width:auto;object-fit:contain;">
+            <a class="navbar-brand d-flex align-items-center gap-2" href="<?= htmlspecialchars(smsRoleHomeUrl($navRoleKey)) ?>">
+                <img src="<?= e(smsBrandLogoUrl()) ?>" alt="BCP" style="height:30px;width:auto;object-fit:contain;">
                 <span class="d-none d-sm-inline"><?= htmlspecialchars(APP_SHORT_NAME) ?></span>
             </a>
         </div>
@@ -101,7 +102,7 @@ $navNotificationUnreadCount = count(array_filter($navNotifications, static fn(ar
         <!-- Center: Global Search -->
         <div class="navbar-center">
             <div class="navbar-search position-relative">
-                <i class="fas fa-search navbar-search-icon"></i>
+                <?= smsIcon('search', ['class' => 'navbar-search-icon']) ?>
                 <input type="text" id="globalSearch" class="form-control navbar-search-input"
                        placeholder="Search modules and pages..."
                        autocomplete="off"
@@ -109,7 +110,7 @@ $navNotificationUnreadCount = count(array_filter($navNotifications, static fn(ar
                        aria-haspopup="listbox"
                        aria-expanded="false">
                 <button class="navbar-search-clear d-none" id="globalSearchClear" type="button" aria-label="Clear search">
-                    <i class="fas fa-times"></i>
+                    <?= smsIcon('x') ?>
                 </button>
                 <div class="search-kbd-hint" aria-hidden="true">
                     <kbd>Ctrl</kbd><kbd>K</kbd>
@@ -117,7 +118,7 @@ $navNotificationUnreadCount = count(array_filter($navNotifications, static fn(ar
                 <!-- Results dropdown -->
                 <div class="navbar-search-dropdown" id="searchDropdown" role="listbox" aria-label="Search results">
                     <div class="search-empty" id="searchEmpty">
-                        <i class="fas fa-search-minus"></i>
+                        <?= smsIcon('zoom-out') ?>
                         <span>No results found</span>
                     </div>
                     <ul class="search-results-list" id="searchResultsList"></ul>
@@ -148,14 +149,24 @@ $navNotificationUnreadCount = count(array_filter($navNotifications, static fn(ar
                     data-theme-toggle
                     aria-label="Switch theme"
                     title="Toggle theme">
-                <i class="fas fa-moon theme-icon-moon" aria-hidden="true"></i>
-                <i class="fas fa-sun theme-icon-sun" aria-hidden="true"></i>
+                <?= smsIcon('moon', ['class' => 'theme-icon-moon', 'aria-hidden' => 'true']) ?>
+                <?= smsIcon('sun', ['class' => 'theme-icon-sun', 'aria-hidden' => 'true']) ?>
+            </button>
+
+            <!-- Mobile search -->
+            <button type="button"
+                    class="btn btn-link text-white d-md-none navbar-search-toggle p-2"
+                    id="navbarSearchToggle"
+                    aria-label="Open search"
+                    aria-expanded="false"
+                    aria-controls="globalSearch">
+                <?= smsIcon('search') ?>
             </button>
 
             <!-- Messages -->
             <div class="dropdown">
                 <button class="btn btn-link text-white position-relative" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Messages: <?= $navMessageCount ?>">
-                    <i class="fas fa-envelope"></i>
+                    <?= smsIcon('mail') ?>
                     <?php if ($navMessageCount > 0): ?>
                         <span class="position-absolute badge rounded-pill bg-success notification-badge" style="top:2px;right:-2px;transform:none;"><?= $navMessageCount ?></span>
                     <?php endif; ?>
@@ -163,7 +174,7 @@ $navNotificationUnreadCount = count(array_filter($navNotifications, static fn(ar
                 <ul class="dropdown-menu dropdown-menu-end shadow" style="min-width:280px;">
                     <li><h6 class="dropdown-header">Messages</h6></li>
                     <?php if ($navMessageCount === 0): ?>
-                        <li><span class="dropdown-item-text text-muted py-2"><i class="fas fa-inbox me-2"></i>No messages</span></li>
+                        <li><span class="dropdown-item-text text-muted py-2"><?= smsIcon('inbox', ['class' => 'me-2']) ?>No messages</span></li>
                     <?php else: ?>
                         <?php foreach ($navMessages as $message): ?>
                             <li>
@@ -178,7 +189,7 @@ $navNotificationUnreadCount = count(array_filter($navNotifications, static fn(ar
                             </li>
                         <?php endforeach; ?>
                         <li><hr class="dropdown-divider my-1"></li>
-                        <li><a class="dropdown-item text-center text-primary py-2" href="#"><i class="fas fa-envelope-open me-1"></i>View all messages</a></li>
+                        <li><a class="dropdown-item text-center text-primary py-2" href="#"><?= smsIcon('mail-opened', ['class' => 'me-1']) ?>View all messages</a></li>
                     <?php endif; ?>
                 </ul>
             </div>
@@ -186,7 +197,7 @@ $navNotificationUnreadCount = count(array_filter($navNotifications, static fn(ar
             <!-- Notifications -->
             <div class="dropdown">
                 <button class="btn btn-link text-white position-relative" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notifications: <?= $navNotificationCount ?>" data-sms-notification-button>
-                    <i class="fas fa-bell"></i>
+                    <?= smsIcon('bell') ?>
                     <span class="position-absolute badge rounded-pill bg-danger notification-badge <?= $navNotificationUnreadCount > 0 ? '' : 'd-none' ?>" style="top:2px;right:-2px;transform:none;" data-sms-notification-badge><?= $navNotificationUnreadCount ?></span>
                 </button>
                 <div class="dropdown-menu dropdown-menu-end shadow sms-notification-dropdown" data-sms-notification-menu>
@@ -198,7 +209,7 @@ $navNotificationUnreadCount = count(array_filter($navNotifications, static fn(ar
                         <button type="button" data-sms-notification-filter="unread">Unread</button>
                     </div>
                     <div class="sms-notification-empty" data-sms-notification-empty <?= $navNotificationCount === 0 ? '' : 'hidden' ?>>
-                        <i class="fas fa-bell-slash"></i>
+                        <?= smsIcon('bell-off') ?>
                         <span>No notifications</span>
                     </div>
                     <div class="sms-notification-list" data-sms-notification-items>
@@ -210,7 +221,7 @@ $navNotificationUnreadCount = count(array_filter($navNotifications, static fn(ar
                                data-notification-id="<?= (int) ($notification['id'] ?? 0) ?>"
                                data-notification-batch-key="<?= htmlspecialchars((string) ($notification['batch_key'] ?? '')) ?>"
                                data-notification-status="<?= $isUnread ? 'unread' : 'read' ?>">
-                                <span class="sms-notification-icon"><i class="fas <?= htmlspecialchars($notification['icon'] ?? 'fa-info-circle') ?>"></i></span>
+                                <span class="sms-notification-icon"><?= smsIcon($notification['icon'] ?? 'info-circle') ?></span>
                                 <span class="sms-notification-copy">
                                     <span class="sms-notification-title"><?= htmlspecialchars($notification['label'] ?? 'Notification') ?></span>
                                     <?php if (!empty($notification['preview'] ?? $notification['body'] ?? '')): ?>
@@ -230,7 +241,7 @@ $navNotificationUnreadCount = count(array_filter($navNotifications, static fn(ar
             <!-- User Profile -->
             <div class="dropdown">
                 <button class="btn btn-link text-white text-decoration-none dropdown-toggle d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fas fa-user-circle fa-lg"></i>
+                    <?= smsIcon('user-circle', ['class' => 'ti-lg']) ?>
                     <span class="d-none d-md-inline"><?= htmlspecialchars(getCurrentUserName()) ?></span>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow">
@@ -240,7 +251,7 @@ $navNotificationUnreadCount = count(array_filter($navNotifications, static fn(ar
                     if ($navRole === 'student') {
                         $profileHref = BASE_URL . '/modules/student-portal/pages/my-profile.php';
                         $profileLabel = 'My Profile';
-                    } elseif (in_array($navRole, ['superadmin', 'admin'], true)) {
+                    } elseif (smsIsGrantedAdminRole($navRole)) {
                         $profileHref = BASE_URL . '/account/profile.php';
                         $profileLabel = 'Account Settings';
                     } else {
@@ -250,34 +261,23 @@ $navNotificationUnreadCount = count(array_filter($navNotifications, static fn(ar
                     ?>
                     <li>
                         <a class="dropdown-item" href="<?= htmlspecialchars($profileHref) ?>">
-                            <i class="fas fa-user me-2"></i><?= htmlspecialchars($profileLabel) ?>
+                            <?= smsIcon('user', ['class' => 'me-2']) ?><?= htmlspecialchars($profileLabel) ?>
                         </a>
                     </li>
-                    <?php if (in_array($navRole, ['superadmin', 'admin'], true)): ?>
+                    <?php if (smsIsGrantedAdminRole($navRole)): ?>
                     <li>
                         <a class="dropdown-item" href="<?= BASE_URL ?>/account/profile.php?tab=security">
-                            <i class="fas fa-key me-2"></i>Login Security
+                            <?= smsIcon('key', ['class' => 'me-2']) ?>Login Security
                         </a>
                     </li>
                     <?php endif; ?>
                     <li><hr class="dropdown-divider"></li>
-                    <li><h6 class="dropdown-header">Appearance</h6></li>
-                    <li>
-                        <button type="button" class="dropdown-item" data-theme-set="light">
-                            <i class="fas fa-sun me-2"></i>Light mode
-                        </button>
-                    </li>
-                    <li>
-                        <button type="button" class="dropdown-item" data-theme-set="dark">
-                            <i class="fas fa-moon me-2"></i>Dark mode
-                        </button>
-                    </li>
-                    <li><hr class="dropdown-divider"></li>
                     <li>
                         <a class="dropdown-item text-danger"
                            href="<?= BASE_URL ?>/login/logout.php"
-                           data-logout-confirm>
-                            <i class="fas fa-sign-out-alt me-2"></i>Logout
+                           data-logout-confirm
+                           data-no-loader>
+                            <?= smsIcon('logout', ['class' => 'me-2']) ?>Logout
                         </a>
                     </li>
                 </ul>
@@ -287,270 +287,20 @@ $navNotificationUnreadCount = count(array_filter($navNotifications, static fn(ar
     </div>
 </nav>
 
-<style>
-    #logoutConfirmModal .modal-dialog {
-        width: min(460px, calc(100vw - 2rem));
-        max-width: 460px;
-        margin-left: auto;
-        margin-right: auto;
-    }
-
-    #logoutConfirmModal .modal-content {
-        background: rgba(255, 255, 255, 0.96);
-        border: 1px solid rgba(148, 163, 184, 0.28);
-        border-radius: 18px;
-        box-shadow: 0 22px 55px rgba(15, 23, 42, 0.12);
-        overflow: hidden;
-    }
-
-    #logoutConfirmModal .modal-header {
-        align-items: center;
-        border-bottom: 1px solid #e2e8f0;
-        display: flex;
-        justify-content: space-between;
-        min-height: 82px;
-        padding: .85rem 1.3rem;
-    }
-
-    #logoutConfirmModal .modal-title {
-        color: var(--sms-heading, #0f172a);
-        font-size: 1rem;
-        font-weight: 700;
-        letter-spacing: -.01em;
-    }
-
-    #logoutConfirmModal .modal-body {
-        color: var(--sms-text, #334155);
-        font-size: 1rem;
-        min-height: 110px;
-        padding: 1rem 1.3rem;
-        text-align: center;
-    }
-
-    #logoutConfirmModal .modal-footer {
-        border-top: 1px solid #e2e8f0;
-        display: flex;
-        gap: 0.8rem;
-        justify-content: flex-end;
-        padding: 1rem 1.3rem 1.3rem;
-    }
-
-    #logoutConfirmModal .modal-footer .btn {
-        border-radius: 12px;
-        font-size: 1rem;
-        font-weight: 700;
-        min-height: 52px;
-        min-width: 140px;
-    }
-
-    #logoutConfirmModal .sms-logout-cancel {
-        background: rgba(148, 163, 184, 0.08);
-        border: 1px solid rgba(148, 163, 184, 0.45);
-        color: var(--sms-heading, #0f172a);
-    }
-
-    #logoutConfirmModal .sms-logout-confirm {
-        background: #e3344a;
-        border: 1px solid #e3344a;
-        color: #fff;
-    }
-
-    .sms-notification-dropdown {
-        border: 0;
-        border-radius: 14px;
-        box-shadow: 0 16px 40px rgba(15, 23, 42, .18);
-        min-width: 420px;
-        overflow: hidden;
-        padding: 0;
-        width: min(440px, calc(100vw - 1.5rem));
-    }
-
-    .sms-notification-head {
-        padding: 1.1rem 1.1rem .55rem;
-    }
-
-    .sms-notification-head h6 {
-        color: var(--sms-heading, #0f172a);
-        font-size: 1.15rem;
-        font-weight: 800;
-        margin: 0;
-    }
-
-    .sms-notification-tabs {
-        display: flex;
-        gap: .45rem;
-        padding: 0 1.1rem .8rem;
-    }
-
-    .sms-notification-tabs button {
-        background: transparent;
-        border: 0;
-        border-radius: 999px;
-        color: var(--sms-text, #334155);
-        font-size: .84rem;
-        font-weight: 800;
-        padding: .48rem .82rem;
-    }
-
-    .sms-notification-tabs button.active {
-        background: rgba(36, 84, 198, .14);
-        color: var(--sms-primary, #2454c6);
-    }
-
-    .sms-notification-list {
-        max-height: min(520px, calc(100vh - 220px));
-        overflow-y: auto;
-        padding: .1rem .65rem .65rem;
-        scrollbar-width: thin;
-    }
-
-    .sms-notification-item {
-        align-items: flex-start;
-        border-radius: 10px;
-        color: var(--sms-text, #334155);
-        display: flex;
-        gap: .85rem;
-        margin-bottom: .18rem;
-        padding: .82rem .8rem;
-        text-decoration: none;
-        width: 100%;
-    }
-
-    .sms-notification-item:hover {
-        background: rgba(36, 84, 198, .08);
-        color: var(--sms-text, #334155);
-    }
-
-    .sms-notification-item.unread {
-        background: rgba(36, 84, 198, .04);
-    }
-
-    .sms-notification-item.unread:hover {
-        background: rgba(36, 84, 198, .1);
-    }
-
-    .sms-notification-icon {
-        align-items: center;
-        background: rgba(37, 99, 235, .13);
-        border-radius: 50%;
-        color: #0d6efd;
-        display: inline-flex;
-        height: 40px;
-        justify-content: center;
-        width: 40px;
-    }
-
-    .sms-notification-title,
-    .sms-notification-preview,
-    .sms-notification-time {
-        display: block;
-        min-width: 0;
-    }
-
-    .sms-notification-copy {
-        flex: 1 1 auto;
-        min-width: 0;
-        padding-top: .05rem;
-    }
-
-    .sms-notification-title {
-        color: var(--sms-heading, #0f172a);
-        display: -webkit-box;
-        font-size: .94rem;
-        font-weight: 800;
-        -webkit-box-orient: vertical;
-        -webkit-line-clamp: 2;
-        line-height: 1.24;
-        overflow: hidden;
-        overflow-wrap: break-word;
-        word-break: normal;
-    }
-
-    .sms-notification-preview {
-        color: var(--sms-text-muted, #64748b);
-        display: -webkit-box;
-        font-size: .8rem;
-        -webkit-box-orient: vertical;
-        -webkit-line-clamp: 2;
-        line-height: 1.25;
-        margin-top: .2rem;
-        overflow: hidden;
-        overflow-wrap: break-word;
-        white-space: normal;
-        word-break: normal;
-    }
-
-    .sms-notification-time {
-        color: var(--sms-primary, #2454c6);
-        font-size: .75rem;
-        font-weight: 700;
-        line-height: 1.2;
-        margin-top: .32rem;
-    }
-
-    .sms-notification-dot {
-        align-self: flex-start;
-        background: #3b82f6;
-        border-radius: 50%;
-        flex: 0 0 9px;
-        height: 9px;
-        margin-left: .15rem;
-        margin-top: .55rem;
-        width: 9px;
-    }
-
-    .sms-notification-empty {
-        align-items: center;
-        color: var(--sms-text-muted, #64748b);
-        display: flex;
-        gap: .5rem;
-        padding: 1rem;
-    }
-
-    .sms-notification-empty[hidden],
-    .sms-notification-item[hidden] {
-        display: none !important;
-    }
-
-    @media (max-width: 575.98px) {
-        .sms-notification-dropdown {
-            min-width: 0;
-            width: calc(100vw - 1rem);
-        }
-
-        .sms-notification-head {
-            padding: 1rem 1rem .5rem;
-        }
-
-        .sms-notification-tabs {
-            padding: 0 1rem .7rem;
-        }
-
-        .sms-notification-list {
-            max-height: min(460px, calc(100vh - 180px));
-            padding: .05rem .5rem .55rem;
-        }
-
-        .sms-notification-item {
-            gap: .7rem;
-            padding: .78rem .65rem;
-        }
-    }
-</style>
-
 <div class="modal fade" id="logoutConfirmModal" tabindex="-1" aria-labelledby="logoutConfirmTitle" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content sms-logout-modal">
             <div class="modal-header">
                 <h5 class="modal-title" id="logoutConfirmTitle">Logout</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                Are you sure you want to logout?
+                <p class="mb-0">Are you sure you want to logout?</p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn sms-logout-cancel" data-bs-dismiss="modal">Cancel</button>
-                <a class="btn sms-logout-confirm" href="<?= BASE_URL ?>/login/logout.php" id="logoutConfirmBtn">
-                    <span class="logout-confirm-idle"><i class="fas fa-check me-1"></i>Yes, logout</span>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a class="btn btn-danger" href="<?= BASE_URL ?>/login/logout.php" id="logoutConfirmBtn" data-loader-message="Signing out…">
+                    <span class="logout-confirm-idle">Yes, logout</span>
                     <span class="logout-confirm-loading d-none">
                         <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>Logging out...
                     </span>
@@ -628,13 +378,13 @@ document.addEventListener('DOMContentLoaded', function () {
         notificationItems.innerHTML = visibleItems.map(function (item) {
             const isUnread = Boolean(item.is_unread);
             return '<a class="sms-notification-item ' + (isUnread ? 'unread' : '') + '" href="' + esc(item.url || '#') + '" data-sms-notification-link data-notification-id="' + esc(item.id || '') + '" data-notification-batch-key="' + esc(item.batch_key || '') + '" data-notification-status="' + (isUnread ? 'unread' : 'read') + '">' +
-                '<span class="sms-notification-icon"><i class="fas ' + esc(item.icon || 'fa-info-circle') + '"></i></span>' +
+                '<span class="sms-notification-icon">' + (window.smsIconHtml ? window.smsIconHtml(item.icon || 'info-circle') : '') + '</span>' +
                 '<span class="sms-notification-copy">' +
                     '<span class="sms-notification-title">' + esc(item.label || 'Notification') + '</span>' +
                     (compactPreview(item) ? '<span class="sms-notification-preview">' + esc(compactPreview(item)) + '</span>' : '') +
                     (item.time ? '<span class="sms-notification-time">' + esc(item.time) + '</span>' : '') +
                 '</span>' +
-                (isUnread ? '<span class="sms-notification-dot" aria-label="Unread"></span>' : '<span></span>') +
+                (isUnread ? '<span class="sms-notification-dot" aria-label="Unread"></span>' : '') +
             '</a>';
         }).join('');
     };
@@ -705,6 +455,12 @@ document.addEventListener('DOMContentLoaded', function () {
         logoutModal.show();
     });
 
+    modalEl.addEventListener('hidden.bs.modal', function () {
+        if (window.SMS2Loader && typeof window.SMS2Loader.forceHide === 'function') {
+            window.SMS2Loader.forceHide();
+        }
+    });
+
     if (confirmBtn) {
         confirmBtn.addEventListener('click', function () {
             const idle = confirmBtn.querySelector('.logout-confirm-idle');
@@ -715,6 +471,10 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             confirmBtn.classList.add('disabled');
             confirmBtn.setAttribute('aria-disabled', 'true');
+
+            if (window.SMS2Loader && typeof window.SMS2Loader.show === 'function') {
+                window.SMS2Loader.show(confirmBtn.getAttribute('data-loader-message') || 'Signing out…');
+            }
         });
     }
 });

@@ -13,7 +13,7 @@ require_once ROOT_PATH . '/includes/authenticator-ui.php';
 require_once ROOT_PATH . '/includes/passkey.php';
 require_once ROOT_PATH . '/includes/security-ui.php';
 requireAuth();
-requireSuperAdmin();
+requireAdminAccountSettings();
 
 smsEnsureSecurityTables();
 smsEnsureAuthenticatorTable();
@@ -89,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($dup->fetch()) {
                 $_SESSION['flash_admin_error'] = 'That email is already used by another account.';
             } else {
-                $pdo->prepare('UPDATE users SET full_name = ?, email = ? WHERE id = ? AND role_key = \'admin\'')
+                $pdo->prepare('UPDATE users SET full_name = ?, email = ? WHERE id = ?')
                     ->execute([$fullName, $email, $userId]);
                 $_SESSION['user_name'] = $fullName;
                 $_SESSION['user_email'] = $email;
@@ -106,7 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $password = (string) ($_POST['password'] ?? '');
         $confirm = (string) ($_POST['password_confirm'] ?? '');
 
-        $stmt = $pdo->prepare('SELECT password_hash FROM users WHERE id = ? AND role_key = \'admin\' LIMIT 1');
+        $stmt = $pdo->prepare('SELECT password_hash FROM users WHERE id = ? LIMIT 1');
         $stmt->execute([$userId]);
         $row = $stmt->fetch();
 
@@ -197,7 +197,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         smsClearCodeGate($userId, $pwPurpose);
         $pdo->prepare(
             'UPDATE users SET password_hash = ?, must_change_password = 0, password_changed_at = NOW(),
-             failed_login_attempts = 0, locked_until = NULL WHERE id = ? AND role_key = \'admin\''
+             failed_login_attempts = 0, locked_until = NULL WHERE id = ?'
         )->execute([$pending['hash'], $userId]);
         unset($_SESSION['pending_admin_pw_change']);
         $_SESSION['must_change_password'] = 0;
@@ -231,7 +231,7 @@ $pdo = db();
 if ($pdo) {
     $stmt = $pdo->prepare(
         'SELECT full_name, username, email, last_login_at, password_changed_at, failed_login_attempts
-         FROM users WHERE id = ? AND role_key = \'admin\' LIMIT 1'
+         FROM users WHERE id = ? LIMIT 1'
     );
     $stmt->execute([$userId]);
     $row = $stmt->fetch();
@@ -253,8 +253,6 @@ require_once ROOT_PATH . '/includes/breadcrumbs.php';
 require_once ROOT_PATH . '/includes/layout-start.php';
 ?>
 
-<link href="<?= BASE_URL ?>/assets/css/password-strength.css" rel="stylesheet">
-
 <?php renderBreadcrumbs($breadcrumbs); ?>
 
 <?php if ($success): ?>
@@ -273,12 +271,12 @@ require_once ROOT_PATH . '/includes/layout-start.php';
 <ul class="nav nav-tabs sms-sec-tabs mb-3" role="tablist">
     <li class="nav-item">
         <a class="nav-link <?= $tab === 'profile' ? 'active' : '' ?>" href="<?= e($baseUrl) ?>?tab=profile">
-            <i class="fas fa-user me-1"></i>Profile
+            <?= smsIcon('user', ['class' => 'me-1']) ?>Profile
         </a>
     </li>
     <li class="nav-item">
         <a class="nav-link <?= $tab === 'security' ? 'active' : '' ?>" href="<?= e($baseUrl) ?>?tab=security">
-            <i class="fas fa-key me-1"></i>Login Security
+            <?= smsIcon('key', ['class' => 'me-1']) ?>Login Security
         </a>
     </li>
 </ul>
@@ -288,7 +286,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
         <div class="card-body">
             <div class="sms-sec-card-head">
                 <div class="sms-sec-card-title">
-                    <span class="sms-sec-icon"><i class="fas fa-user" aria-hidden="true"></i></span>
+                    <span class="sms-sec-icon"><?= smsIcon('user', ['aria-hidden' => 'true']) ?></span>
                     <div>
                         <h2 class="h5 fw-bold mb-0">Profile</h2>
                         <p class="sms-sec-lead mb-0 mt-1">Update how your Super Admin account appears in the system.</p>
@@ -299,7 +297,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                 <div class="col-lg-7">
                     <div class="sms-sec-pw-box h-100">
                         <h3 class="h6 fw-bold mb-3">
-                            <i class="fas fa-id-card text-sms-primary me-1" aria-hidden="true"></i>Account details
+                            <?= smsIcon('id-card', ['class' => 'text-sms-primary me-1', 'aria-hidden' => 'true']) ?>Account details
                         </h3>
                         <form method="POST" autocomplete="off">
                             <?= csrfField() ?>
@@ -325,7 +323,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                                 <input type="text" class="form-control" value="Super Admin" disabled>
                             </div>
                             <button type="submit" class="btn btn-sms-primary">
-                                <i class="fas fa-save me-1"></i>Save profile
+                                <?= smsIcon('save', ['class' => 'me-1']) ?>Save profile
                             </button>
                         </form>
                     </div>
@@ -333,7 +331,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                 <div class="col-lg-5">
                     <div class="sms-sec-pw-box h-100">
                         <h3 class="h6 fw-bold mb-3">
-                            <i class="fas fa-link text-sms-primary me-1" aria-hidden="true"></i>Quick links &amp; status
+                            <?= smsIcon('link', ['class' => 'text-sms-primary me-1', 'aria-hidden' => 'true']) ?>Quick links &amp; status
                         </h3>
                         <dl class="row small mb-3">
                             <dt class="col-5 text-muted">Last login</dt>
@@ -352,10 +350,10 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                             <dd class="col-7 mb-0"><?= (int) ($profile['failed_login_attempts'] ?? 0) ?></dd>
                         </dl>
                         <a class="btn btn-outline-primary w-100 mb-2" href="<?= e($baseUrl) ?>?tab=security">
-                            <i class="fas fa-key me-2"></i>Login Security
+                            <?= smsIcon('key', ['class' => 'me-2']) ?>Login Security
                         </a>
                         <a class="btn btn-outline-secondary w-100" href="<?= BASE_URL ?>/modules/user-management/pages/module-security.php?picker=1">
-                            <i class="fas fa-shield-alt me-2"></i>Module Security
+                            <?= smsIcon('shield-alt', ['class' => 'me-2']) ?>Module Security
                         </a>
                         <p class="small text-muted mt-3 mb-0">
                             Module Security manages staff reset requests. Your own admin password is only changed under Login Security.
@@ -381,7 +379,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
         <div class="card-body">
             <div class="sms-sec-card-head">
                 <div class="sms-sec-card-title">
-                    <span class="sms-sec-icon"><i class="fas fa-key" aria-hidden="true"></i></span>
+                    <span class="sms-sec-icon"><?= smsIcon('key', ['aria-hidden' => 'true']) ?></span>
                     <div>
                         <h2 class="h5 fw-bold mb-0">Password</h2>
                         <p class="sms-sec-lead mb-0 mt-1">Change your Super Admin login password with email OTP confirmation.</p>
@@ -392,7 +390,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                 <div class="col-lg-7">
                     <div class="sms-sec-pw-box h-100">
                         <h3 class="h6 fw-bold mb-3">
-                            <i class="fas fa-lock text-sms-primary me-1" aria-hidden="true"></i>Reset password
+                            <?= smsIcon('lock', ['class' => 'text-sms-primary me-1', 'aria-hidden' => 'true']) ?>Reset password
                         </h3>
                         <?php if ($step === 'otp' && !empty($_SESSION['pending_admin_pw_change'])): ?>
                             <p class="sms-sec-lead">Enter the 6-digit OTP to finish resetting your admin password.</p>
@@ -424,7 +422,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                                     <?= smsPasswordInput(['id' => 'password_confirm', 'name' => 'password_confirm', 'required' => true, 'minlength' => $minLen, 'autocomplete' => 'new-password']) ?>
                                 </div>
                                 <button type="submit" class="btn btn-sms-primary">
-                                    <i class="fas fa-mobile-alt me-1"></i>Continue with OTP
+                                    <?= smsIcon('mobile-alt', ['class' => 'me-1']) ?>Continue with OTP
                                 </button>
                             </form>
                         <?php endif; ?>
@@ -433,7 +431,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                 <div class="col-lg-5">
                     <div class="sms-sec-pw-box h-100">
                         <h3 class="h6 fw-bold mb-3">
-                            <i class="fas fa-info-circle text-sms-primary me-1" aria-hidden="true"></i>Login status
+                            <?= smsIcon('info-circle', ['class' => 'text-sms-primary me-1', 'aria-hidden' => 'true']) ?>Login status
                         </h3>
                         <dl class="row small mb-3">
                             <dt class="col-5 text-muted">Email</dt>
@@ -454,7 +452,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                             <dd class="col-7 mb-0"><?= (int) ($profile['failed_login_attempts'] ?? 0) ?></dd>
                         </dl>
                         <a class="btn btn-outline-secondary w-100" href="<?= BASE_URL ?>/modules/user-management/pages/module-security.php?picker=1">
-                            <i class="fas fa-shield-alt me-2"></i>Module Security
+                            <?= smsIcon('shield-alt', ['class' => 'me-2']) ?>Module Security
                         </a>
                         <p class="small text-muted mt-3 mb-0">
                             Staff password requests are handled in Module Security. This screen is only for your Super Admin login.
@@ -466,6 +464,5 @@ require_once ROOT_PATH . '/includes/layout-start.php';
     </section>
 <?php endif; ?>
 
-<link href="<?= BASE_URL ?>/assets/css/password-strength.css" rel="stylesheet">
-<script src="<?= BASE_URL ?>/assets/js/password-strength.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/sms-security-ui.js?v=6"></script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>

@@ -30,7 +30,7 @@ try {
     $tablesCheck = $crad->query("SHOW TABLES LIKE 'research_plans'")->fetch();
     if (!$tablesCheck) throw new Exception('Not installed.');
 } catch (Throwable $e) {
-    echo '<div class="alert alert-warning m-3"><i class="fas fa-exclamation-triangle me-2"></i><strong>Module Not Installed</strong></div>';
+    echo '<div class="alert alert-warning m-3">' . smsIcon('exclamation-triangle', ['class' => 'me-2']) . '<strong>Module Not Installed</strong></div>';
     require_once ROOT_PATH . '/includes/layout-end.php';
     exit;
 }
@@ -160,7 +160,7 @@ $typeMeta = [
                 <input type="hidden" name="group" value="<?= htmlspecialchars($groupNumber) ?>">
                 <div class="col-md-4">
                     <label class="form-label" style="font-weight:700;font-size:0.8rem;color:var(--sms-heading);margin-bottom:0.3rem;">
-                        <i class="fas fa-tag me-1"></i>Feedback Type
+                        <?= smsIcon('tag', ['class' => 'me-1']) ?>Feedback Type
                     </label>
                     <select name="type" class="form-select form-select-sm">
                         <option value="all"              <?= $typeFilter === 'all'              ? 'selected':'' ?>>All Types</option>
@@ -172,7 +172,7 @@ $typeMeta = [
                 </div>
                 <div class="col-md-4">
                     <label class="form-label" style="font-weight:700;font-size:0.8rem;color:var(--sms-heading);margin-bottom:0.3rem;">
-                        <i class="fas fa-bookmark me-1"></i>Milestone
+                        <?= smsIcon('bookmark', ['class' => 'me-1']) ?>Milestone
                     </label>
                     <select name="milestone_id" class="form-select form-select-sm">
                         <option value="">All Milestones</option>
@@ -185,7 +185,7 @@ $typeMeta = [
                 </div>
                 <div class="col-md-4">
                     <button type="submit" class="btn btn-primary btn-sm w-100">
-                        <i class="fas fa-filter me-2"></i>Apply Filters
+                        <?= smsIcon('filter', ['class' => 'me-2']) ?>Apply Filters
                     </button>
                 </div>
             </form>
@@ -202,7 +202,7 @@ $typeMeta = [
                             <div class="rm-timeline-item">
                                 <!-- Dot -->
                                 <div class="rm-timeline-dot" style="background:<?= $tc['color'] ?>;">
-                                    <i class="fas fa-<?= $tc['icon'] ?>"></i>
+                                    <?= smsIcon($tc['icon']) ?>
                                 </div>
                                 <!-- Card -->
                                 <div class="rm-timeline-content">
@@ -212,17 +212,17 @@ $typeMeta = [
                                                 <!-- Type badge + milestone -->
                                                 <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
                                                     <span class="rm-feedback-item-type" style="background:<?= $tc['color'] ?>;color:#fff;">
-                                                        <i class="fas fa-<?= $tc['icon'] ?>"></i><?= htmlspecialchars($fb['feedback_type']) ?>
+                                                        <?= smsIcon($tc['icon']) ?><?= htmlspecialchars($fb['feedback_type']) ?>
                                                     </span>
                                                     <?php if ($fb['milestone_name']): ?>
                                                         <span class="badge bg-secondary" style="font-size:0.7rem;font-weight:700;">
-                                                            <i class="fas fa-bookmark me-1"></i><?= htmlspecialchars($fb['milestone_name']) ?>
+                                                            <?= smsIcon('bookmark', ['class' => 'me-1']) ?><?= htmlspecialchars($fb['milestone_name']) ?>
                                                         </span>
                                                     <?php endif; ?>
                                                 </div>
                                                 <div class="rm-timeline-re">Re: <?= htmlspecialchars($fb['update_title']) ?></div>
                                                 <div class="rm-timeline-to">
-                                                    <i class="fas fa-user me-1"></i>
+                                                    <?= smsIcon('user', ['class' => 'me-1']) ?>
                                                     To: <strong><?= htmlspecialchars($fb['submitted_by_name']) ?></strong>
                                                 </div>
                                             </div>
@@ -240,7 +240,7 @@ $typeMeta = [
                                         <!-- Status change note -->
                                         <?php if (!empty($fb['new_milestone_status'])): ?>
                                             <div class="rm-timeline-status-change mt-2">
-                                                <i class="fas fa-arrow-right"></i>
+                                                <?= smsIcon('arrow-right') ?>
                                                 Milestone status changed to:
                                                 <strong><?= htmlspecialchars($fb['new_milestone_status']) ?></strong>
                                             </div>
@@ -256,7 +256,7 @@ $typeMeta = [
         <?php else: ?>
             <div class="glass-panel">
                 <div class="glass-panel-body rm-empty">
-                    <div class="rm-empty-icon"><i class="fas fa-comments"></i></div>
+                    <div class="rm-empty-icon"><?= smsIcon('comments') ?></div>
                     <h6>No Feedback History</h6>
                     <p>
                         <?php if ($typeFilter !== 'all' || $milestoneFilter): ?>
@@ -271,7 +271,7 @@ $typeMeta = [
 
         <!-- Live refresh bar -->
         <div class="rm-refresh-bar" id="rmRefreshBar">
-            <i class="fas fa-sync-alt rm-refresh-icon" id="rmRefreshIcon"></i>
+            <?= smsIcon('sync-alt', ['class' => 'rm-refresh-icon']) ?>
             <span id="rmRefreshText">Last updated: <?= date('g:i:s A') ?></span>
         </div>
 

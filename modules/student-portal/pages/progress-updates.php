@@ -33,11 +33,11 @@ try {
         throw new Exception('Research Progress module not installed.');
     }
 } catch (Throwable $e) {
-    echo '<div class="alert alert-warning">
-        <i class="fas fa-exclamation-triangle me-2"></i>
-        <strong>Module Not Installed</strong><br>
-        The Research Progress module database tables are not yet installed.
-    </div>';
+    echo '<div class="alert alert-warning">'
+        . smsIcon('exclamation-triangle', ['class' => 'me-2'])
+        . '<strong>Module Not Installed</strong><br>'
+        . 'The Research Progress module database tables are not yet installed.'
+        . '</div>';
     require_once ROOT_PATH . '/includes/layout-end.php';
     exit;
 }
@@ -50,14 +50,12 @@ $studentName   = trim((string) ($_SESSION['full_name'] ?? $_SESSION['username'] 
 $researchGroup = rpGetRegisteredResearchGroup($crad, $studentId, $studentUserId);
 
 if (!$researchGroup) {
-    echo '<div class="alert alert-info">
-        <i class="fas fa-info-circle me-2"></i>
-        <strong>Research Development is not yet available.</strong><br>
-        Your research group must be officially registered in the
-        Capstone Group/Student Registry before you can access this section.
-        Please ensure your title approval is fully signed and your adviser
-        and coordinator assignments are in place.
-    </div>';
+    echo '<div class="alert alert-info">'
+        . smsIcon('info-circle', ['class' => 'me-2'])
+        . '<strong>Research Development is not yet available.</strong><br>'
+        . 'Your research group must be officially registered in the Capstone Group/Student Registry before you can access this section.'
+        . ' Please ensure your title approval is fully signed and your adviser and coordinator assignments are in place.'
+        . '</div>';
     require_once ROOT_PATH . '/includes/layout-end.php';
     exit;
 }
@@ -235,21 +233,21 @@ try {
                             <!-- Submit Button -->
                             <div class="d-grid">
                                 <button type="submit" id="submitBtn" class="btn btn-primary btn-lg">
-                                    <i class="fas fa-paper-plane me-2"></i>Submit Progress Update
+                                    <?= smsIcon('paper-plane', ['class' => 'me-2']) ?>Submit Progress Update
                                 </button>
                             </div>
                             <div id="submitted_state" class="alert alert-success d-none mt-3" role="status">
                                 <div class="d-flex align-items-start gap-2">
-                                    <i class="fas fa-check-circle mt-1"></i>
+                                    <?= smsIcon('check-circle', ['class' => 'mt-1']) ?>
                                     <div>
                                         <strong>Done Sent.</strong>
                                         <div>Your progress update has been submitted and sent to your adviser for review.</div>
                                         <div class="d-flex gap-2 flex-wrap mt-3">
                                             <a class="btn btn-sm btn-success" href="<?= BASE_URL ?>/modules/student-portal/pages/my-research.php">
-                                                <i class="fas fa-chart-line me-1"></i>View My Research
+                                                <?= smsIcon('chart-line', ['class' => 'me-1']) ?>View My Research
                                             </a>
                                             <button type="button" class="btn btn-sm btn-outline-success" id="submitAnotherBtn">
-                                                <i class="fas fa-plus me-1"></i>Submit Another Update
+                                                <?= smsIcon('plus', ['class' => 'me-1']) ?>Submit Another Update
                                             </button>
                                         </div>
                                     </div>
@@ -264,7 +262,7 @@ try {
                                 <div class="p-4" style="border-radius:12px;background:rgba(59,130,246,0.07);border:1.5px solid rgba(59,130,246,0.25);">
                                     <div class="d-flex align-items-start gap-3">
                                         <div style="flex-shrink:0;width:40px;height:40px;border-radius:10px;background:rgba(59,130,246,0.12);display:flex;align-items:center;justify-content:center;">
-                                            <i class="fas fa-paper-plane" style="color:#3b82f6;font-size:1.1rem;"></i>
+                                            <?= smsIcon('paper-plane', ['style' => 'color:#3b82f6;font-size:1.1rem;']) ?>
                                         </div>
                                         <div style="flex:1;">
                                             <div style="font-weight:700;color:var(--sms-heading);font-size:1rem;margin-bottom:4px;">
@@ -274,7 +272,7 @@ try {
                                                 Your progress update is currently waiting for Adviser review.
                                             </div>
                                             <span class="badge" style="background:rgba(59,130,246,0.12);color:#3b82f6;font-weight:700;font-size:0.78rem;padding:6px 14px;border-radius:20px;">
-                                                <i class="fas fa-clock me-1"></i>Waiting for Adviser Review
+                                                <?= smsIcon('clock', ['class' => 'me-1']) ?>Waiting for Adviser Review
                                             </span>
                                         </div>
                                     </div>
@@ -307,7 +305,7 @@ try {
                                             </div>
                                             <?php if ($update['milestone_name']): ?>
                                                 <div style="font-size:0.75rem;color:var(--sms-text-muted);">
-                                                    <i class="fas fa-bookmark me-1"></i>
+                                                    <?= smsIcon('bookmark', ['class' => 'me-1']) ?>
                                                     <?= htmlspecialchars($update['milestone_name']) ?>
                                                 </div>
                                             <?php endif; ?>
@@ -319,14 +317,14 @@ try {
                                         </div>
                                     </div>
                                     <div style="font-size:0.75rem;color:var(--sms-text-muted);">
-                                        <i class="fas fa-clock me-1"></i>
+                                        <?= smsIcon('clock', ['class' => 'me-1']) ?>
                                         <?= date('M d, Y g:i A', strtotime($update['submitted_at'])) ?>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
                         <?php else: ?>
                             <p class="text-muted text-center py-4">
-                                <i class="fas fa-inbox" style="font-size:2rem;color:var(--sms-border);display:block;margin-bottom:1rem;"></i>
+                                <?= smsIcon('inbox', ['style' => 'font-size:2rem;color:var(--sms-border);display:block;margin-bottom:1rem;']) ?>
                                 No progress updates yet
                             </p>
                         <?php endif; ?>
@@ -338,7 +336,7 @@ try {
                 <div class="glass-panel mt-3">
                     <div class="glass-panel-body">
                         <div style="font-weight:700;color:var(--sms-heading);margin-bottom:1rem;">
-                            <i class="fas fa-info-circle me-2" style="color:var(--sms-primary);"></i>
+                            <?= smsIcon('info-circle', ['class' => 'me-2', 'style' => 'color:var(--sms-primary);']) ?>
                             Tips for Progress Updates
                         </div>
                         <ul style="font-size:0.85rem;color:var(--sms-text);line-height:1.8;margin:0;padding-left:1.5rem;">
@@ -432,15 +430,15 @@ document.addEventListener('DOMContentLoaded', function() {
             submitBtn.disabled = lockInputs;
             if (isApproved) {
                 submitBtn.classList.replace('btn-primary', 'btn-success');
-                submitBtn.innerHTML = '<i class="fas fa-check-circle me-2"></i>Milestone Approved';
+                submitBtn.innerHTML = '<?= smsIcon('check-circle', ['class' => 'me-2']) ?>Milestone Approved';
             } else if (isPending) {
                 submitBtn.classList.replace('btn-primary', 'btn-secondary');
-                submitBtn.innerHTML = '<i class="fas fa-clock me-2"></i>Waiting for Adviser Review';
+                submitBtn.innerHTML = '<?= smsIcon('clock', ['class' => 'me-2']) ?>Waiting for Adviser Review';
             } else {
                 // Restore to submittable state (e.g. adviser returned the milestone)
                 submitBtn.classList.remove('btn-success', 'btn-secondary');
                 submitBtn.classList.add('btn-primary');
-                submitBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Submit Progress Update';
+                submitBtn.innerHTML = '<?= smsIcon('paper-plane', ['class' => 'me-2']) ?>Submit Progress Update';
             }
         }
     }
@@ -580,7 +578,7 @@ document.addEventListener('DOMContentLoaded', function() {
             milestoneSelect.dispatchEvent(new Event('change'));
         } else {
             submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Submit Progress Update';
+            submitBtn.innerHTML = '<?= smsIcon('paper-plane', ['class' => 'me-2']) ?>Submit Progress Update';
         }
     }
 
@@ -593,7 +591,7 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.disabled = true;
         submitBtn.classList.remove('btn-primary', 'btn-secondary');
         submitBtn.classList.add('btn-success');
-        submitBtn.innerHTML = '<i class="fas fa-check-circle me-2"></i>Done Sent';
+        submitBtn.innerHTML = '<?= smsIcon('check-circle', ['class' => 'me-2']) ?>Done Sent';
 
         const submittedState = document.getElementById('submitted_state');
         if (submittedState) {
@@ -612,7 +610,7 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.disabled = true;
         submitBtn.classList.remove('btn-primary', 'btn-success');
         submitBtn.classList.add('btn-secondary');
-        submitBtn.innerHTML = '<i class="fas fa-clock me-2"></i>Waiting for Adviser Review';
+        submitBtn.innerHTML = '<?= smsIcon('clock', ['class' => 'me-2']) ?>Waiting for Adviser Review';
 
         if (pendingReviewState) {
             pendingReviewState.classList.remove('d-none');
@@ -655,7 +653,7 @@ document.addEventListener('DOMContentLoaded', function() {
         hideFormAlert();
 
         if (!submissionToken) {
-            showFormAlert('warning', '<i class="fas fa-clock me-2"></i>Please wait, initializing submission token...');
+            showFormAlert('warning', '<?= smsIcon('clock', ['class' => 'me-2']) ?>Please wait, initializing submission token...');
             return;
         }
 
@@ -697,21 +695,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     // of assuming every 409 is a duplicate.
                     const msg    = result.message || 'Duplicate submission detected. This update was already submitted.';
                     const isDup  = result.is_duplicate || /duplicate/i.test(msg);
-                    showFormAlert(isDup ? 'warning' : 'danger', '<i class="fas fa-copy me-2"></i>' + escapeHtml(msg));
+                    showFormAlert(isDup ? 'warning' : 'danger', '<?= smsIcon('copy', ['class' => 'me-2']) ?>' + escapeHtml(msg));
                     restoreSubmitButton();
                 }
                 return;
             }
 
             if (!response.ok) {
-                showFormAlert('danger', '<i class="fas fa-exclamation-triangle me-2"></i>' + (result.message || 'Failed to submit progress update. Please try again.'));
+                showFormAlert('danger', '<?= smsIcon('exclamation-triangle', ['class' => 'me-2']) ?>' + (result.message || 'Failed to submit progress update. Please try again.'));
                 restoreSubmitButton();
                 return;
             }
 
             if (result.success) {
                 submissionToken = null;
-                showFormAlert('success', '<i class="fas fa-check-circle me-2"></i><strong>Done Sent.</strong> Your adviser can now see this progress update in Submitted Updates.');
+                showFormAlert('success', '<?= smsIcon('check-circle', ['class' => 'me-2']) ?><strong>Done Sent.</strong> Your adviser can now see this progress update in Submitted Updates.');
                 setSubmittedState();
 
                 // Refresh option data from the fresh milestones the server returned.
@@ -729,14 +727,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     window.location.href = redirectUrl;
                 }, 1800);
             } else {
-                showFormAlert('danger', '<i class="fas fa-exclamation-triangle me-2"></i>' + (result.message || 'Failed to submit progress update. Please try again.'));
+                showFormAlert('danger', '<?= smsIcon('exclamation-triangle', ['class' => 'me-2']) ?>' + (result.message || 'Failed to submit progress update. Please try again.'));
                 restoreSubmitButton();
             }
         } catch (error) {
             console.error('Submission error:', error);
             const message = error.message === 'invalid_success_response'
-                ? '<i class="fas fa-check-circle me-2"></i><strong>Done Sent.</strong> The update was submitted, but the confirmation response could not be read. Redirecting...'
-                : '<i class="fas fa-wifi me-2"></i>Network error. Please check your connection and try again.';
+                ? '<?= smsIcon('check-circle', ['class' => 'me-2']) ?><strong>Done Sent.</strong> The update was submitted, but the confirmation response could not be read. Redirecting...'
+                : '<?= smsIcon('wifi', ['class' => 'me-2']) ?>Network error. Please check your connection and try again.';
             showFormAlert(error.message === 'invalid_success_response' ? 'success' : 'danger', message);
             if (error.message === 'invalid_success_response') {
                 setSubmittedState();

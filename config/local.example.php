@@ -6,8 +6,10 @@
  * values. Keep config/local.php private if it contains real passwords.
  */
 
-// Leave blank to auto-detect the folder name from the current URL.
-// define('BASE_URL', '/SMS2_system');
+// Optional: Cursor API key for future AI enhancements (do not commit real keys).
+// define('CURSOR_API_KEY', '');
+
+define('SMS2_LOCAL_BASE_URL', '/sms2_system');
 
 // Main SMS2 database.
 define('DB_HOST', 'localhost');

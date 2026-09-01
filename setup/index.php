@@ -12,6 +12,8 @@ require_once ROOT_PATH . '/config/session.php';
 require_once ROOT_PATH . '/includes/security.php';
 require_once ROOT_PATH . '/includes/audit.php';
 require_once ROOT_PATH . '/includes/authentication.php';
+require_once ROOT_PATH . '/includes/security-ui.php';
+require_once ROOT_PATH . '/includes/security-workflow.php';
 
 if (!smsNeedsSetup()) {
     header('Location: ' . BASE_URL . '/login/login.php');
@@ -48,6 +50,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($password !== $confirm) {
             $error = 'Passwords do not match.';
         } else {
+            $strength = smsValidatePasswordStrength($password);
+            if (!$strength['ok']) {
+                $error = $strength['message'];
+            } else {
             $pdo = db();
             if (!$pdo) {
                 $error = 'Database unavailable. Run database/install.php first.';
@@ -63,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $pdo->prepare(
                         'INSERT INTO users
                             (username, email, password_hash, full_name, role_key, status, password_changed_at, must_change_password)
-                         VALUES (?, ?, ?, ?, \'admin\', \'active\', NOW(), 0)'
+                         VALUES (?, ?, ?, ?, \'superadmin\', \'active\', NOW(), 0)'
                     )->execute([
                         $username,
                         $email,
@@ -78,15 +84,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'System',
                         $userId,
                         $fullName,
-                        'admin'
+                        'superadmin'
                     );
+
+                    $pdo->prepare(
+                        'INSERT INTO role_permissions (role_key, module_key, granted)
+                         VALUES (\'superadmin\', \'user-management\', 1)
+                         ON DUPLICATE KEY UPDATE granted = VALUES(granted)'
+                    )->execute();
 
                     // Auto-login
                     session_regenerate_id(true);
                     $_SESSION['user_id'] = $userId;
                     $_SESSION['user_name'] = $fullName;
                     $_SESSION['user_role'] = 'Super Admin';
-                    $_SESSION['user_role_key'] = 'admin';
+                    $_SESSION['user_role_key'] = 'superadmin';
                     $_SESSION['user_email'] = $email;
                     $_SESSION['must_change_password'] = 0;
                     $_SESSION['last_activity'] = time();
@@ -96,6 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } catch (PDOException $e) {
                     $error = 'Could not create account. Email or username may already exist.';
                 }
+            }
             }
         }
     }
@@ -146,8 +159,8 @@ body.login-page {
 }
 </style>
 
-<div class="setup-card">
-    <div class="setup-badge"><i class="fas fa-shield-alt"></i> BCP Security Setup</div>
+<div class="setup-card sms-form-card">
+    <div class="setup-badge"><?= smsIcon('shield-alt') ?> BCP Security Setup</div>
     <h1>Create Super Admin</h1>
     <p class="lead">
         Walang demo accounts. Gumawa muna ng tunay na Super Admin para ma-adopt ang security sa system mo.
@@ -178,13 +191,24 @@ body.login-page {
         </div>
         <div class="mb-3">
             <label class="form-label fw-semibold" for="password">Password</label>
-            <input type="password" class="form-control" id="password" name="password" required
-                   minlength="<?= (int) $minLen ?>" autocomplete="new-password">
+            <?= smsPasswordInput([
+                'id' => 'password',
+                'name' => 'password',
+                'required' => true,
+                'minlength' => $minLen,
+                'autocomplete' => 'new-password',
+            ]) ?>
+            <?= smsPasswordStrengthMarkup('password') ?>
         </div>
         <div class="mb-3">
             <label class="form-label fw-semibold" for="password_confirm">Confirm password</label>
-            <input type="password" class="form-control" id="password_confirm" name="password_confirm" required
-                   minlength="<?= (int) $minLen ?>" autocomplete="new-password">
+            <?= smsPasswordInput([
+                'id' => 'password_confirm',
+                'name' => 'password_confirm',
+                'required' => true,
+                'minlength' => $minLen,
+                'autocomplete' => 'new-password',
+            ]) ?>
         </div>
         <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">
             Create Super Admin &amp; continue

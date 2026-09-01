@@ -64,14 +64,14 @@ renderBreadcrumbs($breadcrumbs);
 
         <div class="glass-panel mb-4">
             <div class="glass-panel-body">
-                <h5 class="glass-panel-title"><i class="fas fa-redo me-2"></i>Final Defense Revision Monitoring</h5>
+                <h5 class="glass-panel-title"><?= smsIcon('redo', ['class' => 'me-2']) ?>Final Defense Revision Monitoring</h5>
                 <p class="text-muted mb-0">Groups appear here when every assigned Final Defense panel member returns APPROVED WITH REVISION. Review their remarks and confirm compliance after the researcher submits the required revisions.</p>
             </div>
         </div>
 
         <?php if (!$groups): ?>
             <div class="glass-panel"><div class="glass-panel-body text-center py-5">
-                <i class="fas fa-clipboard-check fa-2x text-muted mb-3"></i>
+                <?= smsIcon('clipboard-check', ['class' => 'fa-2x text-muted mb-3']) ?>
                 <h6>No Final Defense revision cases</h6>
                 <p class="text-muted mb-0">No assigned group currently has a complete panel consensus requiring post-defense revision.</p>
             </div></div>
@@ -94,11 +94,11 @@ renderBreadcrumbs($breadcrumbs);
                                 <span class="badge <?= $status === 'Compliant' ? 'bg-success' : ($status === 'Under Review' ? 'bg-warning text-dark' : 'bg-danger') ?>"><?= htmlspecialchars($status) ?></span>
                             </div>
                             <div class="small text-muted mb-3">
-                                <i class="fas fa-gavel me-1"></i> Final Defense: <?= !empty($group['defense_datetime']) ? htmlspecialchars(date('M j, Y g:i A', strtotime((string) $group['defense_datetime']))) : 'Not recorded' ?>
+                                <?= smsIcon('gavel', ['class' => 'me-1']) ?> Final Defense: <?= !empty($group['defense_datetime']) ? htmlspecialchars(date('M j, Y g:i A', strtotime((string) $group['defense_datetime']))) : 'Not recorded' ?>
                                 &middot; Panel: <?= (int) $group['awr_count'] ?>/<?= (int) $group['assigned_panel_count'] ?> revisions
                             </div>
                             <div class="alert <?= !empty($group['revision_submitted']) ? 'alert-info' : 'alert-warning' ?> py-2 small">
-                                <i class="fas <?= !empty($group['revision_submitted']) ? 'fa-file-check' : 'fa-hourglass-half' ?> me-1"></i>
+                                <?= smsIcon(!empty($group['revision_submitted']) ? 'file-check' : 'hourglass-half', ['class' => 'me-1']) ?>
                                 <?php if (!empty($group['revision_submitted'])): ?>
                                     Revision submitted: <?= htmlspecialchars((string) ($group['revision_update_title'] ?: 'Progress update')) ?>
                                     <?php if (!empty($group['revision_submitted_at'])): ?> on <?= htmlspecialchars(date('M j, Y g:i A', strtotime((string) $group['revision_submitted_at']))) ?><?php endif; ?>.
@@ -122,10 +122,10 @@ renderBreadcrumbs($breadcrumbs);
                                         <option value="<?= htmlspecialchars($option) ?>" <?= $status === $option ? 'selected' : '' ?>><?= htmlspecialchars($option) ?></option>
                                     <?php endforeach; ?>
                                 </select>
-                                <button class="btn btn-primary btn-sm" type="submit"><i class="fas fa-save me-1"></i>Save Compliance Status</button>
+                                <button class="btn btn-primary btn-sm" type="submit"><?= smsIcon('save', ['class' => 'me-1']) ?>Save Compliance Status</button>
                             </form>
                             <?php if ($status === 'Compliant'): ?>
-                                <div class="alert alert-success mt-3 mb-0 py-2 small"><i class="fas fa-check-circle me-1"></i>Eligible for Final Manuscript Approval checks.</div>
+                                <div class="alert alert-success mt-3 mb-0 py-2 small"><?= smsIcon('check-circle', ['class' => 'me-1']) ?>Eligible for Final Manuscript Approval checks.</div>
                             <?php endif; ?>
                         </div></div>
                     </div>

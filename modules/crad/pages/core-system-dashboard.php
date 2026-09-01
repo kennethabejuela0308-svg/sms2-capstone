@@ -15,14 +15,10 @@ require_once __DIR__ . '/../includes/grant-helpers.php';
 
 requireAuth();
 
-$roleKey = getCurrentUserRoleKey();
-if (!in_array($roleKey, ['crad_officer', 'superadmin', 'admin'], true)) {
-    header('Location: ' . BASE_URL . '/dashboard/index.php');
-    exit;
-}
+grantRequireManageAccess();
 
 $pageTitle             = 'Dashboard & Analytics';
-$activeModule          = 'crad';
+$activeModule          = grantActiveModuleKey();
 $activePage            = 'core-system-dashboard';
 $pageBannerIcon        = 'fa-chart-pie';
 $pageBannerDescription = 'Real-time grant management overview — opportunities, applications, and funding status.';
@@ -80,7 +76,7 @@ function csdStatusBadge(string $status): string
 
 <?php if ($dbError !== ''): ?>
     <div class="mpl-alert" role="alert" style="background:rgba(239,68,68,0.08);color:#b91c1c;">
-        <i class="fas fa-exclamation-triangle me-1"></i><?= $dbError ?>
+        <?= smsIcon('exclamation-triangle', ['class' => 'me-1']) ?><?= $dbError ?>
     </div>
 <?php endif; ?>
 
@@ -91,11 +87,11 @@ function csdStatusBadge(string $status): string
         <div class="mpl-toolbar">
             <a class="mpl-btn mpl-btn-primary"
                href="<?= BASE_URL ?>/modules/crad/pages/grant-opportunities.php">
-                <i class="fas fa-hand-holding-usd" aria-hidden="true"></i>Grant Opportunities
+                <?= smsIcon('hand-holding-usd', ['aria-hidden' => 'true']) ?>Grant Opportunities
             </a>
             <a class="mpl-btn mpl-btn-soft"
                href="<?= BASE_URL ?>/modules/crad/pages/proposals-applications.php">
-                <i class="fas fa-file-alt" aria-hidden="true"></i>Proposals &amp; Applications
+                <?= smsIcon('file-alt', ['aria-hidden' => 'true']) ?>Proposals &amp; Applications
             </a>
         </div>
     </div>
@@ -104,28 +100,28 @@ function csdStatusBadge(string $status): string
     <section class="mpl-stats" aria-label="Grant management summary"
              data-grant-stats>
         <article class="mpl-stat" data-stat="total_opportunities">
-            <div class="mpl-stat-icon blue"><i class="fas fa-hand-holding-usd"></i></div>
+            <div class="mpl-stat-icon blue"><?= smsIcon('hand-holding-usd') ?></div>
             <div>
                 <span>Total Grant Opportunities</span>
                 <strong><?= $stats['total_opportunities'] ?></strong>
             </div>
         </article>
         <article class="mpl-stat" data-stat="open">
-            <div class="mpl-stat-icon green"><i class="fas fa-door-open"></i></div>
+            <div class="mpl-stat-icon green"><?= smsIcon('door-open') ?></div>
             <div>
                 <span>Open for Application</span>
                 <strong><?= $stats['open'] ?></strong>
             </div>
         </article>
         <article class="mpl-stat" data-stat="total_applications">
-            <div class="mpl-stat-icon amber"><i class="fas fa-file-alt"></i></div>
+            <div class="mpl-stat-icon amber"><?= smsIcon('file-alt') ?></div>
             <div>
                 <span>Total Applications</span>
                 <strong><?= $stats['total_applications'] ?></strong>
             </div>
         </article>
         <article class="mpl-stat" data-stat="approved">
-            <div class="mpl-stat-icon purple"><i class="fas fa-check-circle"></i></div>
+            <div class="mpl-stat-icon purple"><?= smsIcon('check-circle') ?></div>
             <div>
                 <span>Approved Applications</span>
                 <strong><?= $stats['approved'] ?></strong>
@@ -137,19 +133,19 @@ function csdStatusBadge(string $status): string
     <section class="mpl-stats" aria-label="Secondary grant stats" data-grant-stats-secondary
              style="margin-top:0.75rem;">
         <article class="mpl-stat" data-stat="closed">
-            <div class="mpl-stat-icon blue"><i class="fas fa-lock"></i></div>
+            <div class="mpl-stat-icon blue"><?= smsIcon('lock') ?></div>
             <div><span>Closed</span><strong><?= $stats['closed'] ?></strong></div>
         </article>
         <article class="mpl-stat" data-stat="expired">
-            <div class="mpl-stat-icon amber"><i class="fas fa-calendar-times"></i></div>
+            <div class="mpl-stat-icon amber"><?= smsIcon('calendar-times') ?></div>
             <div><span>Expired</span><strong><?= $stats['expired'] ?></strong></div>
         </article>
         <article class="mpl-stat" data-stat="under_review">
-            <div class="mpl-stat-icon blue"><i class="fas fa-search"></i></div>
+            <div class="mpl-stat-icon blue"><?= smsIcon('search') ?></div>
             <div><span>Under Review</span><strong><?= $stats['under_review'] ?></strong></div>
         </article>
         <article class="mpl-stat" data-stat="denied">
-            <div class="mpl-stat-icon cancelled"><i class="fas fa-ban"></i></div>
+            <div class="mpl-stat-icon cancelled"><?= smsIcon('ban') ?></div>
             <div><span>Denied</span><strong><?= $stats['denied'] ?></strong></div>
         </article>
     </section>
@@ -163,7 +159,7 @@ function csdStatusBadge(string $status): string
             </div>
             <a class="mpl-btn mpl-btn-ghost mpl-btn-sm"
                href="<?= BASE_URL ?>/modules/crad/pages/grant-opportunities.php">
-                <i class="fas fa-arrow-right" aria-hidden="true"></i> View All
+                <?= smsIcon('arrow-right', ['aria-hidden' => 'true']) ?> View All
             </a>
         </div>
         <div class="mpl-table-wrap">
@@ -214,7 +210,7 @@ function csdStatusBadge(string $status): string
             </div>
             <a class="mpl-btn mpl-btn-ghost mpl-btn-sm"
                href="<?= BASE_URL ?>/modules/crad/pages/proposals-applications.php">
-                <i class="fas fa-arrow-right" aria-hidden="true"></i> View All
+                <?= smsIcon('arrow-right', ['aria-hidden' => 'true']) ?> View All
             </a>
         </div>
         <div class="mpl-table-wrap">

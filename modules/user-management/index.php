@@ -28,8 +28,12 @@ function umRoleBadgeClass(string $role, string $label = ''): string
         'admissionoffice' => 'admission',
         'admission_office' => 'admission',
         'crad_officer' => 'crad',
-        'research_grant' => 'crad',
+        'research_grant' => 'research_grant',
+        'review_committee' => 'review_committee',
         'research_coordinator' => 'research_coordinator',
+        'department_chair' => 'department_chair',
+        'research_office' => 'research_office',
+        'vpaa' => 'vpaa',
         'grammarian' => 'grammarian',
         'qa_office' => 'qa',
     ];
@@ -140,56 +144,56 @@ if ($pdo) {
 }
 
 $stats = [
-    ['key' => 'total',    'label' => 'Total Users', 'value' => (string) $statsRaw['total'],    'icon' => 'fa-users',      'type' => 'primary'],
-    ['key' => 'active',   'label' => 'Active',      'value' => (string) $statsRaw['active'],   'icon' => 'fa-user-check', 'type' => 'success'],
-    ['key' => 'inactive', 'label' => 'Inactive',    'value' => (string) $statsRaw['inactive'], 'icon' => 'fa-user-slash', 'type' => 'warning'],
-    ['key' => 'locked',   'label' => 'Locked Out',  'value' => (string) $statsRaw['locked'],   'icon' => 'fa-user-lock',  'type' => 'info'],
+    ['key' => 'total',    'label' => 'Total Users', 'value' => (string) $statsRaw['total'],    'icon' => 'users',      'type' => 'primary'],
+    ['key' => 'active',   'label' => 'Active',      'value' => (string) $statsRaw['active'],   'icon' => 'user-check', 'type' => 'success'],
+    ['key' => 'inactive', 'label' => 'Inactive',    'value' => (string) $statsRaw['inactive'], 'icon' => 'user-off',   'type' => 'warning'],
+    ['key' => 'locked',   'label' => 'Locked Out',  'value' => (string) $statsRaw['locked'],   'icon' => 'lock',       'type' => 'info'],
 ];
 
 $subpages = [
     [
         'slug'  => 'user-accounts',
         'title' => 'User Accounts',
-        'icon'  => 'fa-user-cog',
+        'icon'  => 'user-cog',
         'desc'  => 'Create and manage accounts. Use the User Archive button on that page for archived users.',
     ],
     [
         'slug'  => 'role-permissions',
         'title' => 'Role & Permissions',
-        'icon'  => 'fa-shield-alt',
+        'icon'  => 'shield',
         'desc'  => 'View the role–module permission matrix and configure access per role.',
     ],
     [
         'slug'  => 'module-security',
         'title' => 'Module Security',
-        'icon'  => 'fa-lock',
+        'icon'  => 'lock',
         'desc'  => 'Open a module (e.g. CRAD), then use Activity Logs or Password Management (requests + reset).',
     ],
     [
         'slug'  => 'activity-logs',
         'title' => 'Activity Logs',
-        'icon'  => 'fa-history',
+        'icon'  => 'history',
         'desc'  => 'Audit trail of all user logins, actions, and system events.',
     ],
     [
         'slug'  => 'system-settings',
         'title' => 'System Settings',
-        'icon'  => 'fa-sliders-h',
+        'icon'  => 'adjustments-horizontal',
         'desc'  => 'Configure application name, school year, session rules, and global toggles.',
     ],
 ];
 ?>
 
-<link href="<?= BASE_URL ?>/modules/user-management/assets/css/user-management.css" rel="stylesheet">
+<link href="<?= BASE_URL ?>/modules/user-management/assets/css/user-management.css?v=grant-role-badges-1" rel="stylesheet">
 
 <?php
-$pageBannerIcon        = 'fa-users-cog';
+$pageBannerIcon        = 'user-cog';
 $pageBannerDescription = 'Manage system users, roles, access permissions, activity logs, and global settings.';
 renderBreadcrumbs($breadcrumbs);
 ?>
 
 <div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-2">
-    <span class="placeholder-badge"><i class="fas fa-lock me-1"></i>User Management Access</span>
+    <span class="placeholder-badge"><?= smsIcon('lock', ['class' => 'me-1']) ?>User Management Access</span>
 </div>
 
 <!-- Summary stats -->
@@ -198,7 +202,7 @@ renderBreadcrumbs($breadcrumbs);
         <div class="col-6 col-xl-3">
             <section class="card stat-card <?= $stat['type'] ?>">
                 <div class="card-body d-flex align-items-center">
-                    <div class="stat-icon me-3"><i class="fas <?= $stat['icon'] ?>"></i></div>
+                    <div class="stat-icon me-3"><?= smsIcon($stat['icon']) ?></div>
                     <div>
                         <h6 class="text-muted mb-0 small"><?= $stat['label'] ?></h6>
                         <h4 class="mb-0 fw-bold" data-um-stat="<?= e($stat['key']) ?>"><?= $stat['value'] ?></h4>
@@ -225,7 +229,7 @@ renderBreadcrumbs($breadcrumbs);
                 <div class="card module-card hover-card h-100">
                     <div class="card-body d-flex align-items-start gap-3 p-4">
                         <div class="card-icon flex-shrink-0">
-                            <i class="fas <?= $page['icon'] ?>" aria-hidden="true"></i>
+                            <?= smsIcon($page['icon'], ['aria-hidden' => 'true']) ?>
                         </div>
                         <div class="min-w-0">
                             <h6 class="mb-1 fw-bold"><?= htmlspecialchars($page['title']) ?></h6>
@@ -233,7 +237,7 @@ renderBreadcrumbs($breadcrumbs);
                                 <?= htmlspecialchars($page['desc']) ?>
                             </small>
                         </div>
-                        <i class="fas fa-chevron-right text-sms-primary ms-auto mt-1 flex-shrink-0" style="font-size:.7rem;opacity:.6;"></i>
+                        <?= smsIcon('chevron-right', ['class' => 'text-sms-primary ms-auto mt-1 flex-shrink-0', 'style' => 'font-size:.7rem;opacity:.6;']) ?>
                     </div>
                 </div>
             </a>
@@ -246,11 +250,11 @@ renderBreadcrumbs($breadcrumbs);
     <div class="card-body">
         <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
             <h5 class="card-title fw-semibold mb-0">
-                <i class="fas fa-users text-sms-primary me-2"></i>System Users
+                <?= smsIcon('users', ['class' => 'text-sms-primary me-2']) ?>System Users
             </h5>
             <a href="<?= BASE_URL ?>/modules/user-management/pages/user-accounts.php"
                class="btn btn-sm btn-outline-primary">
-                <i class="fas fa-arrow-right me-1"></i>Manage All
+                <?= smsIcon('arrow-right', ['class' => 'me-1']) ?>Manage All
             </a>
         </div>
         <div class="table-responsive">
@@ -267,7 +271,7 @@ renderBreadcrumbs($breadcrumbs);
                     <?php if (!$overviewUsers): ?>
                     <tr>
                         <td colspan="4" class="text-center py-5 text-muted">
-                            <i class="fas fa-users fa-2x mb-2 d-block opacity-50"></i>
+                            <?= smsIcon('users', ['class' => 'fa-2x mb-2 d-block opacity-50']) ?>
                             No users found.
                         </td>
                     </tr>

@@ -480,7 +480,7 @@ function panelRenderDefenseDetails(?array $defense): void
         <div class="col-lg-6"><section class="glass-panel p-4 h-100">
             <h5 class="mb-3">Panel Members</h5>
             <?php foreach (($defense['panel_members_list'] ?? []) as $member): ?>
-                <div class="mb-2"><i class="fas fa-user-check me-2 text-primary"></i><?= e((string) $member) ?></div>
+                <div class="mb-2"><?= smsIcon('user-check', ['class' => 'me-2 text-primary']) ?><?= e((string) $member) ?></div>
             <?php endforeach; ?>
             <?php if (empty($defense['panel_members_list'])): ?><div class="text-muted">No panel members recorded.</div><?php endif; ?>
         </section></div>
@@ -549,7 +549,7 @@ function panelRenderScoring(?array $defense, string $message = '', string $error
                 <div class="col-md-6"><label class="form-label">Overall Score</label><input type="text" class="form-control" data-panel-overall readonly value="0.00"></div>
                 <div class="col-md-6"><label class="form-label">Possible Result</label><select class="form-select" name="result" required><option value="">Select result...</option><option value="APPROVED">APPROVED</option><option value="APPROVED WITH REVISION">APPROVED WITH REVISION</option><option value="FAILED">FAILED</option></select></div>
             </div>
-            <button type="button" class="btn btn-sms-primary" data-panel-open-confirm><i class="fas fa-check me-2"></i>Submit Evaluation</button>
+            <button type="button" class="btn btn-sms-primary" data-panel-open-confirm><?= smsIcon('check', ['class' => 'me-2']) ?>Submit Evaluation</button>
         </form>
     </section>
     <div class="modal fade" id="panelSubmitConfirmModal" tabindex="-1" aria-hidden="true">
@@ -606,7 +606,7 @@ function renderPanelDefensePage(string $mode, string $message = '', string $erro
         <?php if ($mode === 'assigned'): ?>
             <?php $rows = panelDefenseRows(false); ?>
             <section class="glass-panel p-4">
-                <div class="d-flex align-items-center justify-content-between gap-3 mb-3"><h5 class="mb-0"><i class="fas fa-clipboard-list me-2 text-primary"></i>Assigned Defenses</h5><span class="badge text-bg-primary" data-panel-count><?= count($rows) ?> Records</span></div>
+                <div class="d-flex align-items-center justify-content-between gap-3 mb-3"><h5 class="mb-0"><?= smsIcon('clipboard-list', ['class' => 'me-2 text-primary']) ?>Assigned Defenses</h5><span class="badge text-bg-primary" data-panel-count><?= count($rows) ?> Records</span></div>
                 <div data-panel-content><?php panelRenderAssignedRows($rows); ?></div>
             </section>
         <?php elseif ($mode === 'details'): ?>
@@ -626,7 +626,7 @@ function renderPanelDefensePage(string $mode, string $message = '', string $erro
         <?php else: ?>
             <?php $rows = panelDefenseRows(true); ?>
             <section class="glass-panel p-4">
-                <div class="d-flex align-items-center justify-content-between gap-3 mb-3"><h5 class="mb-0"><i class="fas fa-history me-2 text-primary"></i>Evaluation History</h5><span class="badge text-bg-primary" data-panel-count><?= count($rows) ?> Records</span></div>
+                <div class="d-flex align-items-center justify-content-between gap-3 mb-3"><h5 class="mb-0"><?= smsIcon('history', ['class' => 'me-2 text-primary']) ?>Evaluation History</h5><span class="badge text-bg-primary" data-panel-count><?= count($rows) ?> Records</span></div>
                 <div data-panel-content><?php panelRenderHistoryRows($rows); ?></div>
             </section>
         <?php endif; ?>

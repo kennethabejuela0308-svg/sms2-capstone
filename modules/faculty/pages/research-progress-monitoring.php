@@ -33,7 +33,7 @@ try {
     $tablesCheck = $crad->query("SHOW TABLES LIKE 'research_plans'")->fetch();
     if (!$tablesCheck) throw new Exception('Not installed.');
 } catch (Throwable $e) {
-    echo '<div class="alert alert-warning m-3"><i class="fas fa-exclamation-triangle me-2"></i><strong>Module Not Installed</strong><br>The Research Progress module is not yet installed.</div>';
+    echo '<div class="alert alert-warning m-3">' . smsIcon('exclamation-triangle', ['class' => 'me-2']) . '<strong>Module Not Installed</strong><br>The Research Progress module is not yet installed.</div>';
     require_once ROOT_PATH . '/includes/layout-end.php';
     exit;
 }
@@ -150,7 +150,7 @@ $progressColor = $overallProgress >= 80 ? '#10b981' : ($overallProgress >= 40 ? 
         <!-- ── Page Header ───────────────────────────────── -->
         <div class="rm-page-header">
             <div class="rm-page-header-left">
-                <h4><i class="fas fa-chart-line me-2" style="color:var(--sms-primary);"></i>Research Progress</h4>
+                <h4><?= smsIcon('chart-line', ['class' => 'me-2', 'style' => 'color:var(--sms-primary);']) ?>Research Progress</h4>
                 <p>Detailed monitoring for this research group</p>
             </div>
         </div>
@@ -216,7 +216,7 @@ $progressColor = $overallProgress >= 80 ? '#10b981' : ($overallProgress >= 40 ? 
                             </div>
                             <a href="<?= BASE_URL ?>/modules/faculty/pages/milestones-overview.php?group=<?= urlencode($groupNumber) ?>"
                                class="rm-back-btn" style="font-size:0.8rem;">
-                                <i class="fas fa-external-link-alt"></i>Full View
+                                <?= smsIcon('external-link-alt') ?>Full View
                             </a>
                         </div>
 
@@ -251,7 +251,7 @@ $progressColor = $overallProgress >= 80 ? '#10b981' : ($overallProgress >= 40 ? 
                                             <?= htmlspecialchars($m['milestone_name']) ?>
                                             <?php if (!empty($m['target_date'])): ?>
                                                 <div style="font-size:0.72rem;color:var(--sms-text-muted);font-weight:600;margin-top:2px;">
-                                                    <i class="fas fa-calendar-check me-1"></i><?= date('M d, Y', strtotime($m['target_date'])) ?>
+                                                    <?= smsIcon('calendar-check', ['class' => 'me-1']) ?><?= date('M d, Y', strtotime($m['target_date'])) ?>
                                                 </div>
                                             <?php endif; ?>
                                         </td>
@@ -267,7 +267,7 @@ $progressColor = $overallProgress >= 80 ? '#10b981' : ($overallProgress >= 40 ? 
                                         </td>
                                         <td>
                                             <span class="rm-status-pill" style="background:<?= $sc['bg'] ?>;color:<?= $sc['color'] ?>;" data-milestone-status>
-                                                <i class="fas fa-<?= $sc['icon'] ?>"></i>
+                                                <?= smsIcon($sc['icon']) ?>
                                                 <?= htmlspecialchars($m['status']) ?>
                                             </span>
                                         </td>
@@ -276,7 +276,7 @@ $progressColor = $overallProgress >= 80 ? '#10b981' : ($overallProgress >= 40 ? 
                                                 <a href="<?= BASE_URL ?>/modules/faculty/pages/submitted-updates.php?group=<?= urlencode($groupNumber) ?>&milestone_id=<?= $m['id'] ?>"
                                                    class="badge bg-warning text-dark text-decoration-none"
                                                    style="font-size:0.75rem;padding:0.3rem 0.6rem;">
-                                                    <i class="fas fa-clock me-1"></i><?= $pend ?>
+                                                    <?= smsIcon('clock', ['class' => 'me-1']) ?><?= $pend ?>
                                                 </a>
                                             <?php else: ?>
                                                 <span class="text-muted" style="font-size:0.85rem;">—</span>
@@ -289,7 +289,7 @@ $progressColor = $overallProgress >= 80 ? '#10b981' : ($overallProgress >= 40 ? 
                         </div>
                         <?php else: ?>
                             <div class="rm-empty" style="padding:2rem 1rem;">
-                                <div class="rm-empty-icon"><i class="fas fa-tasks"></i></div>
+                                <div class="rm-empty-icon"><?= smsIcon('tasks') ?></div>
                                 <h6>No Milestones Yet</h6>
                                 <p>Milestones have not been initialized for this group.</p>
                             </div>
@@ -319,7 +319,7 @@ $progressColor = $overallProgress >= 80 ? '#10b981' : ($overallProgress >= 40 ? 
 
                         <?php if (($finalDefenseRecommendation['status'] ?? '') === 'Recommended'): ?>
                             <div class="alert alert-success py-2 mb-3">
-                                <strong><i class="fas fa-check-circle me-1"></i>Recommended</strong>
+                                <strong><?= smsIcon('check-circle', ['class' => 'me-1']) ?>Recommended</strong>
                                 <div class="small mt-1">
                                     <?= htmlspecialchars((string) ($finalDefenseRecommendation['final_defense_recommended_by_name'] ?? '')) ?>
                                     <?php if (!empty($finalDefenseRecommendation['final_defense_recommended_at'])): ?>
@@ -334,7 +334,7 @@ $progressColor = $overallProgress >= 80 ? '#10b981' : ($overallProgress >= 40 ? 
                                 <?= csrfField() ?>
                                 <input type="hidden" name="fdr_action" value="revoke">
                                 <button type="submit" class="btn btn-outline-danger btn-sm">
-                                    <i class="fas fa-undo me-1"></i>Revoke Recommendation
+                                    <?= smsIcon('undo', ['class' => 'me-1']) ?>Revoke Recommendation
                                 </button>
                             </form>
                         <?php else: ?>
@@ -349,7 +349,7 @@ $progressColor = $overallProgress >= 80 ? '#10b981' : ($overallProgress >= 40 ? 
                                 <label class="form-label small fw-bold" for="fdr_remarks">Remarks (optional)</label>
                                 <textarea class="form-control form-control-sm mb-3" id="fdr_remarks" name="fdr_remarks" rows="3" maxlength="5000" placeholder="Add readiness remarks for the research group."></textarea>
                                 <button type="submit" class="btn btn-primary btn-sm" <?= $finalDefenseRecommendationEligible ? '' : 'disabled' ?>>
-                                    <i class="fas fa-flag-checkered me-1"></i>Recommend for Final Defense
+                                    <?= smsIcon('flag-checkered', ['class' => 'me-1']) ?>Recommend for Final Defense
                                 </button>
                             </form>
                         <?php endif; ?>
@@ -363,17 +363,17 @@ $progressColor = $overallProgress >= 80 ? '#10b981' : ($overallProgress >= 40 ? 
                         <div class="d-flex flex-column gap-2">
                             <a href="<?= BASE_URL ?>/modules/faculty/pages/submitted-updates.php?group=<?= urlencode($groupNumber) ?>"
                                class="rm-primary-action" style="justify-content:flex-start;">
-                                <i class="fas fa-inbox"></i>
+                                <?= smsIcon('inbox') ?>
                                 Review Updates
                                 <span class="badge bg-warning text-dark ms-auto<?= $pendingTotal > 0 ? '' : ' d-none' ?>" data-review-updates-badge><?= $pendingTotal ?></span>
                             </a>
                             <a href="<?= BASE_URL ?>/modules/faculty/pages/milestones-overview.php?group=<?= urlencode($groupNumber) ?>"
                                class="rm-sec-action" style="justify-content:flex-start;padding:0.6rem 0.85rem;">
-                                <i class="fas fa-tasks"></i>Milestone Details
+                                <?= smsIcon('tasks') ?>Milestone Details
                             </a>
                             <a href="<?= BASE_URL ?>/modules/faculty/pages/adviser-feedback-history.php?group=<?= urlencode($groupNumber) ?>"
                                class="rm-sec-action" style="justify-content:flex-start;padding:0.6rem 0.85rem;">
-                                <i class="fas fa-comments"></i>Feedback History
+                                <?= smsIcon('comments') ?>Feedback History
                             </a>
                         </div>
                     </div>
@@ -407,12 +407,12 @@ $progressColor = $overallProgress >= 80 ? '#10b981' : ($overallProgress >= 40 ? 
                                     </div>
                                     <?php if ($u['milestone_name']): ?>
                                         <div style="font-size:0.75rem;color:var(--sms-text-muted);font-weight:600;margin-bottom:0.3rem;">
-                                            <i class="fas fa-bookmark me-1"></i><?= htmlspecialchars($u['milestone_name']) ?>
+                                            <?= smsIcon('bookmark', ['class' => 'me-1']) ?><?= htmlspecialchars($u['milestone_name']) ?>
                                         </div>
                                     <?php endif; ?>
                                     <div class="d-flex align-items-center justify-content-between gap-2">
                                         <div style="font-size:0.7rem;color:var(--sms-text-muted);">
-                                            <i class="fas fa-clock me-1"></i>
+                                            <?= smsIcon('clock', ['class' => 'me-1']) ?>
                                             <?= date('M d, g:i A', strtotime($u['submitted_at'])) ?>
                                         </div>
                                         <span class="rm-status-pill" style="background:<?= $uSC['bg'] ?>;color:<?= $uSC['color'] ?>;font-size:0.65rem;padding:0.18rem 0.55rem;">
@@ -422,7 +422,7 @@ $progressColor = $overallProgress >= 80 ? '#10b981' : ($overallProgress >= 40 ? 
                                     <div class="mt-2">
                                         <a href="<?= BASE_URL ?>/modules/faculty/pages/submitted-updates.php?group=<?= urlencode($groupNumber) ?>&update_id=<?= $u['id'] ?>"
                                            style="font-size:0.78rem;font-weight:700;color:var(--sms-primary);text-decoration:none;">
-                                            <i class="fas fa-eye me-1"></i>Review →
+                                            <?= smsIcon('eye', ['class' => 'me-1']) ?>Review →
                                         </a>
                                     </div>
                                 </div>
@@ -431,12 +431,12 @@ $progressColor = $overallProgress >= 80 ? '#10b981' : ($overallProgress >= 40 ? 
                             <div class="mt-3">
                                 <a href="<?= BASE_URL ?>/modules/faculty/pages/submitted-updates.php?group=<?= urlencode($groupNumber) ?>"
                                    class="rm-primary-action" style="font-size:0.82rem;">
-                                    <i class="fas fa-inbox"></i>View All Updates
+                                    <?= smsIcon('inbox') ?>View All Updates
                                 </a>
                             </div>
                         <?php else: ?>
                             <div class="rm-empty" style="padding:1.5rem 0;">
-                                <div class="rm-empty-icon" style="width:48px;height:48px;font-size:1.2rem;"><i class="fas fa-inbox"></i></div>
+                                <div class="rm-empty-icon" style="width:48px;height:48px;font-size:1.2rem;"><?= smsIcon('inbox') ?></div>
                                 <p style="margin:0;font-size:0.85rem;">No updates submitted yet</p>
                             </div>
                         <?php endif; ?>
@@ -448,7 +448,7 @@ $progressColor = $overallProgress >= 80 ? '#10b981' : ($overallProgress >= 40 ? 
 
         <!-- Live refresh bar -->
         <div class="rm-refresh-bar" id="rmRefreshBar">
-            <i class="fas fa-sync-alt rm-refresh-icon" id="rmRefreshIcon"></i>
+            <?= smsIcon('sync-alt', ['class' => 'rm-refresh-icon']) ?>
             <span id="rmRefreshText">Last updated: <?= date('g:i:s A') ?></span>
         </div>
 

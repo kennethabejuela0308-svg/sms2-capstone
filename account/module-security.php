@@ -28,7 +28,7 @@ smsEnsureSecurityTables();
 smsEnsureAuthenticatorTable();
 
 // Super Admin: security lives only under User Management → Module Security
-if (in_array(getCurrentUserRoleKey(), ['admin', 'superadmin'], true)) {
+if (smsIsGrantedAdminRole(getCurrentUserRoleKey())) {
     $mod = (string) ($_GET['focus'] ?? $_GET['sec_mod'] ?? $_GET['mod'] ?? $_GET['module'] ?? $_GET['m'] ?? '');
     if ($mod === 'student-portal') {
         $mod = 'student_portal';
@@ -76,13 +76,17 @@ $accountContext = [
     'research_director' => ['module' => 'faculty', 'label' => 'Research Director Account', 'icon' => 'fa-user-shield'],
     'hr' => ['module' => 'faculty', 'label' => 'HR Account', 'icon' => 'fa-chalkboard-teacher'],
     'research_coordinator' => ['module' => 'crad', 'label' => 'Research Coordinator', 'icon' => 'fa-microscope'],
+    'department_chair' => ['module' => 'crad', 'label' => 'Department Chair', 'icon' => 'fa-user-tie'],
+    'research_office' => ['module' => 'crad', 'label' => 'Research Office', 'icon' => 'fa-flask'],
     'crad_officer' => ['module' => 'crad', 'label' => 'CRAD Officer', 'icon' => 'fa-flask'],
     'research_grant' => ['module' => 'crad_grant', 'label' => 'Research Grant Account', 'icon' => 'fa-hand-holding-usd'],
+    'review_committee' => ['module' => 'crad_grant', 'label' => 'Review Committee Account', 'icon' => 'fa-clipboard-check'],
     'finance' => ['module' => 'payment', 'label' => 'Finance Account', 'icon' => 'fa-credit-card'],
     'registrar' => ['module' => $moduleKey, 'label' => 'Registrar Account', 'icon' => 'fa-folder-open'],
     'osa' => ['module' => 'cocurricular', 'label' => 'OSA Account', 'icon' => 'fa-users'],
     'it_office' => ['module' => 'lms', 'label' => 'IT Office Account', 'icon' => 'fa-laptop'],
     'qa' => ['module' => 'accreditation', 'label' => 'QA Account', 'icon' => 'fa-award'],
+    'vpaa' => ['module' => 'accreditation', 'label' => 'VPAA Account', 'icon' => 'fa-award'],
 ];
 if (isset($accountContext[$securityRoleKey])) {
     $context = $accountContext[$securityRoleKey];
@@ -433,10 +437,10 @@ ksort($logActions);
 
 <div id="secModuleRoot" class="sms-sec-root" data-initial-panel="<?= e($initialPanel) ?>" data-url-mode="staff" data-module="<?= e($moduleKey) ?>">
     <?php if ($success): ?>
-        <div class="alert alert-success"><i class="fas fa-check-circle me-2"></i><?= e($success) ?></div>
+        <div class="alert alert-success"><?= smsIcon('check-circle', ['class' => 'me-2']) ?><?= e($success) ?></div>
     <?php endif; ?>
     <?php if ($error): ?>
-        <div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i><?= e($error) ?></div>
+        <div class="alert alert-danger"><?= smsIcon('exclamation-circle', ['class' => 'me-2']) ?><?= e($error) ?></div>
     <?php endif; ?>
     <?php if ($otpDevCode !== ''): ?>
         <div class="alert alert-warning">
@@ -449,17 +453,17 @@ ksort($logActions);
     <ul class="nav nav-tabs sms-sec-tabs mb-3" role="tablist">
         <li class="nav-item" role="presentation">
             <button type="button" class="nav-link <?= $initialPanel === 'logs' ? 'active' : '' ?>" data-sec-tab="logs" data-sec-tab-card="logs" role="tab" aria-controls="panel-logs">
-                <i class="fas fa-history me-1"></i>Activity Logs
+                <?= smsIcon('history', ['class' => 'me-1']) ?>Activity Logs
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button type="button" class="nav-link <?= $initialPanel === 'passwords' ? 'active' : '' ?>" data-sec-tab="passwords" data-sec-tab-card="passwords" role="tab" aria-controls="panel-passwords">
-                <i class="fas fa-key me-1"></i>Password Management
+                <?= smsIcon('key', ['class' => 'me-1']) ?>Password Management
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button type="button" class="nav-link <?= $initialPanel === 'authenticator' ? 'active' : '' ?>" data-sec-tab="authenticator" data-sec-tab-card="authenticator" role="tab" aria-controls="panel-authenticator">
-                <i class="fas fa-fingerprint me-1"></i>Authenticator &amp; Passkey
+                <?= smsIcon('fingerprint', ['class' => 'me-1']) ?>Authenticator &amp; Passkey
             </button>
         </li>
     </ul>
@@ -469,7 +473,7 @@ ksort($logActions);
             <div class="card-body">
                 <div class="sms-sec-card-head">
                     <div class="sms-sec-card-title">
-                        <span class="sms-sec-icon"><i class="fas fa-history" aria-hidden="true"></i></span>
+                        <span class="sms-sec-icon"><?= smsIcon('history', ['aria-hidden' => 'true']) ?></span>
                         <div>
                             <h2 class="h5 fw-bold mb-0"><?= e($moduleLabel) ?> — Activity Logs</h2>
                             <p class="sms-sec-lead mb-0 mt-1">Filter by user, action, or date. Scroll to browse.</p>
@@ -481,7 +485,7 @@ ksort($logActions);
                                 data-sms-export-csv="#modLogTable"
                                 data-sms-export-rows="tbody tr.mod-log-row"
                                 data-sms-export-filename="<?= e($moduleKey) ?>-activity-logs.csv">
-                            <i class="fas fa-file-export me-1"></i>Export CSV
+                            <?= smsIcon('file-export', ['class' => 'me-1']) ?>Export CSV
                         </button>
                         <button type="button" class="btn btn-sm btn-outline-secondary" id="modLogClear">Clear filters</button>
                     </div>
@@ -555,7 +559,7 @@ ksort($logActions);
             <div class="card-body">
                 <div class="sms-sec-card-head">
                     <div class="sms-sec-card-title">
-                        <span class="sms-sec-icon"><i class="fas fa-key" aria-hidden="true"></i></span>
+                        <span class="sms-sec-icon"><?= smsIcon('key', ['aria-hidden' => 'true']) ?></span>
                         <div>
                             <h2 class="h5 fw-bold mb-0"><?= e($moduleLabel) ?> — Password Management</h2>
                             <p class="sms-sec-lead mb-0 mt-1">
@@ -569,7 +573,7 @@ ksort($logActions);
                     <div class="col-lg-6">
                         <div class="sms-sec-pw-box h-100">
                             <h3 class="h6 fw-bold mb-2">
-                                <i class="fas fa-lock text-sms-primary me-1" aria-hidden="true"></i>Change password
+                                <?= smsIcon('lock', ['class' => 'text-sms-primary me-1', 'aria-hidden' => 'true']) ?>Change password
                             </h3>
                             <?php if ($step === 'otp' && !empty($_SESSION['pending_pw_change'])): ?>
                                 <p class="sms-sec-lead">
@@ -614,7 +618,7 @@ ksort($logActions);
                                         <?= smsPasswordInput(['id' => 'password_confirm', 'name' => 'password_confirm', 'required' => true, 'minlength' => $minLen, 'autocomplete' => 'new-password']) ?>
                                     </div>
                                     <button type="submit" class="btn btn-sms-primary">
-                                        <i class="fas fa-mobile-alt me-1"></i>Continue with verification
+                                        <?= smsIcon('mobile-alt', ['class' => 'me-1']) ?>Continue with verification
                                     </button>
                                 </form>
                             <?php endif; ?>
@@ -623,7 +627,7 @@ ksort($logActions);
                     <div class="col-lg-6">
                         <div class="sms-sec-pw-box h-100">
                             <h3 class="h6 fw-bold mb-2">
-                                <i class="fas fa-paper-plane text-sms-primary me-1" aria-hidden="true"></i>Request from Super Admin
+                                <?= smsIcon('paper-plane', ['class' => 'text-sms-primary me-1', 'aria-hidden' => 'true']) ?>Request from Super Admin
                             </h3>
                             <?php if ($myPending): ?>
                                 <div class="alert alert-info mb-0">
@@ -663,7 +667,7 @@ ksort($logActions);
                                         <?= smsPasswordInput(['id' => 'requested_password_confirm', 'name' => 'requested_password_confirm', 'required' => true, 'minlength' => $minLen, 'autocomplete' => 'new-password']) ?>
                                     </div>
                                     <button type="submit" class="btn btn-sms-primary">
-                                        <i class="fas fa-paper-plane me-1"></i>Send request to Super Admin
+                                        <?= smsIcon('paper-plane', ['class' => 'me-1']) ?>Send request to Super Admin
                                     </button>
                                 </form>
                             <?php endif; ?>
@@ -688,7 +692,5 @@ ksort($logActions);
     </div>
 </div>
 
-<link href="<?= BASE_URL ?>/assets/css/password-strength.css" rel="stylesheet">
-<script src="<?= BASE_URL ?>/assets/js/password-strength.js"></script>
 <script src="<?= BASE_URL ?>/modules/user-management/assets/js/module-security.js?v=20260723e"></script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>

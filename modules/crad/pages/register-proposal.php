@@ -179,14 +179,14 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
 
 <?php if ($formError !== ''): ?>
 <div class="rp-alert rp-alert-danger" role="alert">
-    <i class="fas fa-exclamation-circle"></i>
+    <?= smsIcon('exclamation-circle') ?>
     <span><?= $formError ?></span>
 </div>
 <?php endif; ?>
 
 <?php if ($formSuccess !== ''): ?>
 <div class="rp-alert rp-alert-success" role="alert">
-    <i class="fas fa-check-circle"></i>
+    <?= smsIcon('check-circle') ?>
     <span><?= $formSuccess ?></span>
 </div>
 <?php endif; ?>
@@ -438,15 +438,15 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
 <div class="rp-wrap">
     <div class="rp-stats">
         <div class="rp-stat">
-            <div class="rp-stat-icon blue"><i class="fas fa-file-signature"></i></div>
+            <div class="rp-stat-icon blue"><?= smsIcon('file-signature') ?></div>
             <div><strong><?= count($approvedProposals) ?></strong><span>Approved Proposals</span></div>
         </div>
         <div class="rp-stat">
-            <div class="rp-stat-icon green"><i class="fas fa-check-circle"></i></div>
+            <div class="rp-stat-icon green"><?= smsIcon('check-circle') ?></div>
             <div><strong><?= $totalRegistered ?></strong><span>Registered Proposals</span></div>
         </div>
         <div class="rp-stat">
-            <div class="rp-stat-icon amber"><i class="fas fa-clock"></i></div>
+            <div class="rp-stat-icon amber"><?= smsIcon('clock') ?></div>
             <div><strong><?= $totalPendingRegistration ?></strong><span>Waiting</span></div>
         </div>
     </div>
@@ -461,7 +461,7 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
         </div>
         <div class="rp-card-tools">
             <label class="rp-search">
-                <i class="fas fa-search"></i>
+                <?= smsIcon('search') ?>
                 <input type="search" data-rp-search placeholder="Search by title, researcher, or proposal number..." aria-label="Search approved proposals">
             </label>
             <select class="rp-filter" data-rp-status aria-label="Filter proposal status">
@@ -505,7 +505,7 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
                                 <td><?= $approvedDate ? htmlspecialchars(date('M j, Y', strtotime($approvedDate))) : 'For confirmation' ?></td>
                                 <td>
                                     <?php if (!empty($proposal['proposal_number'])): ?>
-                                        <span class="rp-number"><i class="fas fa-hashtag"></i><?= htmlspecialchars($proposal['proposal_number']) ?></span>
+                                        <span class="rp-number"><?= smsIcon('hashtag') ?><?= htmlspecialchars($proposal['proposal_number']) ?></span>
                                     <?php else: ?>
                                         <span class="rp-meta">Will be generated</span>
                                     <?php endif; ?>
@@ -517,14 +517,14 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
                                 </td>
                                 <td>
                                     <?php if ($isRegistered): ?>
-                                        <span class="rp-btn rp-btn-done"><i class="fas fa-check"></i> Registered</span>
+                                        <span class="rp-btn rp-btn-done"><?= smsIcon('check') ?> Registered</span>
                                     <?php else: ?>
                                         <form method="post" action="" style="margin:0;">
                                             <?= csrfField() ?>
                                             <input type="hidden" name="process" value="register-approved-proposal">
                                             <input type="hidden" name="proposal_id" value="<?= (int) $proposal['id'] ?>">
                                             <button type="submit" class="rp-btn rp-btn-primary">
-                                                <i class="fas fa-save"></i> Register
+                                                <?= smsIcon('save') ?> Register
                                             </button>
                                         </form>
                                     <?php endif; ?>
@@ -548,14 +548,14 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
              data-update="<?= htmlspecialchars(BASE_URL . '/modules/crad/pages/register-proposal.php?ajax=title-approval-approve') ?>">
         <div class="rp-card-head">
             <div class="rp-card-title">
-                <h2><i class="fas fa-file-signature"></i> Title Approval for CRAD Officer Review <span id="cradTaPending" class="rp-status rp-status-pending"><?= (int) $titleApprovalPayload['pending'] ?></span></h2>
+                <h2><?= smsIcon('file-signature') ?> Title Approval for CRAD Officer Review <span id="cradTaPending" class="rp-status rp-status-pending"><?= (int) $titleApprovalPayload['pending'] ?></span></h2>
                 <span id="cradTaCount"><?= count($titleApprovalRows) ?> record<?= count($titleApprovalRows) === 1 ? '' : 's' ?></span>
             </div>
             <div id="cradTaSync" class="rp-title-approval-sync">Synced <?= htmlspecialchars($titleApprovalPayload['last_sync']) ?></div>
         </div>
         <div class="rp-card-tools">
             <label class="rp-search">
-                <i class="fas fa-search"></i>
+                <?= smsIcon('search') ?>
                 <input type="search" id="cradTaSearch" placeholder="Search by title, student, or coordinator..." aria-label="Search title approvals">
             </label>
             <select class="rp-filter" id="cradTaFilter" aria-label="Filter title approval status">
@@ -592,7 +592,7 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
                 <h3 id="cradTaModalTitle">Title Approval Form</h3>
                 <span>CRAD Officer Review</span>
             </div>
-            <button type="button" class="rp-ta-close" data-close-crad-ta><i class="fas fa-times"></i> Close</button>
+            <button type="button" class="rp-ta-close" data-close-crad-ta><?= smsIcon('times') ?> Close</button>
         </div>
         <div id="cradTaForm" class="rp-ta-body"></div>
         <div class="rp-ta-foot">
@@ -607,9 +607,9 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
         <div class="rp-ta-head green">
             <div>
                 <span>TITLE APPROVAL</span>
-                <h3 id="cradTaSignTitle"><i class="fas fa-signature"></i> Draw Your Signature</h3>
+                <h3 id="cradTaSignTitle"><?= smsIcon('signature') ?> Draw Your Signature</h3>
             </div>
-            <button type="button" class="rp-ta-close" data-close-crad-ta-sign><i class="fas fa-times"></i></button>
+            <button type="button" class="rp-ta-close" data-close-crad-ta-sign><?= smsIcon('times') ?></button>
         </div>
         <div class="rp-ta-sign-panel">
             <p>Sign in the box below. Your signature will be saved to the Title Approval Form.</p>
@@ -621,12 +621,12 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
                 <canvas id="cradTaSignatureCanvas" class="rp-ta-canvas"></canvas>
             </div>
             <div id="cradTaSignError" style="display:none;margin-top:.6rem;padding:.5rem .75rem;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;color:#991b1b;font-size:.8rem;font-weight:700;">
-                <i class="fas fa-exclamation-circle"></i> Please provide your signature before approving.
+                <?= smsIcon('exclamation-circle') ?> Please provide your signature before approving.
             </div>
         </div>
         <div class="rp-ta-sign-actions">
             <button type="button" class="rp-btn rp-btn-light" data-close-crad-ta-sign>Cancel</button>
-            <button type="button" class="rp-btn rp-btn-success" id="cradTaConfirmSign"><i class="fas fa-check"></i> Confirm & Approve</button>
+            <button type="button" class="rp-btn rp-btn-success" id="cradTaConfirmSign"><?= smsIcon('check') ?> Confirm & Approve</button>
         </div>
     </div>
 </div>
@@ -636,9 +636,9 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
         <div class="rp-ta-head">
             <div>
                 <span>TITLE APPROVAL</span>
-                <h3 id="cradTaApproveConfirmTitle"><i class="fas fa-check-circle"></i> Confirm Approval</h3>
+                <h3 id="cradTaApproveConfirmTitle"><?= smsIcon('check-circle') ?> Confirm Approval</h3>
             </div>
-            <button type="button" class="rp-ta-close" data-close-crad-ta-approve-confirm><i class="fas fa-times"></i></button>
+            <button type="button" class="rp-ta-close" data-close-crad-ta-approve-confirm><?= smsIcon('times') ?></button>
         </div>
         <div class="rp-ta-sign-panel">
             <p style="margin:0 0 .75rem;color:#111827;font-size:1rem;font-weight:800;">Are you sure you want to approve this Title Approval Form?</p>
@@ -647,7 +647,7 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
         </div>
         <div class="rp-ta-sign-actions">
             <button type="button" class="rp-btn rp-btn-light" data-close-crad-ta-approve-confirm>Cancel</button>
-            <button type="button" class="rp-btn rp-btn-success" id="cradTaApproveConfirmYes"><i class="fas fa-check"></i> Yes, Approve</button>
+            <button type="button" class="rp-btn rp-btn-success" id="cradTaApproveConfirmYes"><?= smsIcon('check') ?> Yes, Approve</button>
         </div>
     </div>
 </div>
@@ -800,7 +800,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     <span class="rp-meta">${fmtDate(row.coordinator_reviewed_at)}</span>
                 </td>
                 <td><span class="rp-status ${badgeClass(row.crad_status)}">${esc(row.crad_status || 'Pending')}</span></td>
-                <td><button type="button" class="rp-btn rp-btn-primary" data-open-crad-ta="${Number(row.id)}"><i class="fas fa-folder-open"></i> Open</button></td>
+                <td><button type="button" class="rp-btn rp-btn-primary" data-open-crad-ta="${Number(row.id)}"><?= smsIcon('folder-open') ?> Open</button></td>
             `;
             body.appendChild(tr);
         });
@@ -914,8 +914,8 @@ document.addEventListener('DOMContentLoaded', function () {
         `;
         statusEl.innerHTML = `CRAD Officer Status: <span class="rp-status ${badgeClass(row.crad_status)}">${esc(row.crad_status || 'Pending')}</span>`;
         actionsEl.innerHTML = String(row.crad_status || 'Pending') === 'Pending'
-            ? `<button type="button" class="rp-btn rp-btn-success" id="cradTaApprove"><i class="fas fa-signature"></i> Approve & Sign</button>`
-            : `<span class="rp-btn rp-btn-done"><i class="fas fa-check"></i> Approved</span>`;
+            ? `<button type="button" class="rp-btn rp-btn-success" id="cradTaApprove"><?= smsIcon('signature') ?> Approve & Sign</button>`
+            : `<span class="rp-btn rp-btn-done"><?= smsIcon('check') ?> Approved</span>`;
         const approve = document.getElementById('cradTaApprove');
         if (approve) approve.addEventListener('click', openSignModal);
     }
@@ -1007,7 +1007,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function resetApproveConfirmButton() {
         approveRequestInFlight = false;
         approveConfirmYes.disabled = false;
-        approveConfirmYes.innerHTML = '<i class="fas fa-check"></i> Yes, Approve';
+        approveConfirmYes.innerHTML = '<?= smsIcon('check') ?> Yes, Approve';
     }
 
     function closeApproveConfirmModal() {

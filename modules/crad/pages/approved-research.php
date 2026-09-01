@@ -433,13 +433,13 @@ renderBreadcrumbs($breadcrumbs);
 <div class="rcar-wrap" data-rcar-endpoint="<?= rcE(BASE_URL . '/modules/crad/pages/approved-research.php?ajax=approved-research') ?>">
     <?php if (!$payload['ok']): ?>
         <div class="rcar-error">
-            <i class="fas fa-exclamation-circle me-1"></i><?= rcE((string) $payload['error']) ?>
+            <?= smsIcon('exclamation-circle', ['class' => 'me-1']) ?><?= rcE((string) $payload['error']) ?>
         </div>
     <?php endif; ?>
 
     <header class="rcar-header">
         <div>
-            <h1><i class="fas fa-clipboard-check me-2"></i>View Approved Research</h1>
+            <h1><?= smsIcon('clipboard-check', ['class' => 'me-2']) ?>View Approved Research</h1>
             <p>Approved research groups with official proposal and research group numbers.</p>
         </div>
         <div class="rcar-sync" id="rcarLastSync">Synced <?= rcE((string) $payload['last_sync']) ?></div>
@@ -450,7 +450,7 @@ renderBreadcrumbs($breadcrumbs);
         data-rcta-update="<?= rcE(BASE_URL . '/modules/crad/pages/approved-research.php?ajax=title-approval-status') ?>">
         <div class="rcar-record-head">
             <div>
-                <h2 class="rcar-record-title"><i class="fas fa-file-signature"></i>Title Approval for Coordinator Review <span id="rctaPending" class="rcta-badge pending"><?= (int) $titleApprovalPayload['pending'] ?></span></h2>
+                <h2 class="rcar-record-title"><?= smsIcon('file-signature') ?>Title Approval for Coordinator Review <span id="rctaPending" class="rcta-badge pending"><?= (int) $titleApprovalPayload['pending'] ?></span></h2>
                 <span class="rcar-record-total" id="rctaRecordCount"><?= count($titleApprovalRows) ?> record<?= count($titleApprovalRows) === 1 ? '' : 's' ?></span>
             </div>
             <div class="rcar-sync" id="rctaLastSync">Synced <?= rcE((string) $titleApprovalPayload['last_sync']) ?></div>
@@ -486,7 +486,7 @@ renderBreadcrumbs($breadcrumbs);
     <div style="max-width:780px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.38);">
         <div style="background:#17366f;color:#fff;padding:1rem 1.25rem;display:flex;justify-content:space-between;gap:1rem;align-items:center;">
             <div><strong>Title Approval Form</strong><div style="font-size:.78rem;color:#dbeafe;">Coordinator Review</div></div>
-            <button id="rctaClose" class="rcta-btn primary" type="button"><i class="fas fa-times"></i> Close</button>
+            <button id="rctaClose" class="rcta-btn primary" type="button"><?= smsIcon('times') ?> Close</button>
         </div>
         <div id="rctaBody" style="padding:1.5rem;color:#111;font-family:Arial,Helvetica,sans-serif;font-size:9pt;"></div>
         <div style="border-top:1px solid #e2e8f0;background:#f8fafc;padding:.9rem 1.25rem;">
@@ -495,7 +495,7 @@ renderBreadcrumbs($breadcrumbs);
                 <div class="rcta-actions" id="rctaModalActions"></div>
             </div>
             <div id="rctaInlineAlert" class="rcta-inline-alert" role="alert">
-                <i class="fas fa-exclamation-circle"></i>
+                <?= smsIcon('exclamation-circle') ?>
                 <span id="rctaInlineAlertText">Please complete the Research Coordinator Screening Yes/No checks first.</span>
             </div>
         </div>
@@ -507,10 +507,10 @@ renderBreadcrumbs($breadcrumbs);
         <div style="background:linear-gradient(135deg,#065f46 0%,#047857 55%,#059669 100%);padding:1rem 1.4rem;display:flex;align-items:center;justify-content:space-between;">
             <div>
                 <div style="color:rgba(209,250,229,.8);font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:.2rem;">Title Approval</div>
-                <h3 style="margin:0;color:#fff;font-size:1.05rem;font-weight:800;"><i class="fas fa-signature me-2"></i>Draw Your Signature</h3>
+                <h3 style="margin:0;color:#fff;font-size:1.05rem;font-weight:800;"><?= smsIcon('signature', ['class' => 'me-2']) ?>Draw Your Signature</h3>
             </div>
             <button id="rctaSigClose" type="button" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:.35rem .8rem;cursor:pointer;font-weight:700;font-size:.82rem;">
-                <i class="fas fa-times"></i>
+                <?= smsIcon('times') ?>
             </button>
         </div>
         <div style="padding:1.25rem;">
@@ -525,7 +525,7 @@ renderBreadcrumbs($breadcrumbs);
                 <canvas id="rctaSigCanvas" style="display:block;width:100%;height:160px;background:#fff;touch-action:none;cursor:crosshair;"></canvas>
             </div>
             <div id="rctaSigError" style="display:none;margin-top:.6rem;padding:.5rem .75rem;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;color:#991b1b;font-size:.8rem;font-weight:700;">
-                <i class="fas fa-exclamation-circle me-1"></i>Please provide your signature before approving.
+                <?= smsIcon('exclamation-circle', ['class' => 'me-1']) ?>Please provide your signature before approving.
             </div>
         </div>
         <div style="padding:.85rem 1.25rem;border-top:1px solid #e5e7eb;display:flex;align-items:center;justify-content:flex-end;gap:.65rem;background:#f9fafb;">
@@ -540,10 +540,10 @@ renderBreadcrumbs($breadcrumbs);
         <div style="background:#17366f;color:#fff;padding:1rem 1.25rem;display:flex;justify-content:space-between;gap:1rem;align-items:center;">
             <div>
                 <div style="color:rgba(219,234,254,.9);font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:.2rem;">TITLE APPROVAL</div>
-                <h3 style="margin:0;font-size:1.05rem;font-weight:800;"><i class="fas fa-check-circle me-2"></i>Confirm Approval</h3>
+                <h3 style="margin:0;font-size:1.05rem;font-weight:800;"><?= smsIcon('check-circle', ['class' => 'me-2']) ?>Confirm Approval</h3>
             </div>
             <button id="rctaApproveConfirmClose" type="button" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:.35rem .8rem;cursor:pointer;font-weight:700;font-size:.82rem;">
-                <i class="fas fa-times"></i>
+                <?= smsIcon('times') ?>
             </button>
         </div>
         <div style="padding:1.2rem;">
@@ -553,7 +553,7 @@ renderBreadcrumbs($breadcrumbs);
         </div>
         <div style="padding:.9rem 1.2rem;border-top:1px solid #e5e7eb;background:#f8fafc;display:flex;justify-content:flex-end;gap:.65rem;">
             <button id="rctaApproveConfirmCancel" type="button" class="btn btn-outline-secondary btn-sm" style="font-size:.82rem;">Cancel</button>
-            <button id="rctaApproveConfirmYes" type="button" class="btn btn-success btn-sm" style="font-size:.82rem;"><i class="fas fa-check me-1"></i>Yes, Approve</button>
+            <button id="rctaApproveConfirmYes" type="button" class="btn btn-success btn-sm" style="font-size:.82rem;"><?= smsIcon('check', ['class' => 'me-1']) ?>Yes, Approve</button>
         </div>
     </div>
 </div>
@@ -609,8 +609,8 @@ renderBreadcrumbs($breadcrumbs);
                     <div>${esc(row.research_title || '')}</div>
                     <div class="rcar-muted">${esc(row.college_dept || '')} ${row.academic_year ? '&middot; ' + esc(row.academic_year) : ''}</div>
                 </td>
-                <td><span class="rcar-code"><i class="fas fa-file-signature"></i>${esc(row.proposal_number || '')}</span></td>
-                <td><span class="rcar-code"><i class="fas fa-hashtag"></i>${esc(row.group_number || '')}</span></td>
+                <td><span class="rcar-code"><?= smsIcon('file-signature') ?>${esc(row.proposal_number || '')}</span></td>
+                <td><span class="rcar-code"><?= smsIcon('hashtag') ?>${esc(row.group_number || '')}</span></td>
                 <td>
                     <div class="rcar-title">${esc(row.leader_name || '')}</div>
                     <div class="rcar-muted">${esc(row.leader_id || '')}</div>
@@ -618,7 +618,7 @@ renderBreadcrumbs($breadcrumbs);
                 </td>
                 <td>${esc(row.adviser || 'For assignment')}</td>
                 <td>${esc(formatDate(row.date_assigned || row.group_created_at))}</td>
-                <td><span class="rcar-status"><i class="fas fa-check-circle"></i>${esc(row.display_status || row.proposal_status || 'Approved')}</span></td>
+                <td><span class="rcar-status"><?= smsIcon('check-circle') ?>${esc(row.display_status || row.proposal_status || 'Approved')}</span></td>
             </tr>
         `).join('');
         empty.hidden = visibleRows.length !== 0;
@@ -690,7 +690,7 @@ renderBreadcrumbs($breadcrumbs);
             <td><div class="rcar-title">${esc(r.student_name)}</div><div class="rcar-muted">${esc(r.student_id)}</div></td>
             <td><div>${esc(r.adviser_name)}</div><div class="rcar-muted">${esc(fmt(r.reviewed_at))}</div></td>
             <td><span class="rcta-badge ${badgeClass(r.coordinator_status)}">${esc(r.coordinator_status || 'Pending')}</span></td>
-            <td><button class="rcta-btn primary" data-open="${esc(r.id)}"><i class="fas fa-folder-open"></i> Open</button></td>
+            <td><button class="rcta-btn primary" data-open="${esc(r.id)}"><?= smsIcon('folder-open') ?> Open</button></td>
         </tr>`;
     }
     function visibleRows() {
@@ -791,7 +791,7 @@ renderBreadcrumbs($breadcrumbs);
         const screening = parseScreening(r.coordinator_screening_json);
         statusEl.innerHTML = `Coordinator Status: <span class="rcta-badge ${badgeClass(r.coordinator_status)}">${esc(r.coordinator_status || 'Pending')}</span>`;
         if ((r.coordinator_status || 'Pending') === 'Pending') {
-            actionsEl.innerHTML = `<button id="rctaApprove" class="rcta-btn success"><i class="fas fa-signature"></i> Approve & Sign</button>`;
+            actionsEl.innerHTML = `<button id="rctaApprove" class="rcta-btn success"><?= smsIcon('signature') ?> Approve & Sign</button>`;
             document.getElementById('rctaApprove').onclick = () => {
                 if (Object.keys(collectScreening()).length < screeningCriteria.length) {
                     showInlineAlert('Please complete the Research Coordinator Screening Yes/No checks first.');
@@ -801,9 +801,9 @@ renderBreadcrumbs($breadcrumbs);
             };
         } else {
             if (screeningComplete(screening)) {
-                actionsEl.innerHTML = `<button class="rcta-btn success" type="button" disabled><i class="fas fa-check"></i> Done Save</button>`;
+                actionsEl.innerHTML = `<button class="rcta-btn success" type="button" disabled><?= smsIcon('check') ?> Done Save</button>`;
             } else {
-                actionsEl.innerHTML = `<button id="rctaSaveScreening" class="rcta-btn primary"><i class="fas fa-save"></i> Save Screening</button>`;
+                actionsEl.innerHTML = `<button id="rctaSaveScreening" class="rcta-btn primary"><?= smsIcon('save') ?> Save Screening</button>`;
                 document.getElementById('rctaSaveScreening').onclick = (event) => {
                     const button = event.currentTarget;
                     screeningCriteria.forEach(([key]) => {
@@ -812,7 +812,7 @@ renderBreadcrumbs($breadcrumbs);
                     });
                     button.disabled = true;
                     button.className = 'rcta-btn success';
-                    button.innerHTML = '<i class="fas fa-check"></i> Done Save';
+                    button.innerHTML = '<?= smsIcon('check') ?> Done Save';
                     updateStatus(r.id, 'Screening', '', '');
                 };
             }
@@ -891,7 +891,7 @@ renderBreadcrumbs($breadcrumbs);
     function resetApproveConfirmButton(){
         approveRequestInFlight = false;
         approveConfirmYes.disabled = false;
-        approveConfirmYes.innerHTML = '<i class="fas fa-check me-1"></i>Yes, Approve';
+        approveConfirmYes.innerHTML = '<?= smsIcon('check', ['class' => 'me-1']) ?>Yes, Approve';
     }
     function closeApproveConfirm(){
         if(approveRequestInFlight) return;

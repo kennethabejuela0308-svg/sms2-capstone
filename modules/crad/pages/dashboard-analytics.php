@@ -15,14 +15,10 @@ require_once __DIR__ . '/../includes/grant-helpers.php';
 
 requireAuth();
 
-$roleKey = getCurrentUserRoleKey();
-if (!in_array($roleKey, ['crad_officer', 'superadmin', 'admin'], true)) {
-    header('Location: ' . BASE_URL . '/dashboard/index.php');
-    exit;
-}
+grantRequireManageAccess();
 
 $pageTitle             = 'Dashboard & Analytics';
-$activeModule          = 'crad';
+$activeModule          = grantActiveModuleKey();
 $activePage            = 'dashboard-analytics';
 $pageBannerIcon        = 'fa-chart-pie';
 $pageBannerDescription = 'Real-time grant management overview — opportunities, applications, and funding status.';
@@ -36,6 +32,8 @@ require_once ROOT_PATH . '/includes/breadcrumbs.php';
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 $crad    = cradDb();
+$grantDashboardMetrics = grantDashboardMetricsDefaults();
+$grantDashboardMetricsHideLink = true;
 $stats   = [
     'total_opportunities' => 0, 'open' => 0, 'closed' => 0, 'expired' => 0,
     'total_applications'  => 0, 'under_review' => 0, 'approved' => 0, 'denied' => 0,
@@ -50,6 +48,7 @@ $dbError = '';
 if ($crad) {
     try {
         grantEnsureTables($crad);
+        $grantDashboardMetrics = grantGetDashboardMetrics($crad);
         $base = grantDashboardStats($crad);
         $stats = array_merge($stats, $base);
 
@@ -127,7 +126,7 @@ function daBadge(string $status): string
 <?php if ($dbError !== ''): ?>
     <div class="mpl-alert" role="alert"
          style="background:rgba(239,68,68,0.08);color:#b91c1c;margin-bottom:1rem;">
-        <i class="fas fa-exclamation-triangle me-1"></i><?= $dbError ?>
+        <?= smsIcon('exclamation-triangle', ['class' => 'me-1']) ?><?= $dbError ?>
     </div>
 <?php endif; ?>
 
@@ -147,74 +146,20 @@ function daBadge(string $status): string
         <div class="da-hero-actions">
             <a href="<?= BASE_URL ?>/modules/crad/pages/grant-opportunities.php"
                class="mpl-btn mpl-btn-primary">
-                <i class="fas fa-plus" aria-hidden="true"></i>Create Grant Call
+                <?= smsIcon('plus', ['aria-hidden' => 'true']) ?>Create Grant Call
             </a>
             <a href="<?= BASE_URL ?>/modules/crad/pages/proposals-applications.php"
                class="mpl-btn mpl-btn-soft">
-                <i class="fas fa-file-alt" aria-hidden="true"></i>View Proposals
+                <?= smsIcon('file-alt', ['aria-hidden' => 'true']) ?>View Proposals
             </a>
         </div>
     </div>
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════════════
-     SUMMARY CARDS  (all values from DB)
+     GRANT METRICS (real-time, all 11 KPIs)
      ════════════════════════════════════════════════════════════════════ -->
-<section class="mpl-stats" aria-label="Grant management summary" data-da-stats>
-    <article class="mpl-stat" data-stat="open">
-        <div class="mpl-stat-icon blue"><i class="fas fa-hand-holding-usd"></i></div>
-        <div>
-            <span>Active / Open Grants</span>
-            <strong><?= $stats['open'] ?></strong>
-        </div>
-    </article>
-    <article class="mpl-stat" data-stat="total_applications">
-        <div class="mpl-stat-icon green"><i class="fas fa-file-alt"></i></div>
-        <div>
-            <span>Submitted Applications</span>
-            <strong><?= $stats['total_applications'] ?></strong>
-        </div>
-    </article>
-    <article class="mpl-stat" data-stat="under_review">
-        <div class="mpl-stat-icon amber"><i class="fas fa-search"></i></div>
-        <div>
-            <span>Under Review</span>
-            <strong><?= $stats['under_review'] ?></strong>
-        </div>
-    </article>
-    <article class="mpl-stat" data-stat="approved">
-        <div class="mpl-stat-icon purple"><i class="fas fa-check-circle"></i></div>
-        <div>
-            <span>Approved</span>
-            <strong><?= $stats['approved'] ?></strong>
-        </div>
-    </article>
-</section>
-
-<!-- Secondary row -->
-<section class="mpl-stats" style="margin-top:0;" aria-label="Secondary stats">
-    <article class="mpl-stat" data-stat="total_opportunities">
-        <div class="mpl-stat-icon blue"><i class="fas fa-layer-group"></i></div>
-        <div><span>Total Grant Calls</span><strong><?= $stats['total_opportunities'] ?></strong></div>
-    </article>
-    <article class="mpl-stat" data-stat="total_funding_cap">
-        <div class="mpl-stat-icon green"><i class="fas fa-peso-sign"></i></div>
-        <div>
-            <span>Open Funding Cap (₱)</span>
-            <strong><?= $stats['total_funding_cap'] > 0
-                ? '₱' . number_format($stats['total_funding_cap'], 0)
-                : '₱0' ?></strong>
-        </div>
-    </article>
-    <article class="mpl-stat" data-stat="denied">
-        <div class="mpl-stat-icon amber"><i class="fas fa-ban"></i></div>
-        <div><span>Denied</span><strong><?= $stats['denied'] ?></strong></div>
-    </article>
-    <article class="mpl-stat" data-stat="expired">
-        <div class="mpl-stat-icon purple"><i class="fas fa-calendar-times"></i></div>
-        <div><span>Expired Grants</span><strong><?= $stats['expired'] ?></strong></div>
-    </article>
-</section>
+<?php include ROOT_PATH . '/dashboard/partials/grant-dashboard-metrics.php'; ?>
 
 <!-- ══════════════════════════════════════════════════════════════════════
      CHARTS ROW
@@ -232,8 +177,7 @@ function daBadge(string $status): string
             </div>
             <?php if (empty($eligibilityBreakdown)): ?>
                 <div style="text-align:center;padding:2.5rem 1rem;color:var(--sms-text-muted);">
-                    <i class="fas fa-chart-bar"
-                       style="font-size:2rem;display:block;margin-bottom:.75rem;opacity:.35;"></i>
+                    <?= smsIcon('chart-bar', ['style' => 'font-size:2rem;display:block;margin-bottom:.75rem;opacity:.35;']) ?>
                     No grant opportunity data available yet.
                 </div>
             <?php else: ?>
@@ -256,8 +200,7 @@ function daBadge(string $status): string
             </div>
             <?php if (empty($statusBreakdown)): ?>
                 <div style="text-align:center;padding:2.5rem 1rem;color:var(--sms-text-muted);">
-                    <i class="fas fa-chart-pie"
-                       style="font-size:2rem;display:block;margin-bottom:.75rem;opacity:.35;"></i>
+                    <?= smsIcon('chart-pie', ['style' => 'font-size:2rem;display:block;margin-bottom:.75rem;opacity:.35;']) ?>
                     No application data available yet.
                 </div>
             <?php else: ?>
@@ -291,7 +234,7 @@ function daBadge(string $status): string
                 </div>
                 <a class="mpl-btn mpl-btn-ghost mpl-btn-sm"
                    href="<?= BASE_URL ?>/modules/crad/pages/grant-opportunities.php">
-                    <i class="fas fa-arrow-right" aria-hidden="true"></i>View All
+                    <?= smsIcon('arrow-right', ['aria-hidden' => 'true']) ?>View All
                 </a>
             </div>
             <div class="mpl-table-wrap">
@@ -342,7 +285,7 @@ function daBadge(string $status): string
                 </div>
                 <a class="mpl-btn mpl-btn-ghost mpl-btn-sm"
                    href="<?= BASE_URL ?>/modules/crad/pages/proposals-applications.php">
-                    <i class="fas fa-arrow-right" aria-hidden="true"></i>View All
+                    <?= smsIcon('arrow-right', ['aria-hidden' => 'true']) ?>View All
                 </a>
             </div>
             <div class="mpl-table-wrap">
@@ -646,30 +589,6 @@ $donutColorsSlice = array_slice($donutColors, 0, count($donutLabels));
         }
     })();
 
-    /* ── Live-refresh stats every 30 s ──────────────────────────────── */
-    (function () {
-        var apiBase = '<?= BASE_URL ?>/modules/crad/api/grant-management.php';
-        function refreshStats() {
-            fetch(apiBase + '?action=get_dashboard_stats', {
-                credentials: 'same-origin', cache: 'no-store',
-                headers: { 'Accept': 'application/json' }
-            })
-            .then(function (r) { return r.ok ? r.json() : null; })
-            .then(function (data) {
-                if (!data || !data.success) return;
-                var s = data.stats;
-                document.querySelectorAll('[data-stat]').forEach(function (el) {
-                    var key = el.getAttribute('data-stat');
-                    if (key && s[key] !== undefined) {
-                        var strong = el.querySelector('strong');
-                        if (strong) strong.textContent = String(s[key]);
-                    }
-                });
-            })
-            .catch(function () {});
-        }
-        window.setInterval(refreshStats, 30000);
-    })();
 })();
 </script>
 

@@ -19,6 +19,122 @@
 
 declare(strict_types=1);
 
+/**
+ * Roles that can publish grant calls and manage grant opportunities.
+ */
+function grantUserCanManage(): bool
+{
+    if (!function_exists('smsRoleAllowedForModule')) {
+        require_once dirname(__DIR__, 3) . '/includes/authentication.php';
+    }
+
+    if (smsRoleAllowedForModule(['crad_officer'], 'crad')) {
+        return true;
+    }
+
+    if (smsRoleAllowedForModule(['research_grant'], 'crad_grant')) {
+        return true;
+    }
+
+    return smsHasGrantedModuleAdminAccess('crad')
+        || smsHasGrantedModuleAdminAccess('crad_grant');
+}
+
+/**
+ * Roles that can browse grant calls and submit proposals (researchers).
+ */
+function grantUserCanApply(): bool
+{
+    $roleKey = function_exists('getCurrentUserRoleKey') ? getCurrentUserRoleKey() : '';
+
+    return in_array($roleKey, ['student', 'adviser'], true);
+}
+
+/**
+ * Anyone who may open grant opportunity / proposal pages.
+ */
+function grantUserCanView(): bool
+{
+    return grantUserCanManage() || grantUserCanApply();
+}
+
+/**
+ * Sidebar / layout module key for the current grant page user.
+ */
+function grantActiveModuleKey(): string
+{
+    $roleKey = function_exists('getCurrentUserRoleKey') ? getCurrentUserRoleKey() : '';
+
+    return match ($roleKey) {
+        'research_grant' => 'crad_grant',
+        'student'        => 'student_portal',
+        'adviser'        => 'faculty',
+        default          => 'crad',
+    };
+}
+
+/**
+ * Breadcrumb parent label on grant pages.
+ */
+function grantBreadcrumbModuleLabel(): string
+{
+    return match (grantActiveModuleKey()) {
+        'crad_grant'     => 'Research Grant',
+        'student_portal' => 'Student Portal',
+        'faculty'        => 'Faculty',
+        default          => 'CRAD',
+    };
+}
+
+/**
+ * Breadcrumb parent URL on grant pages.
+ */
+function grantBreadcrumbModuleUrl(): string
+{
+    return match (grantActiveModuleKey()) {
+        'student_portal' => BASE_URL . '/modules/student-portal/pages/dashboard.php',
+        'faculty'        => BASE_URL . '/modules/faculty/pages/approved-research.php',
+        'crad_grant'     => BASE_URL . '/modules/crad/pages/grant-opportunities.php',
+        default          => BASE_URL . '/modules/crad/index.php',
+    };
+}
+
+/**
+ * Redirect unauthorized users away from grant management pages.
+ */
+function grantRequireManageAccess(): void
+{
+    if (grantUserCanManage()) {
+        return;
+    }
+
+    grantRedirectUnauthorized();
+}
+
+/**
+ * Redirect users who cannot view or apply on grant pages.
+ */
+function grantRequireViewAccess(): void
+{
+    if (grantUserCanView()) {
+        return;
+    }
+
+    grantRedirectUnauthorized();
+}
+
+/**
+ * @internal
+ */
+function grantRedirectUnauthorized(): void
+{
+    require_once dirname(__DIR__, 3) . '/config/config.php';
+    require_once dirname(__DIR__, 3) . '/includes/navigation-context.php';
+
+    header('Location: ' . smsRoleHomeUrl(function_exists('getCurrentUserRoleKey') ? getCurrentUserRoleKey() : ''));
+    exit;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Internal: safely add a column to a table only when it is absent.
 // Compatible with MySQL 5.7+ / MariaDB (no IF NOT EXISTS on ALTER in MySQL 5.7).
@@ -154,6 +270,611 @@ function grantEnsureTables(PDO $crad): void
 
     _grantAddColumnIfMissing($crad, 'grant_applications', 'ethics_doc_original',
         "VARCHAR(300) DEFAULT NULL COMMENT 'Original filename of optional ethics clearance document' AFTER ethics_doc");
+
+    _grantEnsureApplicationStatusEnum($crad);
+
+    _grantAddColumnIfMissing($crad, 'grant_applications', 'proposal_reference',
+        "VARCHAR(30) DEFAULT NULL COMMENT 'Stable proposal ID e.g. GR-2026-001' AFTER id");
+    _grantAddColumnIfMissing($crad, 'grant_applications', 'current_version',
+        "INT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Active proposal document version' AFTER proposal_reference");
+
+    grantEnsureProposalVersionTables($crad);
+    _grantBackfillProposalReferences($crad);
+}
+
+function grantEnsureProposalVersionTables(PDO $crad): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    $crad->exec("
+        CREATE TABLE IF NOT EXISTS grant_proposal_versions (
+            id                      INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+            grant_application_id    INT UNSIGNED  NOT NULL,
+            version_number          INT UNSIGNED  NOT NULL,
+            version_label           VARCHAR(60)   NOT NULL DEFAULT '',
+            proposal_pdf            VARCHAR(255)  DEFAULT NULL,
+            proposal_pdf_original   VARCHAR(300)  DEFAULT NULL,
+            supporting_docs           VARCHAR(255)  DEFAULT NULL,
+            supporting_docs_original  VARCHAR(300)  DEFAULT NULL,
+            ethics_doc                VARCHAR(255)  DEFAULT NULL,
+            ethics_doc_original       VARCHAR(300)  DEFAULT NULL,
+            abstract                  TEXT          DEFAULT NULL,
+            objectives                TEXT          DEFAULT NULL,
+            researcher_notes          TEXT          DEFAULT NULL,
+            submitted_by_user_id    INT UNSIGNED  DEFAULT NULL,
+            submitted_at              DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY uniq_gpv_app_ver (grant_application_id, version_number),
+            KEY idx_gpv_application (grant_application_id),
+            KEY idx_gpv_submitted (submitted_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+}
+
+function grantVersionLabel(int $version): string
+{
+    return match ($version) {
+        1       => 'Original',
+        2       => 'Revised',
+        default => 'Revised Again',
+    };
+}
+
+function grantGenerateProposalReference(PDO $crad): string
+{
+    $year = date('Y');
+    $prefix = 'GR-' . $year . '-';
+
+    $stmt = $crad->prepare("
+        SELECT proposal_reference
+          FROM grant_applications
+         WHERE proposal_reference LIKE ?
+         ORDER BY id DESC
+         LIMIT 1
+    ");
+    $stmt->execute([$prefix . '%']);
+    $last = (string) ($stmt->fetchColumn() ?: '');
+
+    $seq = 1;
+    if ($last !== '' && preg_match('/GR-\d{4}-(\d+)$/', $last, $m)) {
+        $seq = (int) $m[1] + 1;
+    }
+
+    return sprintf('GR-%s-%03d', $year, $seq);
+}
+
+function _grantBackfillProposalReferences(PDO $crad): void
+{
+    try {
+        $rows = $crad->query("
+            SELECT id
+              FROM grant_applications
+             WHERE proposal_reference IS NULL OR proposal_reference = ''
+             ORDER BY id ASC
+        ")->fetchAll(PDO::FETCH_COLUMN) ?: [];
+
+        foreach ($rows as $appId) {
+            $ref = grantGenerateProposalReference($crad);
+            $crad->prepare("
+                UPDATE grant_applications
+                   SET proposal_reference = ?, current_version = COALESCE(NULLIF(current_version, 0), 1)
+                 WHERE id = ?
+            ")->execute([$ref, (int) $appId]);
+        }
+
+        $apps = $crad->query("
+            SELECT ga.*
+              FROM grant_applications ga
+             LEFT JOIN grant_proposal_versions gpv
+                    ON gpv.grant_application_id = ga.id AND gpv.version_number = 1
+             WHERE gpv.id IS NULL
+        ")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        foreach ($apps as $app) {
+            grantInsertProposalVersion($crad, $app, 1);
+        }
+
+        _grantBackfillApplicantUserIds($crad);
+    } catch (Throwable $e) {
+        error_log('_grantBackfillProposalReferences: ' . $e->getMessage());
+    }
+}
+
+function _grantBackfillApplicantUserIds(PDO $crad): void
+{
+    if (!function_exists('db')) {
+        require_once dirname(__DIR__, 2) . '/config/database.php';
+    }
+
+    $main = db();
+    if (!$main) {
+        return;
+    }
+
+    try {
+        $rows = $crad->query("
+            SELECT id, applicant_name, applicant_user_id
+              FROM grant_applications
+             WHERE applicant_user_id IS NULL OR applicant_user_id = 0
+        ")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        $update = $crad->prepare('UPDATE grant_applications SET applicant_user_id = ? WHERE id = ?');
+        $lookup = $main->prepare('SELECT id FROM users WHERE full_name = ? OR username = ? LIMIT 1');
+
+        foreach ($rows as $row) {
+            $name = trim((string) ($row['applicant_name'] ?? ''));
+            if ($name === '') {
+                continue;
+            }
+            $lookup->execute([$name, $name]);
+            $userId = (int) ($lookup->fetchColumn() ?: 0);
+            if ($userId > 0) {
+                $update->execute([$userId, (int) $row['id']]);
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('_grantBackfillApplicantUserIds: ' . $e->getMessage());
+    }
+}
+
+function grantRevisionsRequestedUrl(): string
+{
+    return BASE_URL . '/modules/crad/pages/revisions-requested.php';
+}
+
+function grantApprovedFundedUrl(): string
+{
+    return BASE_URL . '/modules/crad/pages/approved-funded.php';
+}
+
+/** Final grant status after Finance (Level 6) approves. */
+function grantStatusApprovedFunded(): string
+{
+    return 'Approved & Funded';
+}
+
+/** Researcher submitted final output / publication for CRAD verification. */
+function grantStatusFinalOutputSubmitted(): string
+{
+    return 'Final Output Submitted';
+}
+
+/** CRAD verified final output — recorded to Publications & IP Repository. */
+function grantStatusOutputVerified(): string
+{
+    return 'OUTPUT_VERIFIED';
+}
+
+/** @deprecated Alias for grantStatusOutputVerified() */
+function grantStatusPublicationVerified(): string
+{
+    return grantStatusOutputVerified();
+}
+
+/** Permanent records archived to Document Repository. */
+function grantStatusArchived(): string
+{
+    return 'Archived';
+}
+
+/**
+ * Application statuses where funded-research files remain accessible.
+ *
+ * @return list<string>
+ */
+function grantPostFundingApplicationStatuses(): array
+{
+    return [
+        grantStatusApprovedFunded(),
+        grantStatusFinalOutputSubmitted(),
+        grantStatusOutputVerified(),
+        grantStatusArchived(),
+    ];
+}
+
+function grantApplicationStatusLabel(string $status): string
+{
+    return match ($status) {
+        grantStatusApprovedFunded()      => 'APPROVED & FUNDED',
+        grantStatusFinalOutputSubmitted() => 'FINAL OUTPUT SUBMITTED',
+        grantStatusOutputVerified()       => 'OUTPUT VERIFIED',
+        grantStatusArchived()           => 'ARCHIVED',
+        'Submitted'                       => 'Pending Evaluation',
+        'Revision Required'               => 'REVISION REQUIRED',
+        'Rejected'                        => 'REJECTED',
+        default                           => $status,
+    };
+}
+
+/**
+ * Resolve a stored upload path (absolute or basename) under storage/uploads.
+ *
+ * @param list<string> $preferredSubdirs
+ */
+function grantResolveStoredUploadPath(string $storedPath, array $preferredSubdirs = []): ?string
+{
+    $storedPath = trim($storedPath);
+    if ($storedPath === '') {
+        return null;
+    }
+
+    if (is_file($storedPath)) {
+        $real = realpath($storedPath);
+        $uploadsDir = realpath(smsUploadRoot());
+        if ($real !== false && $uploadsDir !== false && strncmp($real, $uploadsDir, strlen($uploadsDir)) === 0) {
+            return $real;
+        }
+    }
+
+    $basename = basename(str_replace('\\', '/', $storedPath));
+    $candidates = $preferredSubdirs;
+    $candidates[] = 'general';
+    foreach ($candidates as $subdir) {
+        $candidate = smsUploadRoot() . '/' . trim($subdir, '/') . '/' . $basename;
+        if (is_file($candidate)) {
+            return realpath($candidate) ?: $candidate;
+        }
+    }
+
+    $fallback = smsUploadRoot() . '/' . $basename;
+    if (is_file($fallback)) {
+        return realpath($fallback) ?: $fallback;
+    }
+
+    return null;
+}
+
+function grantReviseProposalUrl(int $applicationId): string
+{
+    return BASE_URL . '/modules/crad/pages/revise-proposal.php?id=' . $applicationId;
+}
+
+/**
+ * @param array<string, mixed> $application
+ */
+function grantInsertProposalVersion(PDO $crad, array $application, int $versionNumber, ?string $researcherNotes = null): void
+{
+    grantEnsureProposalVersionTables($crad);
+
+    $stmt = $crad->prepare("
+        INSERT INTO grant_proposal_versions
+            (grant_application_id, version_number, version_label,
+             proposal_pdf, proposal_pdf_original,
+             supporting_docs, supporting_docs_original,
+             ethics_doc, ethics_doc_original,
+             abstract, objectives, researcher_notes,
+             submitted_by_user_id, submitted_at)
+        VALUES
+            (?, ?, ?,
+             ?, ?,
+             ?, ?,
+             ?, ?,
+             ?, ?, ?,
+             ?, NOW())
+        ON DUPLICATE KEY UPDATE
+            version_label = VALUES(version_label),
+            proposal_pdf = VALUES(proposal_pdf),
+            proposal_pdf_original = VALUES(proposal_pdf_original),
+            supporting_docs = VALUES(supporting_docs),
+            supporting_docs_original = VALUES(supporting_docs_original),
+            ethics_doc = VALUES(ethics_doc),
+            ethics_doc_original = VALUES(ethics_doc_original),
+            abstract = VALUES(abstract),
+            objectives = VALUES(objectives),
+            researcher_notes = COALESCE(VALUES(researcher_notes), researcher_notes),
+            submitted_by_user_id = VALUES(submitted_by_user_id),
+            submitted_at = VALUES(submitted_at)
+    ");
+    $stmt->execute([
+        (int) $application['id'],
+        $versionNumber,
+        grantVersionLabel($versionNumber),
+        $application['proposal_pdf'] ?? null,
+        $application['proposal_pdf_original'] ?? null,
+        $application['supporting_docs'] ?? null,
+        $application['supporting_docs_original'] ?? null,
+        $application['ethics_doc'] ?? null,
+        $application['ethics_doc_original'] ?? null,
+        $application['abstract'] ?? null,
+        $application['objectives'] ?? null,
+        $researcherNotes,
+        (int) ($application['applicant_user_id'] ?? $_SESSION['user_id'] ?? 0) ?: null,
+    ]);
+}
+
+/**
+ * @return array<int, array<string, mixed>>
+ */
+function grantGetProposalVersions(PDO $crad, int $applicationId): array
+{
+    grantEnsureProposalVersionTables($crad);
+
+    $stmt = $crad->prepare("
+        SELECT *
+          FROM grant_proposal_versions
+         WHERE grant_application_id = ?
+         ORDER BY version_number ASC
+    ");
+    $stmt->execute([$applicationId]);
+
+    return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+}
+
+/**
+ * @return array<int, array<string, mixed>>
+ */
+function grantGetMyRevisionRequiredApplications(PDO $crad): array
+{
+    $userId = (int) ($_SESSION['user_id'] ?? 0);
+    if ($userId <= 0) {
+        return [];
+    }
+
+    grantEnsureTables($crad);
+
+    try {
+        $stmt = $crad->prepare("
+            SELECT ga.id
+              FROM grant_applications ga
+             WHERE ga.applicant_user_id = ?
+               AND ga.status = 'Revision Required'
+        ");
+        $stmt->execute([$userId]);
+        $ids = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN) ?: []);
+        if ($ids === []) {
+            return [];
+        }
+
+        $all = grantGetApplications($crad);
+        $idSet = array_flip($ids);
+        return array_values(array_filter(
+            $all,
+            static fn(array $row): bool => isset($idSet[(int) ($row['id'] ?? 0)])
+        ));
+    } catch (Throwable $e) {
+        error_log('grantGetMyRevisionRequiredApplications: ' . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Attach return metadata for real-time Revisions Requested polling.
+ *
+ * @param  list<array<string, mixed>> $revisions
+ * @return list<array<string, mixed>>
+ */
+function grantEnrichRevisionApplications(PDO $crad, array $revisions): array
+{
+    if ($revisions === []) {
+        return [];
+    }
+
+    require_once __DIR__ . '/grant-evaluation-helpers.php';
+    require_once __DIR__ . '/grant-approval-helpers.php';
+
+    grantEnsureEvaluationTables($crad);
+    grantEnsureApprovalTables($crad);
+
+    $ids = array_values(array_filter(array_map(
+        static fn(array $row): int => (int) ($row['id'] ?? 0),
+        $revisions
+    ), static fn(int $id): bool => $id > 0));
+
+    $approvalReturns = grantGetLatestApprovalReturnsForApplications($crad, $ids);
+    $evaluations = grantGetLatestEvaluationsForApplications($crad, $ids);
+
+    foreach ($revisions as &$row) {
+        $appId = (int) ($row['id'] ?? 0);
+        $approvalReturn = $approvalReturns[$appId] ?? null;
+        $evaluation = $evaluations[$appId] ?? null;
+
+        $row['return_source'] = '';
+        $row['returned_by'] = '';
+        $row['approval_level'] = 0;
+        $row['return_reason'] = '';
+        $row['returned_at'] = (string) ($row['updated_at'] ?? '');
+
+        if ($approvalReturn) {
+            $row['return_source'] = 'approval';
+            $row['returned_by'] = grantApprovalReturnedByLabel($approvalReturn);
+            $row['approval_level'] = (int) ($approvalReturn['step_order'] ?? 0);
+            $row['return_reason'] = trim((string) ($approvalReturn['remarks'] ?? ''));
+            $row['returned_at'] = (string) ($approvalReturn['acted_at'] ?? $row['returned_at']);
+        } elseif ($evaluation) {
+            $row['return_source'] = 'committee';
+            $row['returned_by'] = 'Review Committee';
+            $row['return_reason'] = trim((string) ($evaluation['revision_reason'] ?? $evaluation['required_corrections'] ?? $evaluation['comments'] ?? ''));
+            $row['returned_at'] = (string) ($evaluation['submitted_at'] ?? $row['returned_at']);
+        }
+    }
+    unset($row);
+
+    return $revisions;
+}
+
+function grantGetApplicationForResearcher(PDO $crad, int $applicationId): ?array
+{
+    $stmt = $crad->prepare("
+        SELECT ga.*, go.funding_title, go.max_funding_cap
+          FROM grant_applications ga
+         INNER JOIN grant_opportunities go ON go.id = ga.grant_opportunity_id
+         WHERE ga.id = ?
+         LIMIT 1
+    ");
+    $stmt->execute([$applicationId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$row) {
+        return null;
+    }
+
+    $userId = (int) ($_SESSION['user_id'] ?? 0);
+    if (!grantUserCanManage()
+        && (int) ($row['applicant_user_id'] ?? 0) !== $userId) {
+        return null;
+    }
+
+    return $row;
+}
+
+/**
+ * @param array<string, mixed> $data
+ * @param array<string, mixed> $files
+ * @return array{ok: bool, id?: int, reference?: string, version?: int, new_status?: string, error?: string}
+ */
+function grantResubmitProposal(PDO $crad, int $applicationId, array $data, array $files): array
+{
+    grantEnsureTables($crad);
+    grantEnsureProposalVersionTables($crad);
+
+    $userId = (int) ($_SESSION['user_id'] ?? 0);
+    if ($userId <= 0) {
+        return ['ok' => false, 'error' => 'Invalid session.'];
+    }
+
+    $application = grantGetApplicationForResearcher($crad, $applicationId);
+    if (!$application) {
+        return ['ok' => false, 'error' => 'Proposal not found or access denied.'];
+    }
+
+    if ((string) ($application['status'] ?? '') !== 'Revision Required') {
+        return ['ok' => false, 'error' => 'Only proposals marked for revision can be resubmitted.'];
+    }
+
+    if ((int) ($application['applicant_user_id'] ?? 0) !== $userId) {
+        return ['ok' => false, 'error' => 'You can only revise your own proposals.'];
+    }
+
+    $proposalFile = $files['proposal_pdf'] ?? [];
+    if (empty($proposalFile['ok'])) {
+        return ['ok' => false, 'error' => $proposalFile['error'] ?? 'Revised proposal PDF is required.'];
+    }
+
+    $supportingFile = $files['supporting_docs'] ?? [];
+    $ethicsFile     = $files['ethics_doc'] ?? [];
+    $researcherNotes = trim((string) ($data['researcher_notes'] ?? '')) ?: null;
+    $currentVersion  = max(1, (int) ($application['current_version'] ?? 1));
+    $nextVersion     = $currentVersion + 1;
+
+    try {
+        $crad->beginTransaction();
+
+        grantInsertProposalVersion($crad, $application, $currentVersion, null);
+
+        $updated = array_merge($application, [
+            'proposal_pdf'            => $proposalFile['stored_name'] ?? $application['proposal_pdf'],
+            'proposal_pdf_original'   => $proposalFile['original_name'] ?? $application['proposal_pdf_original'],
+            'supporting_docs'         => !empty($supportingFile['ok'])
+                ? ($supportingFile['stored_name'] ?? null)
+                : $application['supporting_docs'],
+            'supporting_docs_original' => !empty($supportingFile['ok'])
+                ? ($supportingFile['original_name'] ?? null)
+                : $application['supporting_docs_original'],
+            'ethics_doc'              => !empty($ethicsFile['ok'])
+                ? ($ethicsFile['stored_name'] ?? null)
+                : $application['ethics_doc'],
+            'ethics_doc_original'     => !empty($ethicsFile['ok'])
+                ? ($ethicsFile['original_name'] ?? null)
+                : $application['ethics_doc_original'],
+            'current_version'         => $nextVersion,
+        ]);
+
+        grantInsertProposalVersion($crad, $updated, $nextVersion, $researcherNotes);
+
+        $crad->prepare("
+            UPDATE grant_applications
+               SET proposal_pdf = ?,
+                   proposal_pdf_original = ?,
+                   supporting_docs = ?,
+                   supporting_docs_original = ?,
+                   ethics_doc = ?,
+                   ethics_doc_original = ?,
+                   current_version = ?,
+                   status = 'Under Review',
+                   submitted_at = NOW(),
+                   updated_at = NOW()
+             WHERE id = ?
+        ")->execute([
+            $updated['proposal_pdf'],
+            $updated['proposal_pdf_original'],
+            $updated['supporting_docs'],
+            $updated['supporting_docs_original'],
+            $updated['ethics_doc'],
+            $updated['ethics_doc_original'],
+            $nextVersion,
+            $applicationId,
+        ]);
+
+        require_once __DIR__ . '/grant-approval-helpers.php';
+        grantClearApprovalWorkflowForResubmit($crad, $applicationId);
+
+        $crad->commit();
+
+        return [
+            'ok'          => true,
+            'id'          => $applicationId,
+            'reference'   => (string) ($application['proposal_reference'] ?? ''),
+            'version'     => $nextVersion,
+            'new_status'  => 'Under Review',
+        ];
+    } catch (Throwable $e) {
+        if ($crad->inTransaction()) {
+            $crad->rollBack();
+        }
+        error_log('grantResubmitProposal: ' . $e->getMessage());
+        return ['ok' => false, 'error' => 'Failed to resubmit proposal. Please try again.'];
+    }
+}
+
+/**
+ * Extend grant_applications.status with reviewer decision outcomes.
+ */
+function _grantEnsureApplicationStatusEnum(PDO $crad): void
+{
+    try {
+        $stmt = $crad->prepare(
+            "SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+              WHERE TABLE_SCHEMA = DATABASE()
+                AND TABLE_NAME = 'grant_applications'
+                AND COLUMN_NAME = 'status'"
+        );
+        $stmt->execute();
+        $columnType = (string) $stmt->fetchColumn();
+        if ($columnType === '') {
+            return;
+        }
+        if (strpos($columnType, 'OUTPUT_VERIFIED') !== false
+            && strpos($columnType, 'Archived') !== false) {
+            return;
+        }
+
+        if (strpos($columnType, 'Publication Verified') !== false) {
+            $crad->exec("UPDATE grant_applications SET status = 'OUTPUT_VERIFIED' WHERE status = 'Publication Verified'");
+        }
+
+        $crad->exec("
+            ALTER TABLE grant_applications
+            MODIFY COLUMN status ENUM(
+                'Submitted',
+                'Under Review',
+                'Approved',
+                'Approved & Funded',
+                'Final Output Submitted',
+                'OUTPUT_VERIFIED',
+                'Archived',
+                'Denied',
+                'Withdrawn',
+                'Rejected',
+                'Revision Required',
+                'Resubmitted'
+            ) NOT NULL DEFAULT 'Submitted'
+        ");
+    } catch (Throwable $e) {
+        error_log('_grantEnsureApplicationStatusEnum: ' . $e->getMessage());
+    }
 }
 
 /**
@@ -229,6 +950,8 @@ function grantGetApplications(PDO $crad, ?int $opportunityId = null): array
 {
     // ── Detect which optional proposal columns are actually present ──────────
     $proposalColumns = [
+        'proposal_reference',
+        'current_version',
         'college_dept',
         'requested_budget',
         'abstract',
@@ -297,6 +1020,26 @@ function grantGetApplications(PDO $crad, ?int $opportunityId = null): array
 }
 
 /**
+ * Fetch grant applications for the current researcher (student / adviser).
+ *
+ * @param  PDO $crad
+ * @return array<int, array<string, mixed>>
+ */
+function grantGetMyApplications(PDO $crad): array
+{
+    $userId = (int) ($_SESSION['user_id'] ?? 0);
+    if ($userId <= 0) {
+        return [];
+    }
+
+    $all = grantGetApplications($crad);
+    return array_values(array_filter(
+        $all,
+        static fn(array $row): bool => (int) ($row['applicant_user_id'] ?? 0) === $userId
+    ));
+}
+
+/**
  * Return dashboard summary counts for the grant management module.
  *
  * @param  PDO $crad
@@ -342,7 +1085,7 @@ function grantDashboardStats(PDO $crad): array
                 COUNT(*)                                AS total_applications,
                 SUM(status = 'Under Review')            AS under_review,
                 SUM(status = 'Approved')                AS approved,
-                SUM(status = 'Denied')                  AS denied
+                SUM(status IN ('Denied', 'Rejected'))          AS denied
             FROM grant_applications
         ");
         $app = $appStmt ? ($appStmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
@@ -362,6 +1105,187 @@ function grantDashboardStats(PDO $crad): array
         error_log('grantDashboardStats: ' . $e->getMessage());
         return $defaults;
     }
+}
+
+/**
+ * Full grant dashboard metrics for CRAD Dashboard & Analytics (real-time).
+ *
+ * @return array<string, int|float|string>
+ */
+function grantGetDashboardMetrics(PDO $crad): array
+{
+    grantEnsureTables($crad);
+    grantExpireDeadlines($crad);
+
+    if (is_file(__DIR__ . '/grant-final-output-helpers.php')) {
+        require_once __DIR__ . '/grant-final-output-helpers.php';
+        if (function_exists('grantEnsureFinalOutputTables')) {
+            grantEnsureFinalOutputTables($crad);
+        }
+    }
+    if (is_file(__DIR__ . '/grant-document-repository-helpers.php')) {
+        require_once __DIR__ . '/grant-document-repository-helpers.php';
+        if (function_exists('grantEnsureDocumentRepositoryTables')) {
+            grantEnsureDocumentRepositoryTables($crad);
+        }
+    }
+    if (is_file(__DIR__ . '/grant-funding-helpers.php')) {
+        require_once __DIR__ . '/grant-funding-helpers.php';
+        if (function_exists('grantEnsureFundingTables')) {
+            grantEnsureFundingTables($crad);
+        }
+    }
+
+    $defaults = grantDashboardMetricsDefaults();
+
+    try {
+        $defaults['total_grant_calls'] = (int) $crad->query(
+            'SELECT COUNT(*) FROM grant_opportunities'
+        )->fetchColumn();
+
+        $funded = grantStatusApprovedFunded();
+        $finalSubmitted = grantStatusFinalOutputSubmitted();
+        $outputVerified = grantStatusOutputVerified();
+        $archived = grantStatusArchived();
+
+        $appStmt = $crad->prepare("
+            SELECT
+                COUNT(*) AS submitted_proposals,
+                SUM(status = 'Under Review') AS under_review,
+                SUM(status = 'Revision Required') AS revision_required,
+                SUM(status IN ('Rejected', 'Denied')) AS rejected_proposals,
+                SUM(status = ?) AS approved_funded_projects,
+                SUM(status IN (?, ?)) AS ongoing_research,
+                SUM(status IN (?, ?)) AS completed_research,
+                COALESCE(SUM(
+                    CASE WHEN status IN (?, ?, ?, ?)
+                    THEN COALESCE(approved_budget, requested_budget, 0) ELSE 0 END
+                ), 0) AS total_funding
+            FROM grant_applications
+        ");
+        $appStmt->execute([
+            $funded,
+            $funded, $finalSubmitted,
+            $outputVerified, $archived,
+            $funded, $finalSubmitted, $outputVerified, $archived,
+        ]);
+        $app = $appStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+        $defaults['submitted_proposals']      = (int) ($app['submitted_proposals'] ?? 0);
+        $defaults['under_review']             = (int) ($app['under_review'] ?? 0);
+        $defaults['revision_required']        = (int) ($app['revision_required'] ?? 0);
+        $defaults['rejected_proposals']       = (int) ($app['rejected_proposals'] ?? 0);
+        $defaults['approved_funded_projects'] = (int) ($app['approved_funded_projects'] ?? 0);
+        $defaults['ongoing_research']         = (int) ($app['ongoing_research'] ?? 0);
+        $defaults['completed_research']       = (int) ($app['completed_research'] ?? 0);
+        $defaults['total_funding']            = (float) ($app['total_funding'] ?? 0);
+
+        $releasedStmt = $crad->query("
+            SELECT COALESCE(SUM(amount_released), 0)
+              FROM grant_funding_disbursements
+             WHERE status = 'Released'
+        ");
+        $releasedTotal = (float) ($releasedStmt ? $releasedStmt->fetchColumn() : 0);
+        if ($releasedTotal > 0) {
+            $defaults['total_funding'] = $releasedTotal;
+        }
+
+        $pubTable = $crad->query("SHOW TABLES LIKE 'grant_publications_ip_repository'")->fetchColumn();
+        if ($pubTable) {
+            $defaults['publications'] = (int) $crad->query(
+                'SELECT COUNT(*) FROM grant_publications_ip_repository'
+            )->fetchColumn();
+
+            $defaults['ip_records'] = (int) $crad->query("
+                SELECT COUNT(*) FROM grant_publications_ip_repository
+                 WHERE TRIM(COALESCE(copyright_info, '')) <> ''
+                    OR TRIM(COALESCE(patent_info, '')) <> ''
+                    OR TRIM(COALESCE(other_ip_info, '')) <> ''
+                    OR TRIM(COALESCE(ip_information, '')) <> ''
+            ")->fetchColumn();
+        }
+
+        $defaults['updated_at'] = date('Y-m-d H:i:s');
+    } catch (Throwable $e) {
+        error_log('grantGetDashboardMetrics: ' . $e->getMessage());
+    }
+
+    return $defaults;
+}
+
+/**
+ * @return array<string, int|float|string>
+ */
+function grantDashboardMetricsDefaults(): array
+{
+    return [
+        'total_grant_calls'          => 0,
+        'submitted_proposals'        => 0,
+        'under_review'               => 0,
+        'revision_required'          => 0,
+        'rejected_proposals'         => 0,
+        'approved_funded_projects'   => 0,
+        'total_funding'              => 0.0,
+        'ongoing_research'           => 0,
+        'completed_research'         => 0,
+        'publications'               => 0,
+        'ip_records'                 => 0,
+        'updated_at'                 => '',
+    ];
+}
+
+/**
+ * @return list<array{key: string, label: string, icon: string, tone: string, format: string}>
+ */
+function grantDashboardMetricDefinitions(): array
+{
+    return [
+        ['key' => 'total_grant_calls',        'label' => 'Total Grant Calls',          'icon' => 'fa-bullhorn',         'tone' => 'blue',   'format' => 'int'],
+        ['key' => 'submitted_proposals',      'label' => 'Submitted Proposals',        'icon' => 'fa-file-alt',         'tone' => 'purple', 'format' => 'int'],
+        ['key' => 'under_review',             'label' => 'Under Review',               'icon' => 'fa-search',           'tone' => 'amber',  'format' => 'int'],
+        ['key' => 'revision_required',        'label' => 'Revision Required',          'icon' => 'fa-edit',             'tone' => 'orange', 'format' => 'int'],
+        ['key' => 'rejected_proposals',       'label' => 'Rejected Proposals',         'icon' => 'fa-ban',              'tone' => 'red',    'format' => 'int'],
+        ['key' => 'approved_funded_projects', 'label' => 'Approved & Funded Projects', 'icon' => 'fa-check-circle',     'tone' => 'green',  'format' => 'int'],
+        ['key' => 'total_funding',            'label' => 'Total Funding',              'icon' => 'fa-peso-sign',        'tone' => 'green',  'format' => 'currency'],
+        ['key' => 'ongoing_research',         'label' => 'Ongoing Research',           'icon' => 'fa-flask',            'tone' => 'blue',   'format' => 'int'],
+        ['key' => 'completed_research',       'label' => 'Completed Research',         'icon' => 'fa-flag-checkered',   'tone' => 'purple', 'format' => 'int'],
+        ['key' => 'publications',             'label' => 'Publications',               'icon' => 'fa-book-open',        'tone' => 'teal',   'format' => 'int'],
+        ['key' => 'ip_records',               'label' => 'IP Records',                 'icon' => 'fa-shield-alt',       'tone' => 'indigo', 'format' => 'int'],
+    ];
+}
+
+/**
+ * @param array<string, int|float|string> $metrics
+ */
+function grantDashboardMetricsFingerprint(array $metrics): string
+{
+    $parts = [];
+    foreach (grantDashboardMetricDefinitions() as $def) {
+        $key = (string) ($def['key'] ?? '');
+        $parts[] = $key . ':' . (string) ($metrics[$key] ?? 0);
+    }
+
+    return md5(implode('|', $parts));
+}
+
+/**
+ * @param array<string, int|float|string> $metrics
+ */
+function grantFormatDashboardMetricValue(string $key, array $metrics): string
+{
+    $value = $metrics[$key] ?? 0;
+    if ($key === 'total_funding') {
+        if (!function_exists('grantFormatPeso') && is_file(__DIR__ . '/grant-funding-helpers.php')) {
+            require_once __DIR__ . '/grant-funding-helpers.php';
+        }
+        if (function_exists('grantFormatPeso')) {
+            return grantFormatPeso((float) $value);
+        }
+
+        return '₱' . number_format((float) $value, 0, '.', ',');
+    }
+
+    return number_format((int) $value);
 }
 
 /**
@@ -468,6 +1392,8 @@ function grantPublishOpportunity(PDO $crad, array $data): array
  */
 function grantSubmitProposal(PDO $crad, array $data, array $files): array
 {
+    grantEnsureTables($crad);
+
     // ── Unpack scalar fields ────────────────────────────────────────────────
     $grantId        = (int)    ($data['grant_opportunity_id'] ?? 0);
     $leadProponent  = trim((string) ($data['lead_proponent']   ?? ''));
@@ -568,11 +1494,13 @@ function grantSubmitProposal(PDO $crad, array $data, array $files): array
 
     // ── Insert application ──────────────────────────────────────────────────
     $submissionToken = bin2hex(random_bytes(16));
+    $proposalReference = grantGenerateProposalReference($crad);
 
     try {
         $stmt = $crad->prepare("
             INSERT INTO grant_applications
                 (grant_opportunity_id,
+                 proposal_reference, current_version,
                  applicant_name, applicant_user_id,
                  college_dept, requested_budget,
                  research_title, group_number,
@@ -585,6 +1513,7 @@ function grantSubmitProposal(PDO $crad, array $data, array $files): array
                  submitted_at, updated_at)
             VALUES
                 (?,
+                 ?, 1,
                  ?, ?,
                  ?, ?,
                  ?, ?,
@@ -598,6 +1527,7 @@ function grantSubmitProposal(PDO $crad, array $data, array $files): array
         ");
         $stmt->execute([
             $grantId,
+            $proposalReference,
             $leadProponent,
             $applicantUid,
             $collegeDept,
@@ -615,7 +1545,22 @@ function grantSubmitProposal(PDO $crad, array $data, array $files): array
             $notes,
             $submissionToken,
         ]);
-        return ['ok' => true, 'id' => (int) $crad->lastInsertId()];
+        $newId = (int) $crad->lastInsertId();
+
+        grantInsertProposalVersion($crad, [
+            'id' => $newId,
+            'applicant_user_id' => $applicantUid,
+            'proposal_pdf' => $proposalFile['stored_name'] ?? null,
+            'proposal_pdf_original' => $proposalFile['original_name'] ?? null,
+            'supporting_docs' => $supportingFile['stored_name'] ?? null,
+            'supporting_docs_original' => $supportingFile['original_name'] ?? null,
+            'ethics_doc' => $ethicsFile['stored_name'] ?? null,
+            'ethics_doc_original' => $ethicsFile['original_name'] ?? null,
+            'abstract' => $abstract,
+            'objectives' => $objectives,
+        ], 1);
+
+        return ['ok' => true, 'id' => $newId, 'reference' => $proposalReference];
 
     } catch (Throwable $e) {
         error_log('grantSubmitProposal (insert): ' . $e->getMessage());

@@ -166,15 +166,10 @@ body.login-page.forgot-page {
     z-index: 0;
     overflow: hidden;
     pointer-events: none;
-}
-
-.forgot-video-bg video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center;
-    transform: scale(1.04);
-    filter: saturate(1.05) brightness(0.92);
+    background:
+        radial-gradient(ellipse 90% 70% at 15% 10%, rgba(96, 165, 250, 0.22) 0%, transparent 55%),
+        radial-gradient(ellipse 70% 55% at 85% 85%, rgba(83, 80, 214, 0.18) 0%, transparent 50%),
+        linear-gradient(145deg, #051637 0%, #0b2a6b 42%, #1a6fc4 100%);
 }
 
 .forgot-video-bg::after {
@@ -496,26 +491,18 @@ html[data-theme="dark"] .forgot-glass .sms-cf-widget.is-verified {
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .forgot-video-bg video {
-        display: none;
-    }
-
     .forgot-video-bg {
         background: #071c48;
     }
 }
 </style>
 
-<div class="forgot-video-bg" aria-hidden="true">
-    <video autoplay muted loop playsinline>
-        <source src="<?= BASE_URL ?>/assets/videos/bcp-campus.mp4?v=bcp4" type="video/mp4">
-    </video>
-</div>
+<div class="forgot-video-bg" aria-hidden="true"></div>
 
 <main class="forgot-stage">
     <section class="forgot-glass" aria-label="Forgot password">
         <div class="forgot-brand">
-            <img src="<?= BASE_URL ?>/images/bcp-logo-source.png?v=crest3" alt="Bestlink College of the Philippines" width="82" height="82">
+            <img src="<?= e(smsBrandLogoUrl()) ?>?v=crest3" alt="Bestlink College of the Philippines" width="82" height="82">
         </div>
         <h1>Forgot password</h1>
         <p class="forgot-lead">Enter the email linked to your BCP account. If it is registered, we will email a password reset link.</p>
@@ -539,10 +526,10 @@ html[data-theme="dark"] .forgot-glass .sms-cf-widget.is-verified {
             </div>
             <?= smsCaptchaMarkup() ?>
             <button type="submit" class="btn btn-auth-primary w-100" id="forgotSubmitBtn" disabled>
-                <i class="fas fa-envelope-open-text me-2"></i>Send reset link
+                <?= smsIcon('envelope-open-text', ['class' => 'me-2']) ?>Send reset link
             </button>
             <div class="forgot-links">
-                <a href="<?= BASE_URL ?>/login/login.php" data-auth-transition data-auth-direction="right"><i class="fas fa-arrow-left" aria-hidden="true"></i>Back to sign in</a>
+                <a href="<?= BASE_URL ?>/login/login.php" data-auth-transition data-auth-direction="right"><?= smsIcon('arrow-left', ['aria-hidden' => 'true']) ?>Back to sign in</a>
             </div>
         </form>
     </section>

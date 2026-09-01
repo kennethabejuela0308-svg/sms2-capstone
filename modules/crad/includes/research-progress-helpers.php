@@ -811,7 +811,7 @@ function rpRenderAdviserGroupSelector(array $groups, string $title = 'Select Res
     ?>
     <div class="glass-dashboard"><div class="glass-board">
         <div class="glass-panel"><div class="glass-panel-body rm-empty">
-            <div class="rm-empty-icon"><i class="fas fa-layer-group" style="color:#2563eb;"></i></div>
+            <div class="rm-empty-icon"><?= smsIcon('layer-group', ['style' => 'color:#2563eb;']) ?></div>
             <h6><?= htmlspecialchars($title) ?></h6>
             <p><?= htmlspecialchars($description) ?></p>
             <form method="GET" action="<?= $action ?>" class="mt-3" style="max-width:520px;margin:0 auto;">
@@ -826,7 +826,7 @@ function rpRenderAdviserGroupSelector(array $groups, string $title = 'Select Res
                         <?php endforeach; ?>
                     </select>
                     <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-arrow-right me-1"></i>Open
+                        <?= smsIcon('arrow-right', ['class' => 'me-1']) ?>Open
                     </button>
                 </div>
             </form>
@@ -840,7 +840,7 @@ function rpRenderAdviserNoGroupsState(): void
     ?>
     <div class="glass-dashboard"><div class="glass-board">
         <div class="glass-panel"><div class="glass-panel-body rm-empty">
-            <div class="rm-empty-icon"><i class="fas fa-users"></i></div>
+            <div class="rm-empty-icon"><?= smsIcon('users') ?></div>
             <h6>No Research Groups Assigned</h6>
             <p>You currently have no research groups assigned for monitoring.</p>
         </div></div>
@@ -853,11 +853,11 @@ function rpRenderAdviserGroupAccessDenied(): void
     ?>
     <div class="glass-dashboard"><div class="glass-board">
         <div class="glass-panel"><div class="glass-panel-body rm-empty">
-            <div class="rm-empty-icon"><i class="fas fa-ban" style="color:#ef4444;"></i></div>
+            <div class="rm-empty-icon"><?= smsIcon('ban', ['style' => 'color:#ef4444;']) ?></div>
             <h6>Access Denied</h6>
             <p>This research group is not assigned to you or is no longer available.</p>
             <a href="<?= BASE_URL ?>/modules/faculty/pages/my-research-groups.php" class="btn btn-primary mt-3">
-                <i class="fas fa-users me-2"></i>View My Research Groups
+                <?= smsIcon('users', ['class' => 'me-2']) ?>View My Research Groups
             </a>
         </div></div>
     </div></div>

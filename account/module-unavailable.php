@@ -18,7 +18,7 @@ if (in_array($moduleKey, ['crud', 'crowd'], true)) {
     $moduleKey = 'crad';
 }
 
-if ($moduleKey === '' || getCurrentUserRoleKey() === 'admin') {
+if ($moduleKey === '' || smsCanBypassSystemControls()) {
     header('Location: ' . BASE_URL . '/dashboard/index.php');
     exit;
 }
@@ -157,7 +157,7 @@ body.maintenance-lock-page {
 <main class="maint-stage" role="main" aria-labelledby="maintTitle">
     <div class="maint-logo" aria-hidden="true">
         <div class="maint-logo__plate">
-            <img src="<?= BASE_URL ?>/images/bcp-logo-source.png?v=crest-maint" alt="" width="72" height="72">
+            <img src="<?= e(smsBrandLogoUrl()) ?>?v=crest-maint" alt="" width="72" height="72">
         </div>
         <span class="maint-logo__badge" title="Under maintenance">🛠️</span>
     </div>
@@ -165,7 +165,7 @@ body.maintenance-lock-page {
     <h1 id="maintTitle"><?= e($label) ?> is under maintenance</h1>
     <p><?= e($message) ?></p>
     <a class="btn btn-sms-primary" href="<?= e(BASE_URL) ?>/login/logout.php">
-        <i class="fas fa-sign-out-alt me-1"></i>Sign out
+        <?= smsIcon('sign-out-alt', ['class' => 'me-1']) ?>Sign out
     </a>
 </main>
 <script>

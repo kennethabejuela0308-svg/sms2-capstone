@@ -60,7 +60,6 @@ $bodyClass = 'login-page';
 require_once ROOT_PATH . '/includes/header.php';
 ?>
 <link href="<?= BASE_URL ?>/assets/css/auth-pages.css" rel="stylesheet">
-<link href="<?= BASE_URL ?>/assets/css/password-strength.css" rel="stylesheet">
 <style>
 body.login-page {
     background: #071c48 !important;
@@ -74,18 +73,11 @@ body.login-page {
     z-index: 0;
     overflow: hidden;
     pointer-events: none;
+    background:
+        radial-gradient(ellipse 90% 70% at 15% 10%, rgba(96, 165, 250, 0.22) 0%, transparent 55%),
+        linear-gradient(145deg, #051637 0%, #0b2a6b 42%, #1a6fc4 100%);
 }
 
-.reset-video-bg video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center;
-    transform: scale(1.04);
-    filter: saturate(1.05) brightness(0.92);
-}
-
-/* Keep video visible behind the glassy reset card */
 .reset-video-bg::after {
     content: "";
     position: absolute;
@@ -106,26 +98,18 @@ body.login-page {
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .reset-video-bg video {
-        display: none;
-    }
-
     .reset-video-bg {
         background: #071c48;
     }
 }
 </style>
 
-<div class="reset-video-bg" aria-hidden="true">
-    <video autoplay muted loop playsinline>
-        <source src="<?= BASE_URL ?>/assets/videos/bcp-campus.mp4?v=bcp4" type="video/mp4">
-    </video>
-</div>
+<div class="reset-video-bg" aria-hidden="true"></div>
 
 <main class="auth-stage">
     <section class="auth-card" aria-label="Reset password">
         <div class="auth-badge">
-            <i class="fas fa-shield-alt"></i>
+            <?= smsIcon('shield-alt') ?>
             <span>Secure Password Reset</span>
         </div>
         <h1>Set new password</h1>
@@ -154,7 +138,7 @@ body.login-page {
                 </div>
                 <?= smsCaptchaMarkup() ?>
                 <button type="submit" class="btn btn-auth-primary w-100">
-                    <i class="fas fa-check me-2"></i>Update password
+                    <?= smsIcon('check', ['class' => 'me-2']) ?>Update password
                 </button>
                 <div class="auth-links">
                     <a href="<?= BASE_URL ?>/login/login.php">Back to sign in</a>
@@ -167,5 +151,4 @@ body.login-page {
 <footer class="auth-footer">
     <p class="mb-0">&copy; 2026 Bestlink College of the Philippines. All rights reserved.</p>
 </footer>
-<script src="<?= BASE_URL ?>/assets/js/password-strength.js"></script>
 <?php require_once ROOT_PATH . '/includes/scripts.php'; ?>

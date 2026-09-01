@@ -288,7 +288,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
         <div class="crad-print-preview">
             <div class="crad-print-actions">
                 <button type="button" class="crad-btn-print" onclick="window.print()">
-                    <i class="fas fa-print"></i> Print Title Approval Form
+                    <?= smsIcon('print') ?> Print Title Approval Form
                 </button>
             </div>
 
@@ -466,13 +466,13 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                     data-agenda="<?= htmlspecialchars($submittedAgenda) ?>"
                     data-justification="<?= htmlspecialchars($submittedJustification) ?>"
                 >
-                    <span class="crad-btn-send-icon"><i class="fas <?= $alreadySentToAdviser ? 'fa-check' : 'fa-paper-plane' ?>"></i></span>
+                    <span class="crad-btn-send-icon"><?= smsIcon($alreadySentToAdviser ? 'check' : 'paper-plane') ?></span>
                     <span class="crad-btn-send-text"><?= $alreadySentToAdviser ? 'Document Packet Sent' : ($isResubmitMode ? 'Resubmit to Adviser' : 'Send to Adviser') ?></span>
                 </button>
             </div>
             <?php if ($alreadySentToAdviser): ?>
                 <div class="crad-document-packet-note" role="status">
-                    <i class="fas fa-paper-plane"></i>
+                    <?= smsIcon('paper-plane') ?>
                     <div>
                         <strong>Document Packet Sent</strong>
                         <span>Current status: Document Packet Sent. This status is shown on your dashboard.</span>
@@ -482,7 +482,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
             <?php $resubmitRemarks = trim((string) (($resubmitSubmission['adviser_remarks'] ?? null) ?: ($existingSubmission['adviser_remarks'] ?? ''))); ?>
             <?php if ($isResubmitMode && $resubmitRemarks !== ''): ?>
                 <div class="crad-returned-note">
-                    <strong><i class="fas fa-comment-dots"></i> Adviser remarks</strong>
+                    <strong><?= smsIcon('comment-dots') ?> Adviser remarks</strong>
                     <span><?= htmlspecialchars($resubmitRemarks) ?></span>
                 </div>
             <?php endif; ?>
@@ -505,12 +505,12 @@ require_once ROOT_PATH . '/includes/layout-start.php';
 
         <nav class="crad-stepper" aria-label="Form steps">
             <div class="crad-step is-active" data-step-indicator="1">
-                <span class="crad-step-icon"><i class="fas fa-check"></i></span>
+                <span class="crad-step-icon"><?= smsIcon('check') ?></span>
                 <span class="crad-step-label">Students Information</span>
             </div>
             <div class="crad-step-line"></div>
             <div class="crad-step" data-step-indicator="2">
-                <span class="crad-step-icon"><i class="fas fa-check"></i></span>
+                <span class="crad-step-icon"><?= smsIcon('check') ?></span>
                 <span class="crad-step-label">Alignments &amp; SDGs</span>
             </div>
             <div class="crad-step-line"></div>
@@ -658,7 +658,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                 </div>
 
                 <aside class="crad-verify-box">
-                    <div class="crad-verify-icon"><i class="fas fa-shield-alt"></i></div>
+                    <div class="crad-verify-icon"><?= smsIcon('shield-alt') ?></div>
                     <div>
                         <h3>Bestlink CRD Pre-submission Verification</h3>
                         <p>By clicking Submit, you authorize Bestlink College research coordinators to commence active evaluation checks (feasibility, originality, ethics, and agenda compliance).</p>
@@ -1749,11 +1749,11 @@ require_once ROOT_PATH . '/includes/layout-start.php';
 
             var icon = item.querySelector('.crad-step-icon');
             if (step < currentStep) {
-                icon.innerHTML = '<i class="fas fa-check"></i>';
+                icon.innerHTML = '<?= smsIcon('check') ?>';
             } else if (step === currentStep) {
-                icon.innerHTML = step === 3 ? '3' : '<i class="fas fa-check"></i>';
+                icon.innerHTML = step === 3 ? '3' : '<?= smsIcon('check') ?>';
             } else if (step === 2) {
-                icon.innerHTML = '<i class="fas fa-check"></i>';
+                icon.innerHTML = '<?= smsIcon('check') ?>';
             } else {
                 icon.textContent = String(step);
             }
@@ -1842,7 +1842,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
         notice.style.background   = isError ? '#fef2f2' : '#f0fdf4';
         notice.style.color        = isError ? '#991b1b' : '#14532d';
         notice.style.border       = '1px solid ' + (isError ? '#fecaca' : '#86efac');
-        notice.innerHTML = (isError ? '<i class="fas fa-exclamation-circle" style="margin-right:.4rem"></i>' : '<i class="fas fa-check-circle" style="margin-right:.4rem"></i>') + msg;
+        notice.innerHTML = (isError ? '<?= smsIcon('exclamation-circle', ['style' => 'margin-right:.4rem']) ?>' : '<?= smsIcon('check-circle', ['style' => 'margin-right:.4rem']) ?>') + msg;
         notice.style.display = 'block';
     }
 
