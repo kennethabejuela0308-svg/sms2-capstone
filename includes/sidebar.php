@@ -34,6 +34,12 @@ if (!smsIsGrantedAdminRole($roleKey)) {
             break;
         }
     }
+    if ($securitySettingsModule === '' && in_array($roleKey, ['vpaa', 'research_office', 'department_chair'], true)) {
+        if (!function_exists('smsPrimaryModuleForRole')) {
+            require_once __DIR__ . '/security-workflow.php';
+        }
+        $securitySettingsModule = (string) smsPrimaryModuleForRole($roleKey);
+    }
 }
 $moduleHasSecuritySettingsPage = false;
 if ($securitySettingsModule !== '' && isset($visibleModules[$securitySettingsModule]['pages'])) {

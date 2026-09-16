@@ -332,6 +332,14 @@ function getVisibleModules(array $modules): array
         unset($visible['crad']);
     }
 
+    if (getCurrentUserRoleKey() === 'research_office' && isset($visible['crad'])) {
+        unset($visible['crad']);
+    }
+
+    if (getCurrentUserRoleKey() === 'vpaa' && isset($visible['accreditation'])) {
+        unset($visible['accreditation']);
+    }
+
     if (getCurrentUserRoleKey() === 'review_committee' && isset($visible['crad_grant'])) {
         $visible['crad_grant'] = smsReviewCommitteeGrantModule();
     }
