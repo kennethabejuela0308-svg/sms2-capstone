@@ -593,7 +593,9 @@ $researchDirectorNavGroups = [
                         'crad_grant'     => 'crad',
                         default          => $navModuleKey,
                     };
-                    $overviewUrl = BASE_URL . '/modules/' . $moduleFolder . '/index.php';
+                    $overviewUrl = !empty($module['hide_overview'])
+                        ? $roleHomeUrl
+                        : (BASE_URL . '/modules/' . $moduleFolder . '/index.php');
                     $moduleInMaint = smsIsModuleInMaintenance((string) $navModuleKey);
                     $moduleIcon = (string) ($module['icon'] ?? 'fa-folder');
                     $moduleCollapseId = 'adminMod_' . preg_replace('/[^a-z0-9_]/', '_', (string) $navModuleKey);

@@ -66,7 +66,7 @@ function grantActiveModuleKey(): string
     $roleKey = function_exists('getCurrentUserRoleKey') ? getCurrentUserRoleKey() : '';
 
     return match ($roleKey) {
-        'research_grant' => 'crad_grant',
+        'research_grant', 'review_committee' => 'crad_grant',
         'student'        => 'student_portal',
         'adviser'        => 'faculty',
         default          => 'crad',

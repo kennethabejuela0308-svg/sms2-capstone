@@ -1455,13 +1455,23 @@ function smsSetUserPassword(int $userId, string $newPassword, bool $forceChange 
     $pdo->prepare(
         'UPDATE users
          SET password_hash = ?, must_change_password = ?, password_changed_at = NOW(),
-             failed_login_attempts = 0, locked_until = NULL
+             failed_login_attempts = 0, locked_until = NULL,
+             status = CASE WHEN status = \'locked\' THEN \'active\' ELSE status END
          WHERE id = ?'
     )->execute([
         password_hash($newPassword, PASSWORD_DEFAULT),
         $forceChange ? 1 : 0,
         $userId,
     ]);
+
+    $user = $pdo->prepare('SELECT username, email FROM users WHERE id = ? LIMIT 1');
+    $user->execute([$userId]);
+    $row = $user->fetch() ?: [];
+    if (function_exists('smsClearLoginThrottle')) {
+        smsClearLoginThrottle((string) ($row['username'] ?? ''));
+        smsClearLoginThrottle((string) ($row['email'] ?? ''));
+        smsClearLoginThrottle('');
+    }
 
     return true;
 }
