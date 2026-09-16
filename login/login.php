@@ -1463,9 +1463,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (ready) {
             submitBtn.removeAttribute('title');
         } else if (!hasEmail && !hasPassword) {
-            submitBtn.title = 'Fill in email and password first';
+            submitBtn.title = 'Fill in email or username and password first';
         } else if (!hasEmail) {
-            submitBtn.title = 'Enter your email first';
+            submitBtn.title = 'Enter your email or username first';
         } else if (!hasPassword) {
             submitBtn.title = 'Enter your password first';
         } else {
@@ -1493,7 +1493,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function validateUsername(showWhenEmpty) {
         if (!username) return true;
         const empty = username.value.trim() === '';
-        setFieldRequiredError(username, usernameError, 'Email is required.', showWhenEmpty && empty);
+        setFieldRequiredError(username, usernameError, 'Email or username is required.', showWhenEmpty && empty);
         return !empty;
     }
 
