@@ -690,7 +690,9 @@ renderBreadcrumbs($breadcrumbs);
     function roleLabelFromSelect(form, role) {
         var select = form.querySelector('[name="role"]');
         if (!select) return role;
-        var opt = select.querySelector('option[value="' + CSS.escape(role) + '"]');
+        var opt = Array.prototype.find.call(select.options, function (o) {
+            return o.value === role;
+        });
         return opt ? (opt.textContent || role).trim() : role;
     }
 
