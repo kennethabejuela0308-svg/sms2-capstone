@@ -217,9 +217,6 @@ foreach ($users as &$u) {
     ) {
         $u['role'] = 'admission';
         $u['roleLabel'] = 'Admission';
-        $u['name'] = 'Admission';
-        $u['username'] = 'admission';
-        $u['email'] = 'admission@bestlink.edu.ph';
     }
     if ($u['role'] === 'hr') {
         $u['roleLabel'] = 'Dean';
@@ -814,7 +811,8 @@ renderBreadcrumbs($breadcrumbs);
                             username: payload.username,
                             email: payload.email,
                             role: payload.role,
-                            status: payload.status
+                            status: payload.status,
+                            notes: payload.notes || ''
                         });
                         closeUserModal();
                         if (typeof umShowToast === 'function') {

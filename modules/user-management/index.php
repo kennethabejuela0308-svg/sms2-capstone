@@ -83,6 +83,12 @@ function umNormalizeOverviewUser(array $u): array
     if ($role === 'superadmin') {
         $u['roleLabel'] = 'Super Admin';
     }
+    if ($role === 'sms_admin') {
+        $u['roleLabel'] = 'Admin';
+    }
+    if (empty($u['roleLabel'])) {
+        $u['roleLabel'] = $role;
+    }
     if (
         ($role === 'admin' && $username !== 'superadmin')
         || $role === 'admission'

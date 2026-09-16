@@ -434,6 +434,9 @@ function smsPasskeyLoginVerify(array $cred): array
     );
     $ust->execute([(int) $pk['user_id']]);
     $user = $ust->fetch() ?: null;
+    if ($user && ($user['role_label'] ?? '') === '') {
+        $user['role_label'] = (string) ($user['role_key'] ?? '');
+    }
     if (!$user || (string) ($user['status'] ?? '') !== 'active') {
         return ['ok' => false, 'error' => 'Account is not available.'];
     }

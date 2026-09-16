@@ -57,6 +57,9 @@ if ($pdo) {
     );
     $stmt->execute([$userId]);
     $user = $stmt->fetch() ?: null;
+    if ($user && ($user['role_label'] ?? '') === '') {
+        $user['role_label'] = (string) ($user['role_key'] ?? '');
+    }
 }
 if (!$user) {
     unset($_SESSION['pending_2fa']);
