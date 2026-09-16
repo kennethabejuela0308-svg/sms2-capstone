@@ -251,6 +251,7 @@
             if (pwField) {
                 pwField.dispatchEvent(new Event('input', { bubbles: true }));
             }
+            if (form) form.dataset.pwDirty = '0';
 
             // Update avatar initial
             var avatarEl = modal.querySelector('.um-modal-avatar');
@@ -258,6 +259,24 @@
                 var n = form ? (form.querySelector('[name="full_name"]').value || '') : '';
                 avatarEl.textContent = n ? n.trim()[0].toUpperCase() : '?';
             }
+        });
+
+        modal.addEventListener('shown.bs.modal', function () {
+            var form = modal.querySelector('#umUserForm');
+            if (!form) return;
+            var uid = form.querySelector('[name="user_id"]');
+            if (!uid || !uid.value) return;
+            var pwInput = document.getElementById('um_password');
+            var pwConfirm = document.getElementById('um_password_confirm');
+            if (pwInput) {
+                pwInput.value = '';
+                pwInput.setAttribute('readonly', 'readonly');
+            }
+            if (pwConfirm) {
+                pwConfirm.value = '';
+                pwConfirm.setAttribute('readonly', 'readonly');
+            }
+            form.dataset.pwDirty = '0';
         });
 
         // Live update avatar initial while typing name
