@@ -155,9 +155,9 @@ if ($pdo) {
         )->execute();
         $pdo->prepare(
             "UPDATE users
-             SET role_key = 'review_committee', status = 'active',
-                 failed_login_attempts = 0, locked_until = NULL
-             WHERE username = 'reviewcommittee'"
+             SET role_key = 'review_committee'
+             WHERE username = 'reviewcommittee'
+               AND role_key <> 'review_committee'"
         )->execute();
     } catch (Throwable $e) {
         error_log('Default user account ensure failed: ' . $e->getMessage());
@@ -166,11 +166,11 @@ if ($pdo) {
     if ($isArchiveView) {
         $stmt = $pdo->query(
             'SELECT u.id, u.full_name AS name, u.username, u.email, u.role_key AS role,
-                    r.label AS roleLabel, u.status,
+                    r.label AS roleLabel, u.status, u.notes,
                     DATE_FORMAT(u.created_at, "%b %e, %Y") AS created,
                     IFNULL(DATE_FORMAT(u.last_login_at, "%b %e, %Y %H:%i"), "—") AS last_login
              FROM users u
-             INNER JOIN roles r ON r.role_key = u.role_key
+             LEFT JOIN roles r ON r.role_key = u.role_key
              WHERE u.status IN (\'inactive\', \'suspended\')
              ORDER BY u.full_name ASC'
         );
@@ -182,11 +182,11 @@ if ($pdo) {
     } else {
         $stmt = $pdo->query(
             'SELECT u.id, u.full_name AS name, u.username, u.email, u.role_key AS role,
-                    r.label AS roleLabel, u.status,
+                    r.label AS roleLabel, u.status, u.notes,
                     DATE_FORMAT(u.created_at, "%b %e, %Y") AS created,
                     IFNULL(DATE_FORMAT(u.last_login_at, "%b %e, %Y %H:%i"), "—") AS last_login
              FROM users u
-             INNER JOIN roles r ON r.role_key = u.role_key
+             LEFT JOIN roles r ON r.role_key = u.role_key
              WHERE u.status NOT IN (\'inactive\', \'suspended\')
              ORDER BY u.id ASC'
         );
@@ -198,6 +198,9 @@ if ($pdo) {
 }
 
 foreach ($users as &$u) {
+    if (empty($u['roleLabel'])) {
+        $u['roleLabel'] = (string) ($u['role'] ?? '');
+    }
     if ($u['role'] === 'crad_officer') {
         $u['role'] = 'crad';
     }
@@ -496,7 +499,8 @@ renderBreadcrumbs($breadcrumbs);
                                                 data-username="<?= htmlspecialchars($u['username']) ?>"
                                                 data-email="<?= htmlspecialchars($u['email']) ?>"
                                                 data-role="<?= htmlspecialchars($u['role']) ?>"
-                                                data-status="<?= htmlspecialchars($u['status']) ?>">
+                                                data-status="<?= htmlspecialchars($u['status']) ?>"
+                                                data-notes="<?= htmlspecialchars((string) ($u['notes'] ?? '')) ?>">
                                             <?= smsIcon('pen', ['style' => 'font-size:.7rem;']) ?>
                                         </button>
                                         <?php if ($u['status'] === 'locked'): ?>
