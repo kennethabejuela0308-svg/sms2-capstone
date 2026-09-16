@@ -45,6 +45,46 @@ $validRoles = ['superadmin', 'sms_admin', 'admission', 'registrar', 'finance', '
 $validStatus = ['active', 'inactive', 'locked', 'suspended'];
 
 /**
+ * Password posted from User Accounts (new_password preferred; password kept for compatibility).
+ */
+function umPostedPassword(array $data): string
+{
+    $password = (string) ($data['new_password'] ?? '');
+    if ($password === '') {
+        $password = (string) ($data['password'] ?? '');
+    }
+    return $password;
+}
+
+/**
+ * Optional confirmation field. Empty confirm is allowed only when password is also empty.
+ */
+function umRequirePasswordConfirm(string $password, array $data): void
+{
+    if ($password === '') {
+        return;
+    }
+    $confirm = (string) ($data['new_password_confirm'] ?? $data['password_confirm'] ?? '');
+    if ($confirm === '') {
+        throw new InvalidArgumentException('Please confirm the new password.');
+    }
+    if (!hash_equals($password, $confirm)) {
+        throw new InvalidArgumentException('New password and confirmation do not match.');
+    }
+}
+
+function umApplyUserPassword(int $userId, string $password): void
+{
+    $strength = smsValidatePasswordStrength($password);
+    if (!$strength['ok']) {
+        throw new InvalidArgumentException($strength['message']);
+    }
+    if (!smsSetUserPassword($userId, $password, false)) {
+        throw new RuntimeException('Could not update password');
+    }
+}
+
+/**
  * Ensure the optional users.id link column exists on the adviser assignment
  * table (idempotent). Failures surface at insert time, never silently here.
  */
