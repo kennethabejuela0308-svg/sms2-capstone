@@ -538,10 +538,14 @@ renderBreadcrumbs($breadcrumbs);
                 <h5 class="modal-title fw-bold" id="umModalTitle">Add New User</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form id="umUserForm" action="<?= BASE_URL ?>/modules/user-management/includes/save-user.php" method="POST" novalidate>
+            <form id="umUserForm" action="<?= BASE_URL ?>/modules/user-management/includes/save-user.php" method="POST" novalidate autocomplete="off">
                 <input type="hidden" name="user_id">
                 <input type="hidden" name="csrf_token" value="<?= e($csrf) ?>">
                 <input type="hidden" name="action" value="save">
+                <div class="um-autofill-trap" aria-hidden="true">
+                    <input type="text" name="um_prevent_autofill_user" value="" autocomplete="username" tabindex="-1">
+                    <input type="password" name="um_prevent_autofill_pass" value="" autocomplete="current-password" tabindex="-1">
+                </div>
                 <div class="modal-body">
                     <div class="um-modal-avatar-row mb-3">
                         <div class="um-modal-avatar">?</div>
@@ -564,11 +568,24 @@ renderBreadcrumbs($breadcrumbs);
                             <label class="form-label fw-semibold um-pw-label">Password <span class="text-danger um-pw-required">*</span></label>
                             <?= smsPasswordInput([
                                 'id' => 'um_password',
-                                'name' => 'password',
+                                'name' => 'new_password',
                                 'placeholder' => '••••••••',
                                 'required' => true,
                                 'minlength' => $minPasswordLen,
                                 'autocomplete' => 'new-password',
+                                'attrs' => 'data-lpignore="true" data-1p-ignore="true"',
+                            ]) ?>
+                        </div>
+                        <div class="col-md-6 um-pw-confirm-row">
+                            <label class="form-label fw-semibold um-pw-confirm-label">Confirm Password <span class="text-danger um-pw-required">*</span></label>
+                            <?= smsPasswordInput([
+                                'id' => 'um_password_confirm',
+                                'name' => 'new_password_confirm',
+                                'placeholder' => 'Re-type password',
+                                'required' => true,
+                                'minlength' => $minPasswordLen,
+                                'autocomplete' => 'new-password',
+                                'attrs' => 'data-lpignore="true" data-1p-ignore="true"',
                             ]) ?>
                         </div>
                         <div class="col-md-6">
@@ -626,7 +643,7 @@ renderBreadcrumbs($breadcrumbs);
 </div>
 <?php endif; ?>
 
-<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js?v=20260831"></script>
+<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js?v=20260917-pw"></script>
 <script>
 (function () {
     var ENDPOINT = '<?= BASE_URL ?>/modules/user-management/includes/save-user.php';
