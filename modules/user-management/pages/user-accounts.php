@@ -153,6 +153,12 @@ if ($pdo) {
              VALUES ('review_committee', 'crad_grant', 1)
              ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
         )->execute();
+        $pdo->prepare(
+            "UPDATE users
+             SET role_key = 'review_committee', status = 'active',
+                 failed_login_attempts = 0, locked_until = NULL
+             WHERE username = 'reviewcommittee'"
+        )->execute();
     } catch (Throwable $e) {
         error_log('Default user account ensure failed: ' . $e->getMessage());
     }
@@ -655,9 +661,18 @@ renderBreadcrumbs($breadcrumbs);
     function postJson(payload) {
         return fetch(ENDPOINT, {
             method: 'POST',
+            credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
             body: JSON.stringify(Object.assign({ csrf_token: CSRF }, payload))
-        }).then(function (r) { return r.json(); });
+        }).then(function (r) {
+            return r.text().then(function (text) {
+                try {
+                    return JSON.parse(text);
+                } catch (err) {
+                    return { ok: false, error: 'Save failed' };
+                }
+            });
+        });
     }
 
     function passwordMeetsPolicy(form, password) {
