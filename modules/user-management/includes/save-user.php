@@ -291,9 +291,10 @@ try {
     $email = strtolower(trim((string) ($data['email'] ?? '')));
     $role = smsNormalizeRoleKey(trim((string) ($data['role'] ?? '')));
     $status = trim((string) ($data['status'] ?? 'active'));
-    $password = (string) ($data['password'] ?? '');
+    $password = umPostedPassword($data);
     $notes = trim((string) ($data['notes'] ?? ''));
     $studentId = null;
+    umRequirePasswordConfirm($password, $data);
 
     if ($fullName === '' || $username === '' || $email === '' || !in_array($role, $validRoles, true)) {
         throw new InvalidArgumentException('Missing or invalid fields');
@@ -310,28 +311,21 @@ try {
     }
 
     if ($id > 0) {
+        $passwordUpdated = false;
+        if ($password !== '' && $status === 'locked') {
+            $status = 'active';
+        }
         $pdo->beginTransaction();
         try {
+            $pdo->prepare(
+                'UPDATE users SET full_name=?, username=?, email=?, role_key=?, status=?, notes=?, student_id=?
+                 WHERE id=?'
+            )->execute([
+                $fullName, $username, $email, $role, $status, $notes ?: null, $studentId, $id,
+            ]);
             if ($password !== '') {
-                $strength = smsValidatePasswordStrength($password);
-                if (!$strength['ok']) {
-                    throw new InvalidArgumentException($strength['message']);
-                }
-                $pdo->prepare(
-                    'UPDATE users SET full_name=?, username=?, email=?, role_key=?, status=?, notes=?, student_id=?,
-                     password_hash=?, password_changed_at=NOW(), must_change_password=0
-                     WHERE id=?'
-                )->execute([
-                    $fullName, $username, $email, $role, $status, $notes ?: null, $studentId,
-                    password_hash($password, PASSWORD_DEFAULT), $id,
-                ]);
-            } else {
-                $pdo->prepare(
-                    'UPDATE users SET full_name=?, username=?, email=?, role_key=?, status=?, notes=?, student_id=?
-                     WHERE id=?'
-                )->execute([
-                    $fullName, $username, $email, $role, $status, $notes ?: null, $studentId, $id,
-                ]);
+                umApplyUserPassword($id, $password);
+                $passwordUpdated = true;
             }
             rcSyncAssignmentFromUserAccount($id, $role, $fullName, $email, $status);
             $pdo->commit();
@@ -341,8 +335,12 @@ try {
             }
             throw $e;
         }
-        logActivity('update', 'Updated user ' . $username, 'user-management');
-        echo json_encode(['ok' => true, 'updated' => true]);
+        logActivity(
+            $passwordUpdated ? 'password_reset' : 'update',
+            ($passwordUpdated ? 'Updated user and password for ' : 'Updated user ') . $username,
+            'user-management'
+        );
+        echo json_encode(['ok' => true, 'updated' => true, 'password_updated' => $passwordUpdated]);
         exit;
     }
 
