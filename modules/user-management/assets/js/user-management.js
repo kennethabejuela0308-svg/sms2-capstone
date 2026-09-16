@@ -199,6 +199,8 @@
                 form.querySelector('[name="role"]').value       = trigger.dataset.role   || '';
                 form.querySelector('[name="status"]').value     = trigger.dataset.status || 'active';
                 form.querySelector('[name="user_id"]').value    = trigger.dataset.uid    || '';
+                var notesField = form.querySelector('[name="notes"]');
+                if (notesField) notesField.value = trigger.dataset.notes || '';
 
                 var pwRow = form.querySelector('.um-pw-row');
                 var pwLabel = pwRow && pwRow.querySelector('.um-pw-label');

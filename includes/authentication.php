@@ -670,20 +670,25 @@ function smsFindUserByLogin(string $input): ?array
     }
     $lookups = array_values(array_unique(array_merge($candidates, $emailGuesses, [$input])));
     $compact = smsCompactLoginKey($input);
+    if ($lookups === []) {
+        return null;
+    }
 
     try {
         $placeholders = implode(',', array_fill(0, count($lookups), '?'));
-        $stmt = $pdo->prepare(
-            "SELECT u.*, r.label AS role_label
+        $sql = "SELECT u.*, r.label AS role_label
              FROM users u
              LEFT JOIN roles r ON r.role_key = u.role_key
              WHERE LOWER(TRIM(u.username)) IN ($placeholders)
                 OR LOWER(TRIM(u.email)) IN ($placeholders)
-                OR LOWER(TRIM(IFNULL(u.student_id, ''))) IN ($placeholders)
-                OR REPLACE(LOWER(TRIM(u.full_name)), ' ', '') = ?
-             LIMIT 1"
-        );
-        $params = array_merge($lookups, $lookups, $lookups, [$compact]);
+                OR LOWER(TRIM(IFNULL(u.student_id, ''))) IN ($placeholders)";
+        $params = array_merge($lookups, $lookups, $lookups);
+        if (strlen($compact) >= 10) {
+            $sql .= " OR REPLACE(LOWER(TRIM(u.full_name)), ' ', '') = ?";
+            $params[] = $compact;
+        }
+        $sql .= ' LIMIT 1';
+        $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
         $row = $stmt->fetch() ?: null;
         if ($row && ($row['role_label'] ?? '') === '') {
