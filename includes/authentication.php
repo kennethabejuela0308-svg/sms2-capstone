@@ -1464,13 +1464,17 @@ function smsSetUserPassword(int $userId, string $newPassword, bool $forceChange 
         $userId,
     ]);
 
-    $user = $pdo->prepare('SELECT username, email FROM users WHERE id = ? LIMIT 1');
-    $user->execute([$userId]);
-    $row = $user->fetch() ?: [];
-    if (function_exists('smsClearLoginThrottle')) {
-        smsClearLoginThrottle((string) ($row['username'] ?? ''));
-        smsClearLoginThrottle((string) ($row['email'] ?? ''));
-        smsClearLoginThrottle('');
+    try {
+        $user = $pdo->prepare('SELECT username, email FROM users WHERE id = ? LIMIT 1');
+        $user->execute([$userId]);
+        $row = $user->fetch() ?: [];
+        if (function_exists('smsClearLoginThrottle')) {
+            smsClearLoginThrottle((string) ($row['username'] ?? ''));
+            smsClearLoginThrottle((string) ($row['email'] ?? ''));
+            smsClearLoginThrottle('');
+        }
+    } catch (Throwable $e) {
+        error_log('smsSetUserPassword throttle clear skipped: ' . $e->getMessage());
     }
 
     return true;

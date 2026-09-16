@@ -315,24 +315,20 @@ try {
         if ($password !== '' && $status === 'locked') {
             $status = 'active';
         }
-        $pdo->beginTransaction();
+        $pdo->prepare(
+            'UPDATE users SET full_name=?, username=?, email=?, role_key=?, status=?, notes=?, student_id=?
+             WHERE id=?'
+        )->execute([
+            $fullName, $username, $email, $role, $status, $notes ?: null, $studentId, $id,
+        ]);
+        if ($password !== '') {
+            umApplyUserPassword($id, $password);
+            $passwordUpdated = true;
+        }
         try {
-            $pdo->prepare(
-                'UPDATE users SET full_name=?, username=?, email=?, role_key=?, status=?, notes=?, student_id=?
-                 WHERE id=?'
-            )->execute([
-                $fullName, $username, $email, $role, $status, $notes ?: null, $studentId, $id,
-            ]);
-            if ($password !== '') {
-                umApplyUserPassword($id, $password);
-                $passwordUpdated = true;
-            }
             rcSyncAssignmentFromUserAccount($id, $role, $fullName, $email, $status);
-            $pdo->commit();
         } catch (Throwable $e) {
-            if ($pdo->inTransaction()) {
-                $pdo->rollBack();
-            }
+            error_log('Assignment sync after user save: ' . $e->getMessage());
             throw $e;
         }
         logActivity(
@@ -340,7 +336,19 @@ try {
             ($passwordUpdated ? 'Updated user and password for ' : 'Updated user ') . $username,
             'user-management'
         );
-        echo json_encode(['ok' => true, 'updated' => true, 'password_updated' => $passwordUpdated]);
+        echo json_encode([
+            'ok' => true,
+            'updated' => true,
+            'password_updated' => $passwordUpdated,
+            'user' => [
+                'id' => $id,
+                'full_name' => $fullName,
+                'username' => $username,
+                'email' => $email,
+                'role' => $role,
+                'status' => $status,
+            ],
+        ]);
         exit;
     }
 
@@ -382,6 +390,7 @@ try {
     logActivity('create', 'Created user ' . $username, 'user-management');
     echo json_encode(['ok' => true, 'created' => true, 'id' => $newUserId]);
 } catch (PDOException $e) {
+    error_log('save-user PDO: ' . $e->getMessage());
     http_response_code(400);
     $msg = 'Could not save user';
     if (str_contains($e->getMessage(), 'Duplicate')) {
@@ -389,6 +398,7 @@ try {
     }
     echo json_encode(['ok' => false, 'error' => $msg]);
 } catch (Throwable $e) {
+    error_log('save-user: ' . $e->getMessage());
     http_response_code(400);
     echo json_encode(['ok' => false, 'error' => $e->getMessage()]);
 }
