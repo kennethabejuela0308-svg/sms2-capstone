@@ -130,7 +130,7 @@ if ($pdo) {
             'SELECT u.id, u.full_name AS name, u.username, u.email, u.role_key AS role,
                     r.label AS roleLabel, u.status, u.last_login_at, u.locked_until
              FROM users u
-             INNER JOIN roles r ON r.role_key = u.role_key
+             LEFT JOIN roles r ON r.role_key = u.role_key
              ORDER BY
                 CASE WHEN u.status = "active" THEN 0 WHEN u.status = "locked" THEN 1 ELSE 2 END,
                 COALESCE(u.last_login_at, u.created_at) DESC,

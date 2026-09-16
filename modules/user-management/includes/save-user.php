@@ -315,12 +315,15 @@ try {
         if ($password !== '' && $status === 'locked') {
             $status = 'active';
         }
-        $pdo->prepare(
-            'UPDATE users SET full_name=?, username=?, email=?, role_key=?, status=?, notes=?, student_id=?
-             WHERE id=?'
-        )->execute([
-            $fullName, $username, $email, $role, $status, $notes ?: null, $studentId, $id,
-        ]);
+        $updateSql = 'UPDATE users SET full_name=?, username=?, email=?, role_key=?, status=?, notes=?';
+        $updateParams = [$fullName, $username, $email, $role, $status, $notes !== '' ? $notes : null];
+        if ($studentId !== null) {
+            $updateSql .= ', student_id=?';
+            $updateParams[] = $studentId;
+        }
+        $updateSql .= ' WHERE id=?';
+        $updateParams[] = $id;
+        $pdo->prepare($updateSql)->execute($updateParams);
         if ($password !== '') {
             umApplyUserPassword($id, $password);
             $passwordUpdated = true;
@@ -347,6 +350,7 @@ try {
                 'email' => $email,
                 'role' => $role,
                 'status' => $status,
+                'notes' => $notes,
             ],
         ]);
         exit;
