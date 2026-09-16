@@ -1267,10 +1267,10 @@ html[data-theme="dark"] .login-glass .sms-cf-widget.is-verified {
             </div>
             <fieldset disabled class="login-locked-fields">
                 <div class="mb-3">
-                    <label for="username" class="form-label">Email <span class="login-req">*</span></label>
+                    <label for="username" class="form-label">Email or username <span class="login-req">*</span></label>
                     <div class="input-group">
                         <input type="text" class="form-control" id="username" name="username"
-                               placeholder="Enter your email" value="<?= e($usernameValue) ?>" autocomplete="username">
+                               placeholder="Email or username" value="<?= e($usernameValue) ?>" autocomplete="username">
                     </div>
                 </div>
                 <div class="mb-4">
@@ -1292,14 +1292,14 @@ html[data-theme="dark"] .login-glass .sms-cf-widget.is-verified {
             <input type="hidden" name="admin_access" value="1">
             <?php endif; ?>
             <div class="mb-3">
-                <label for="username" class="form-label">Email <span class="login-req">*</span></label>
+                <label for="username" class="form-label">Email or username <span class="login-req">*</span></label>
                 <div class="input-group">
                     <input type="text" class="form-control" id="username" name="username"
-                           placeholder="Enter your email" required autofocus
+                           placeholder="Email or username" required autofocus
                            value="<?= e($usernameValue) ?>" autocomplete="username"
                            aria-describedby="usernameError">
                 </div>
-                <div class="login-field-error" id="usernameError" role="alert">Email is required.</div>
+                <div class="login-field-error" id="usernameError" role="alert">Email or username is required.</div>
             </div>
             <div class="mb-3">
                 <label for="password" class="form-label">Password <span class="login-req">*</span></label>

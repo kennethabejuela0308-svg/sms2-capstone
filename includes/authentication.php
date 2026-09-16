@@ -598,6 +598,47 @@ function requireModuleAccess(string $moduleKey): void
 }
 
 /**
+ * Compact a login identifier for alias matching (letters/digits only).
+ */
+function smsCompactLoginKey(string $input): string
+{
+    $input = strtolower(trim($input));
+    if (str_contains($input, '@')) {
+        $input = explode('@', $input, 2)[0];
+    }
+
+    return preg_replace('/[^a-z0-9]/', '', $input) ?? '';
+}
+
+/**
+ * @return list<string>
+ */
+function smsLoginUsernameCandidates(string $input): array
+{
+    $raw = strtolower(trim($input));
+    $local = $raw;
+    if (str_contains($raw, '@')) {
+        $local = explode('@', $raw, 2)[0];
+    }
+    $compact = smsCompactLoginKey($raw);
+
+    $alias = [
+        'reviewcommitee' => 'reviewcommittee',
+        'reviewcommitte' => 'reviewcommittee',
+        'reviewcommitteemember' => 'reviewcommittee',
+        'reviewcommitteeember' => 'reviewcommittee',
+        'reviewcommittee' => 'reviewcommittee',
+    ];
+
+    $candidates = [$raw, $local, $compact];
+    if ($compact !== '' && isset($alias[$compact])) {
+        $candidates[] = $alias[$compact];
+    }
+
+    return array_values(array_unique(array_filter($candidates, static fn($v) => $v !== '')));
+}
+
+/**
  * Resolve login identifier to a user row.
  */
 function smsFindUserByLogin(string $input): ?array
@@ -612,39 +653,35 @@ function smsFindUserByLogin(string $input): ?array
         return null;
     }
 
-    $username = $input;
-    $isStudentId = (bool) preg_match('/^s\d+$/i', $input);
-
-    if (str_ends_with($input, '@bestlink.edu.ph')) {
-        $username = substr($input, 0, (int) strpos($input, '@bestlink.edu.ph'));
+    $candidates = smsLoginUsernameCandidates($input);
+    $emailGuesses = [];
+    foreach ($candidates as $candidate) {
+        if (!str_contains($candidate, '@')) {
+            $emailGuesses[] = $candidate . '@bestlink.edu.ph';
+        }
     }
+    $lookups = array_values(array_unique(array_merge($candidates, $emailGuesses, [$input])));
+    $compact = smsCompactLoginKey($input);
 
     try {
-        if (str_contains($input, '@')) {
-            $stmt = $pdo->prepare(
-                'SELECT u.*, r.label AS role_label
-                 FROM users u
-                 INNER JOIN roles r ON r.role_key = u.role_key
-                 WHERE LOWER(u.email) = ? OR LOWER(u.username) = ?
-                 LIMIT 1'
-            );
-            $stmt->execute([$input, $username]);
-        } else {
-            // Allow bare username (staff) or student ID
-            $stmt = $pdo->prepare(
-                'SELECT u.*, r.label AS role_label
-                 FROM users u
-                 INNER JOIN roles r ON r.role_key = u.role_key
-                 WHERE LOWER(u.username) = ?
-                    OR LOWER(u.student_id) = ?
-                    OR LOWER(u.email) = ?
-                 LIMIT 1'
-            );
-            $emailGuess = $username . '@bestlink.edu.ph';
-            $stmt->execute([$username, $username, $emailGuess]);
+        $placeholders = implode(',', array_fill(0, count($lookups), '?'));
+        $stmt = $pdo->prepare(
+            "SELECT u.*, r.label AS role_label
+             FROM users u
+             LEFT JOIN roles r ON r.role_key = u.role_key
+             WHERE LOWER(TRIM(u.username)) IN ($placeholders)
+                OR LOWER(TRIM(u.email)) IN ($placeholders)
+                OR LOWER(TRIM(IFNULL(u.student_id, ''))) IN ($placeholders)
+                OR REPLACE(LOWER(TRIM(u.full_name)), ' ', '') = ?
+             LIMIT 1"
+        );
+        $params = array_merge($lookups, $lookups, $lookups, [$compact]);
+        $stmt->execute($params);
+        $row = $stmt->fetch() ?: null;
+        if ($row && ($row['role_label'] ?? '') === '') {
+            $row['role_label'] = (string) ($row['role_key'] ?? '');
         }
 
-        $row = $stmt->fetch();
         return $row ?: null;
     } catch (Throwable $e) {
         error_log('SMS2 find user failed: ' . $e->getMessage());
@@ -1178,7 +1215,7 @@ function smsLoginAttempt(string $username, string $password): array
         $failInfo = smsRegisterLoginThrottleFailure($username);
         logActivity(
             'login_failed',
-            'Invalid login attempt (unknown credentials)',
+            'Invalid login attempt (unknown credentials: ' . substr($username, 0, 80) . ')',
             'System',
             null,
             'Unknown',
