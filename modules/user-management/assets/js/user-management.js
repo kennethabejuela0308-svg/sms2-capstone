@@ -478,6 +478,7 @@
         if (params.get('saved') === '1')   window.umShowToast('Changes saved successfully.', 'success');
         if (params.get('created') === '1') window.umShowToast('User account created.', 'success');
         if (params.get('updated') === '1') window.umShowToast('User account updated.', 'success');
+        if (params.get('password') === '1') window.umShowToast('Password updated. The user can sign in with the new password now.', 'success');
         if (params.get('archived') === '1') window.umShowToast('Moved to User Archive.', 'warning');
         if (params.get('restored') === '1') window.umShowToast('Restored to User Accounts.', 'success');
         if (params.get('purged') === '1') window.umShowToast('Permanently deleted from archive.', 'warning');

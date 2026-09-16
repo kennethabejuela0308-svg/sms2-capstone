@@ -678,10 +678,22 @@ renderBreadcrumbs($breadcrumbs);
                 e.preventDefault();
                 var fd = new FormData(form);
                 var userId = fd.get('user_id') || '';
-                var password = fd.get('password') || '';
+                var pwInput = document.getElementById('um_password');
+                var pwConfirmInput = document.getElementById('um_password_confirm');
+                var typedPassword = pwInput ? String(pwInput.value || '') : '';
+                var typedConfirm = pwConfirmInput ? String(pwConfirmInput.value || '') : '';
+                var passwordDirty = form.dataset.pwDirty === '1';
+                var password = passwordDirty ? typedPassword : '';
+                var confirm = passwordDirty ? typedConfirm : '';
+
                 if (!userId && !password) {
                     if (typeof umShowToast === 'function') umShowToast('Password is required for new users.', 'danger');
                     else alert('Password is required for new users.');
+                    return;
+                }
+                if (password && password !== confirm) {
+                    if (typeof umShowToast === 'function') umShowToast('New password and confirmation do not match.', 'danger');
+                    else alert('New password and confirmation do not match.');
                     return;
                 }
                 if ((!userId || password) && password && !passwordMeetsPolicy(form, password)) {
@@ -697,16 +709,19 @@ renderBreadcrumbs($breadcrumbs);
                     email: fd.get('email'),
                     role: fd.get('role'),
                     status: fd.get('status'),
-                    password: fd.get('password') || '',
+                    new_password: password,
+                    new_password_confirm: password ? confirm : '',
                     notes: fd.get('notes') || ''
                 };
                 postJson(payload).then(function (data) {
-                    if (data.ok) {
-                        location.href = ACCOUNTS + '?' + (data.created ? 'created=1' : 'updated=1');
+                    if (data && data.ok) {
+                        var q = data.created ? 'created=1' : 'updated=1';
+                        if (data.password_updated) q += '&password=1';
+                        location.href = ACCOUNTS + '?' + q;
                     } else if (typeof umShowToast === 'function') {
-                        umShowToast(data.error || 'Save failed', 'danger');
+                        umShowToast((data && data.error) || 'Save failed', 'danger');
                     } else {
-                        alert(data.error || 'Save failed');
+                        alert((data && data.error) || 'Save failed');
                     }
                 }).catch(function () {
                     if (typeof umShowToast === 'function') umShowToast('Network error', 'danger');
