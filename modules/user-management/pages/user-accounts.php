@@ -443,6 +443,7 @@ renderBreadcrumbs($breadcrumbs);
                             $roleBadgeClass = umRoleBadgeClass((string) $u['role'], (string) $u['roleLabel']);
                         ?>
                         <tr class="um-user-row"
+                            data-uid="<?= (int) $u['id'] ?>"
                             data-name="<?= htmlspecialchars($u['name']) ?>"
                             data-username="<?= htmlspecialchars($u['username']) ?>"
                             data-email="<?= htmlspecialchars($u['email']) ?>"
@@ -649,7 +650,7 @@ renderBreadcrumbs($breadcrumbs);
 </div>
 <?php endif; ?>
 
-<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js?v=20260917-pw"></script>
+<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js?v=20260917-pw2"></script>
 <script>
 (function () {
     var ENDPOINT = '<?= BASE_URL ?>/modules/user-management/includes/save-user.php';
@@ -686,6 +687,69 @@ renderBreadcrumbs($breadcrumbs);
             && /[^A-Za-z0-9]/.test(password);
     }
 
+    function roleLabelFromSelect(form, role) {
+        var select = form.querySelector('[name="role"]');
+        if (!select) return role;
+        var opt = select.querySelector('option[value="' + CSS.escape(role) + '"]');
+        return opt ? (opt.textContent || role).trim() : role;
+    }
+
+    function applySavedUserRow(form, user) {
+        if (!user || !user.id) return;
+        var row = document.querySelector('.um-user-row[data-uid="' + user.id + '"]');
+        if (!row) return;
+
+        var name = user.full_name || '';
+        var username = user.username || '';
+        var email = user.email || '';
+        var role = user.role || '';
+        var status = user.status || 'active';
+        var roleLabel = roleLabelFromSelect(form, role);
+        var statusLabel = status === 'inactive' ? 'Archived' : (status.charAt(0).toUpperCase() + status.slice(1));
+
+        row.dataset.name = name;
+        row.dataset.username = username;
+        row.dataset.email = email;
+        row.dataset.role = role;
+        row.dataset.status = status;
+
+        var nameEl = row.querySelector('.um-user-name');
+        var emailEl = row.querySelector('.um-user-email');
+        var avatarEl = row.querySelector('.um-avatar');
+        var userCode = row.querySelector('td code');
+        var roleEl = row.querySelector('.role-badge');
+        var statusEl = row.querySelector('.user-status');
+        if (nameEl) nameEl.textContent = name;
+        if (emailEl) emailEl.textContent = email;
+        if (avatarEl && name) avatarEl.textContent = name.trim().charAt(0).toUpperCase();
+        if (userCode) userCode.textContent = username;
+        if (roleEl) {
+            roleEl.textContent = roleLabel;
+            roleEl.className = 'role-badge ' + String(role).replace(/[^a-z0-9_]/g, '');
+        }
+        if (statusEl) {
+            statusEl.textContent = statusLabel;
+            statusEl.className = 'user-status ' + status;
+        }
+
+        var editBtn = row.querySelector('[data-um-action="edit"]');
+        if (editBtn) {
+            editBtn.dataset.name = name;
+            editBtn.dataset.username = username;
+            editBtn.dataset.email = email;
+            editBtn.dataset.role = role;
+            editBtn.dataset.status = status;
+        }
+    }
+
+    function closeUserModal() {
+        var modalEl = document.getElementById('umUserModal');
+        if (modalEl && window.bootstrap) {
+            var inst = bootstrap.Modal.getInstance(modalEl);
+            if (inst) inst.hide();
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         var form = document.getElementById('umUserForm');
         if (form) {
@@ -700,6 +764,7 @@ renderBreadcrumbs($breadcrumbs);
                 var passwordDirty = form.dataset.pwDirty === '1';
                 var password = (!userId || passwordDirty) ? typedPassword : '';
                 var confirm = (!userId || passwordDirty) ? typedConfirm : '';
+                var submitBtn = form.querySelector('[type="submit"]');
 
                 if (!userId && !password) {
                     if (typeof umShowToast === 'function') umShowToast('Password is required for new users.', 'danger');
@@ -728,11 +793,33 @@ renderBreadcrumbs($breadcrumbs);
                     new_password_confirm: password ? confirm : '',
                     notes: fd.get('notes') || ''
                 };
-        postJson(payload).then(function (data) {
+                if (submitBtn) submitBtn.disabled = true;
+                postJson(payload).then(function (data) {
                     if (data && data.ok) {
-                        var q = data.created ? 'created=1' : 'updated=1';
-                        if (data.password_updated) q += '&password=1';
-                        location.href = ACCOUNTS + '?' + q;
+                        if (data.created) {
+                            location.href = ACCOUNTS + '?created=1';
+                            return;
+                        }
+                        applySavedUserRow(form, data.user || {
+                            id: payload.user_id,
+                            full_name: payload.full_name,
+                            username: payload.username,
+                            email: payload.email,
+                            role: payload.role,
+                            status: payload.status
+                        });
+                        closeUserModal();
+                        if (typeof umShowToast === 'function') {
+                            umShowToast(
+                                data.password_updated
+                                    ? 'Password updated. The user can sign in with the new password now.'
+                                    : 'User account updated.',
+                                'success'
+                            );
+                        }
+                        form.dataset.pwDirty = '0';
+                        if (pwInput) pwInput.value = '';
+                        if (pwConfirmInput) pwConfirmInput.value = '';
                     } else if (typeof umShowToast === 'function') {
                         umShowToast((data && data.error) || 'Save failed', 'danger');
                     } else {
@@ -740,6 +827,8 @@ renderBreadcrumbs($breadcrumbs);
                     }
                 }).catch(function () {
                     if (typeof umShowToast === 'function') umShowToast('Network error', 'danger');
+                }).finally(function () {
+                    if (submitBtn) submitBtn.disabled = false;
                 });
             });
         }
