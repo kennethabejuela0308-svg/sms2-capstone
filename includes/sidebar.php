@@ -616,7 +616,8 @@ $researchDirectorNavGroups = [
                         }
                     }
                     $pageTitles = [];
-                    foreach ($module['pages'] as $p) {
+                    $modulePages = isset($module['pages']) && is_array($module['pages']) ? $module['pages'] : [];
+                    foreach ($modulePages as $p) {
                         $pageTitles[$p['slug']] = $p['title'];
                     }
                     $showModuleOverview = empty($module['hide_overview']);
@@ -736,7 +737,7 @@ $researchDirectorNavGroups = [
                                         </li>
                                     <?php endforeach; ?>
                                 <?php else: ?>
-                                    <?php foreach ($module['pages'] as $page): ?>
+                                    <?php foreach ($modulePages as $page): ?>
                                         <?php
                                         $isPageActive = ($isModuleActive && $activePage === $page['slug']);
                                         $pageHref = BASE_URL . '/modules/' . $moduleFolder . '/pages/' . $page['slug'] . '.php';

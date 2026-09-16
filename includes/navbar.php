@@ -317,7 +317,7 @@ window.SMS2_SEARCH_INDEX = (function() {
     var items = [];
     <?php foreach ($visibleModulesNav as $navModuleKey => $module): ?>
     items.push({type:'module',label:<?= json_encode($module['label']) ?>,icon:<?= json_encode($module['icon']) ?>,url:base+'/modules/<?= $navModuleKey ?>/index.php',keywords:<?= json_encode(strtolower($module['label'])) ?>});
-    <?php foreach ($module['pages'] as $page): ?>
+    <?php foreach (($module['pages'] ?? []) as $page): ?>
     items.push({type:'page',label:<?= json_encode($page['title']) ?>,parent:<?= json_encode($module['label']) ?>,icon:<?= json_encode($module['icon']) ?>,url:<?= json_encode(($page['slug'] ?? '') === 'security-settings' ? BASE_URL . '/account/module-security.php?module=' . urlencode((string) $navModuleKey) : BASE_URL . '/modules/' . $navModuleKey . '/pages/' . $page['slug'] . '.php') ?>,keywords:<?= json_encode(strtolower($page['title'].' '.$module['label'])) ?>});
     <?php endforeach; ?>
     <?php endforeach; ?>

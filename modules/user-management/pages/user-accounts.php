@@ -454,7 +454,7 @@ renderBreadcrumbs($breadcrumbs);
                             data-status="<?= htmlspecialchars($u['status']) ?>">
                             <td style="padding-left:1.2rem;">
                                 <div class="um-user-cell">
-                                    <span class="um-avatar <?= $col ?>"><?= strtoupper($u['name'][0]) ?></span>
+                                    <span class="um-avatar <?= $col ?>"><?= strtoupper(substr((string) ($u['name'] ?? '?'), 0, 1) ?: '?') ?></span>
                                     <div class="min-w-0">
                                         <span class="um-user-name"><?= htmlspecialchars($u['name']) ?></span>
                                         <span class="um-user-email"><?= htmlspecialchars($u['email']) ?></span>
@@ -654,7 +654,7 @@ renderBreadcrumbs($breadcrumbs);
 </div>
 <?php endif; ?>
 
-<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js?v=20260917-pw2"></script>
+<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js?v=20260917-pw3"></script>
 <script>
 (function () {
     var ENDPOINT = '<?= BASE_URL ?>/modules/user-management/includes/save-user.php';
@@ -718,6 +718,7 @@ renderBreadcrumbs($breadcrumbs);
         row.dataset.email = email;
         row.dataset.role = role;
         row.dataset.status = status;
+        row.dataset.notes = user.notes || '';
 
         var nameEl = row.querySelector('.um-user-name');
         var emailEl = row.querySelector('.um-user-email');
@@ -745,6 +746,7 @@ renderBreadcrumbs($breadcrumbs);
             editBtn.dataset.email = email;
             editBtn.dataset.role = role;
             editBtn.dataset.status = status;
+            editBtn.dataset.notes = user.notes || '';
         }
     }
 
