@@ -542,7 +542,7 @@ renderBreadcrumbs($breadcrumbs);
                 <input type="hidden" name="user_id">
                 <input type="hidden" name="csrf_token" value="<?= e($csrf) ?>">
                 <input type="hidden" name="action" value="save">
-                <div class="um-autofill-trap" aria-hidden="true">
+                <div class="um-autofill-trap" aria-hidden="true" style="position:absolute;left:-9999px;height:0;width:0;overflow:hidden;">
                     <input type="text" name="um_prevent_autofill_user" value="" autocomplete="username" tabindex="-1">
                     <input type="password" name="um_prevent_autofill_pass" value="" autocomplete="current-password" tabindex="-1">
                 </div>

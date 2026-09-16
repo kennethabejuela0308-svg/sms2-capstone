@@ -202,8 +202,9 @@
 
                 var pwRow = form.querySelector('.um-pw-row');
                 var pwLabel = pwRow && pwRow.querySelector('.um-pw-label');
-                var pwInput = form.querySelector('[name="password"]');
-                var pwRequired = pwRow && pwRow.querySelector('.um-pw-required');
+                var pwInput = form.querySelector('#um_password, [name="new_password"]');
+                var pwConfirm = form.querySelector('#um_password_confirm, [name="new_password_confirm"]');
+                var pwRequired = form.querySelectorAll('.um-pw-required');
                 var pwStrength = form.querySelector('.um-pw-strength-row');
                 if (pwLabel) {
                     pwLabel.innerHTML = 'New Password <span class="text-muted fw-normal">(leave blank to keep current)</span>';
@@ -211,26 +212,42 @@
                 if (pwInput) {
                     pwInput.removeAttribute('required');
                     pwInput.value = '';
+                    pwInput.setAttribute('readonly', 'readonly');
                 }
-                if (pwRequired) pwRequired.hidden = true;
+                if (pwConfirm) {
+                    pwConfirm.removeAttribute('required');
+                    pwConfirm.value = '';
+                    pwConfirm.setAttribute('readonly', 'readonly');
+                }
+                pwRequired.forEach(function (el) { el.hidden = true; });
                 if (pwStrength) pwStrength.hidden = true;
+                form.dataset.pwDirty = '0';
             } else if (form) {
                 form.reset();
                 form.querySelector('[name="user_id"]').value = '';
                 var pwRow = form.querySelector('.um-pw-row');
                 var pwLabel = pwRow && pwRow.querySelector('.um-pw-label');
-                var pwInput = form.querySelector('[name="password"]');
-                var pwRequired = pwRow && pwRow.querySelector('.um-pw-required');
+                var pwInput = form.querySelector('#um_password, [name="new_password"]');
+                var pwConfirm = form.querySelector('#um_password_confirm, [name="new_password_confirm"]');
+                var pwRequired = form.querySelectorAll('.um-pw-required');
                 var pwStrength = form.querySelector('.um-pw-strength-row');
                 if (pwLabel) {
                     pwLabel.innerHTML = 'Password <span class="text-danger um-pw-required">*</span>';
                 }
-                if (pwInput) pwInput.setAttribute('required', 'required');
-                if (pwRequired) pwRequired.hidden = false;
+                if (pwInput) {
+                    pwInput.setAttribute('required', 'required');
+                    pwInput.removeAttribute('readonly');
+                }
+                if (pwConfirm) {
+                    pwConfirm.setAttribute('required', 'required');
+                    pwConfirm.removeAttribute('readonly');
+                }
+                pwRequired.forEach(function (el) { el.hidden = false; });
                 if (pwStrength) pwStrength.hidden = false;
+                form.dataset.pwDirty = '0';
             }
 
-            var pwField = form && form.querySelector('[name="password"]');
+            var pwField = form && form.querySelector('#um_password, [name="new_password"]');
             if (pwField) {
                 pwField.dispatchEvent(new Event('input', { bubbles: true }));
             }
@@ -251,6 +268,19 @@
                 avatarEl.textContent = this.value.trim() ? this.value.trim()[0].toUpperCase() : '?';
             });
         }
+
+        ['um_password', 'um_password_confirm'].forEach(function (id) {
+            var field = document.getElementById(id);
+            if (!field) return;
+            field.addEventListener('focus', function () {
+                field.removeAttribute('readonly');
+            });
+            field.addEventListener('input', function () {
+                if (form) form.dataset.pwDirty = '1';
+                var strength = document.querySelector('#umUserForm .um-pw-strength-row');
+                if (strength && field.value) strength.hidden = false;
+            });
+        });
     }
 
     /* ── Log filter (Admin Activity Logs) ───────────────────── */
