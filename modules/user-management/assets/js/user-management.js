@@ -276,7 +276,8 @@
                 field.removeAttribute('readonly');
             });
             field.addEventListener('input', function () {
-                if (form) form.dataset.pwDirty = '1';
+                var userForm = document.getElementById('umUserForm');
+                if (userForm) userForm.dataset.pwDirty = '1';
                 var strength = document.querySelector('#umUserForm .um-pw-strength-row');
                 if (strength && field.value) strength.hidden = false;
             });

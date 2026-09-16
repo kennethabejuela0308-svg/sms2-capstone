@@ -683,8 +683,8 @@ renderBreadcrumbs($breadcrumbs);
                 var typedPassword = pwInput ? String(pwInput.value || '') : '';
                 var typedConfirm = pwConfirmInput ? String(pwConfirmInput.value || '') : '';
                 var passwordDirty = form.dataset.pwDirty === '1';
-                var password = passwordDirty ? typedPassword : '';
-                var confirm = passwordDirty ? typedConfirm : '';
+                var password = (!userId || passwordDirty) ? typedPassword : '';
+                var confirm = (!userId || passwordDirty) ? typedConfirm : '';
 
                 if (!userId && !password) {
                     if (typeof umShowToast === 'function') umShowToast('Password is required for new users.', 'danger');
@@ -713,7 +713,7 @@ renderBreadcrumbs($breadcrumbs);
                     new_password_confirm: password ? confirm : '',
                     notes: fd.get('notes') || ''
                 };
-                postJson(payload).then(function (data) {
+        postJson(payload).then(function (data) {
                     if (data && data.ok) {
                         var q = data.created ? 'created=1' : 'updated=1';
                         if (data.password_updated) q += '&password=1';
