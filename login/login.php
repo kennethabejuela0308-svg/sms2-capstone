@@ -1316,7 +1316,7 @@ html[data-theme="dark"] .login-glass .sms-cf-widget.is-verified {
             <?= smsCaptchaMarkup() ?>
             <div class="login-field-error" id="captchaError" role="alert">Please complete the security check.</div>
             <button type="submit" class="btn btn-sms-primary disabled" id="loginSubmitBtn" aria-disabled="true"
-                    title="Fill in email and password first">
+                    title="Fill in email or username and password first">
                 <span class="login-submit-idle">Sign In</span>
                 <span class="login-submit-loading d-none" aria-live="polite">
                     <span class="login-loading-spinner" aria-hidden="true"></span>
