@@ -87,7 +87,8 @@ function grantBreadcrumbModuleLabel(): string
 }
 
 /**
- * Breadcrumb parent URL on grant pages.
+ * Absolute URL to a script in modules/crad, even if BASE_URL was
+ * detected from a nested /modules/crad/api/ request.
  */
 function grantCradScriptUrl(string $script, array $query = []): string
 {

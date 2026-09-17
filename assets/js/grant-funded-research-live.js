@@ -43,6 +43,10 @@
             .replace(/"/g, '&quot;');
     }
 
+    function fileHref(url) {
+        return String(url || '').replace(/\/modules\/crad\/modules\/crad\//g, '/modules/crad/');
+    }
+
     function formatPeso(amount) {
         var n = Number(amount) || 0;
         return '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
