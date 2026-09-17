@@ -155,7 +155,7 @@
             var status = m.status || 'Pending';
             var cls = statusClass(status);
             var doc = m.has_document
-                ? '<a href="' + esc(m.document_url) + '" target="_blank" rel="noopener"><i class="ti ti-file"></i> ' +
+                ? '<a href="' + esc(fileHref(m.document_url)) + '" target="_blank" rel="noopener"><i class="ti ti-file"></i> ' +
                     esc(m.supporting_doc_original || 'View') + '</a>'
                 : '—';
             return '<tr><td style="font-weight:700;">' + esc(m.milestone_name) + '</td>' +
@@ -184,7 +184,7 @@
         }
         return evidence.map(function (row) {
             var file = row.has_file
-                ? '<a href="' + esc(row.file_url) + '" target="_blank" rel="noopener"><i class="ti ti-file"></i> ' +
+                ? '<a href="' + esc(fileHref(row.file_url)) + '" target="_blank" rel="noopener"><i class="ti ti-file"></i> ' +
                     esc(row.file_original || 'View') + '</a>'
                 : '—';
             return '<tr><td>' + esc(formatDateTime(row.created_at)) + '</td>' +
