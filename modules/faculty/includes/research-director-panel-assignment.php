@@ -568,7 +568,7 @@ function rdPanelAssign(array $data): array
                 (event_key, recipient_user_id, recipient_role, recipient_email, panel_assignment_id,
                  research_group_id, title, body, url, is_read, created_at)
              VALUES
-                (:event_key, :recipient_user_id, 'panel', :recipient_email, :panel_assignment_id,
+                (:event_key, :recipient_user_id, :recipient_role, :recipient_email, :panel_assignment_id,
                  :research_group_id, :title, :body, :url, 0, NOW())"
         );
 
@@ -607,6 +607,7 @@ function rdPanelAssign(array $data): array
                 $notify->execute([
                     ':event_key' => 'preoral-panel-assignment:' . $groupId . ':u' . $panelId,
                     ':recipient_user_id' => $panelId,
+                    ':recipient_role' => (string) (($panel['role_key'] ?? '') ?: 'panel'),
                     ':recipient_email' => (string) $panel['email'],
                     ':panel_assignment_id' => $assignmentId,
                     ':research_group_id' => $groupId,
@@ -850,13 +851,21 @@ function renderResearchCoordinatorPanelAssignment(string $view): void
     if (($_GET['ajax'] ?? '') === 'panel-selection-state') {
         header('Content-Type: application/json; charset=utf-8');
         $panelPayload = [];
+        $selectedForHtml = rdPanelSelectedIds();
         foreach ($panels as $panel) {
             $status = (string) ($panel['availability_status'] ?? 'Pending');
+            $panelId = (int) $panel['id'];
             $panelPayload[] = [
-                'id' => (int) $panel['id'],
+                'id' => $panelId,
+                'full_name' => (string) ($panel['full_name'] ?? ''),
+                'email' => (string) ($panel['email'] ?? ''),
+                'role_key' => (string) ($panel['role_key'] ?? 'panel'),
+                'role_label' => (string) ($panel['role_label'] ?? rdPanelRoleLabel((string) ($panel['role_key'] ?? 'panel'))),
+                'expertise' => (string) (($panel['expertise'] ?? '') !== '' ? $panel['expertise'] : 'Not recorded'),
                 'availability_status' => $status,
                 'badge_class' => rdPanelBadgeClass($status),
                 'current_assignments' => (int) ($panel['current_assignments'] ?? 0),
+                'html' => rdPanelMemberCardHtml($panel, $selectedForHtml),
             ];
         }
         echo json_encode(['ok' => true, 'panels' => $panelPayload, 'synced_at' => date('M j, Y h:i:s A')]);
@@ -1032,21 +1041,9 @@ function renderResearchCoordinatorPanelAssignment(string $view): void
                         <form method="get" action="<?= e(rdPanelPageUrl('check-panel-availability')) ?>" data-rd-panel-select-form>
                             <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>" disabled>
                             <input type="hidden" name="group_id" value="<?= (int) $groupId ?>">
-                            <div class="rdpa-panel-grid">
+                            <div class="rdpa-panel-grid" data-rd-panel-grid>
                                 <?php foreach ($panels as $panel): ?>
-                                    <?php
-                                        $isSelected = in_array((int) $panel['id'], $selectedIds, true);
-                                        $availabilityStatus = (string) ($panel['availability_status'] ?? 'Pending');
-                                    ?>
-                                    <label class="rdpa-panel-card" data-rd-panel-card data-panel-id="<?= (int) $panel['id'] ?>">
-                                        <input class="form-check-input" type="checkbox" name="panel_ids[]" value="<?= (int) $panel['id'] ?>" <?= $isSelected ? 'checked' : '' ?>>
-                                        <strong><?= e((string) $panel['full_name']) ?></strong>
-                                        <span class="email"><?= e((string) $panel['email']) ?></span>
-                                        <div class="rdpa-detail"><small>Expertise</small><span><?= e((string) (($panel['expertise'] ?? '') ?: 'Not recorded')) ?></span></div>
-                                        <div class="rdpa-detail"><small>Availability</small><span class="badge text-bg-<?= e(rdPanelBadgeClass($availabilityStatus)) ?>" data-rd-panel-availability><?= e($availabilityStatus) ?></span></div>
-                                        <div class="rdpa-detail"><small>Current Assignments</small><span data-rd-panel-assignments><?= (int) $panel['current_assignments'] ?></span></div>
-                                        <span class="badge text-bg-success rdpa-selected-label">Selected</span>
-                                    </label>
+                                    <?php rdPanelRenderMemberCard($panel, $selectedIds); ?>
                                 <?php endforeach; ?>
                             </div>
                             <div class="rdpa-actions">
