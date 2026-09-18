@@ -38,6 +38,7 @@ if ($pdo) {
                 ('admin', 'Super Admin', 'Legacy super admin access', 1),
                 ('sms_admin', 'Admin', 'General administrator account', 1),
                 ('research_coordinator', 'Research Coordinator', 'Research coordination access', 1),
+                ('department_head', 'Department Head', 'Adviser and panel assignment', 1),
                 ('department_chair', 'Department Chair', 'Grant approval department chair sign-off', 1),
                 ('research_office', 'Research Office', 'Grant approval research office sign-off', 1),
                 ('vpaa', 'VPAA', 'Grant approval VPAA sign-off', 1),
@@ -47,6 +48,11 @@ if ($pdo) {
                 ('panel', 'Panel Member', 'Research defense panel account', 1),
                 ('research_grant', 'CRAD Officer', 'Research grant management access', 1),
                 ('review_committee', 'Review Committee', 'Grant proposal review and rubric evaluation', 1)"
+        )->execute();
+        $pdo->prepare(
+            "INSERT INTO role_permissions (role_key, module_key, granted)
+             VALUES ('department_head', 'crad', 1)
+             ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
         )->execute();
         $pdo->prepare(
             "INSERT INTO role_permissions (role_key, module_key, granted)
@@ -62,6 +68,9 @@ if ($pdo) {
             "INSERT INTO role_permissions (role_key, module_key, granted)
              VALUES ('vpaa', 'accreditation', 1)
              ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
+        )->execute();
+        $pdo->prepare(
+            "UPDATE users SET role_key = 'department_head' WHERE username = 'depthead' LIMIT 1"
         )->execute();
         $pdo->prepare(
             "UPDATE users SET role_key = 'department_chair' WHERE username = 'deptchair' LIMIT 1"
