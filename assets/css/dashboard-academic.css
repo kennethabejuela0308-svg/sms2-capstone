@@ -171,6 +171,15 @@
     color: var(--sms-text-muted);
     font-size: 0.72rem;
 }
+.student-ann-image {
+    display: block;
+    width: 100%;
+    max-height: 280px;
+    object-fit: contain;
+    margin: 0.55rem 0 0.35rem;
+    border-radius: 10px;
+    background: var(--sms-surface-muted);
+}
 .um-live-badge {
     display: inline-flex;
     align-items: center;

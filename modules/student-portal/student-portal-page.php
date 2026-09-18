@@ -730,6 +730,6 @@ require_once __DIR__ . '/../../includes/layout-start.php';
 </div>
 
 <?php if ($studentPortalPage === 'dashboard'): ?>
-<script src="<?= BASE_URL ?>/assets/js/student-announcements-live.js?v=1"></script>
+<script src="<?= BASE_URL ?>/assets/js/student-announcements-live.js?v=2"></script>
 <?php endif; ?>
 <?php require_once __DIR__ . '/../../includes/layout-end.php'; ?>
