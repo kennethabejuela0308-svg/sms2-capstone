@@ -1291,7 +1291,7 @@ $csrf     = csrfToken();
         <div class="rcm-card-tools">
             <label class="rcm-search">
                 <?= smsIcon('search') ?>
-                <input type="search" data-rcm-search placeholder="Search by group, title, or adviser..." aria-label="Search eligible research groups">
+                <input type="search" data-rcm-search placeholder="Search by student, group, or title..." aria-label="Search eligible students and research groups">
             </label>
             <select class="rcm-filter" data-rcm-status aria-label="Filter coordinator status">
                 <option value="">All Status</option>

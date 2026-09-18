@@ -118,6 +118,12 @@ function cradEnsureAssigneeSchema(PDO $pdo): void
         "ALTER TABLE research_adviser_assignments ADD COLUMN student_id VARCHAR(40) NULL AFTER group_number, ADD KEY idx_raa_student (student_id)");
 
     try {
+        $pdo->exec("UPDATE research_coordinator_assignments SET student_id = NULL WHERE student_id = ''");
+    } catch (Throwable $e) {
+        error_log('Coordinator student_id cleanup skipped: ' . $e->getMessage());
+    }
+
+    try {
         if (!$pdo->query("SHOW INDEX FROM research_coordinator_assignments WHERE Key_name = 'uniq_rca_student_id'")->fetch()) {
             $pdo->exec("ALTER TABLE research_coordinator_assignments ADD UNIQUE KEY uniq_rca_student_id (student_id)");
         }
