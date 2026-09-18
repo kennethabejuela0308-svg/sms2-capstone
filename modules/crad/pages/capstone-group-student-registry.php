@@ -236,7 +236,7 @@ function cgsrDisplayRow(PDO $pdo, array $g): array
         'group_id'          => (int) ($g['group_id'] ?? 0),
         'group_number'      => (string) ($g['group_number'] ?? ''),
         'group_name'        => (string) ($g['group_name'] ?? ''),
-        'research_title'    => (string) ($g['research_title'] ?? ''),
+        'research_title'    => $title,
         'proposal_number'   => (string) ($g['proposal_number'] ?? ''),
         'program'           => $program,
         'academic_year'     => (string) ($g['academic_year'] ?? ''),
