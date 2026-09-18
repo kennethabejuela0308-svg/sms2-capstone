@@ -138,6 +138,8 @@ function requireAuth(): void
         header('Location: ' . BASE_URL . '/login/login.php');
         exit;
     }
+    // Keep the signed-in name/role in sync with User Accounts edits.
+    smsRefreshCurrentUserSession();
     // Mark online first so status stays accurate even if we redirect next
     smsTouchUserPresence();
     require_once __DIR__ . '/module-controls.php';
@@ -164,6 +166,59 @@ function getCurrentUserRoleKey(): string
 function getCurrentUserId(): ?int
 {
     return isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : null;
+}
+
+/**
+ * Reload the signed-in user's name, email, and role from the users table
+ * so Super Admin edits appear on the live account without re-login.
+ */
+function smsRefreshCurrentUserSession(): void
+{
+    $userId = (int) ($_SESSION['user_id'] ?? 0);
+    if ($userId <= 0) {
+        return;
+    }
+
+    $pdo = db();
+    if (!$pdo) {
+        return;
+    }
+
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT u.full_name, u.email, u.role_key, u.student_id, u.must_change_password,
+                    r.label AS role_label
+             FROM users u
+             LEFT JOIN roles r ON r.role_key = u.role_key
+             WHERE u.id = ?
+             LIMIT 1'
+        );
+        $stmt->execute([$userId]);
+        $user = $stmt->fetch() ?: null;
+        if (!$user) {
+            return;
+        }
+
+        $name = trim((string) ($user['full_name'] ?? ''));
+        if ($name !== '') {
+            $_SESSION['user_name'] = $name;
+        }
+        $_SESSION['user_email'] = (string) ($user['email'] ?? '');
+        $roleKey = trim((string) ($user['role_key'] ?? ''));
+        if ($roleKey !== '') {
+            $_SESSION['user_role_key'] = $roleKey;
+            $roleLabel = trim((string) ($user['role_label'] ?? ''));
+            $_SESSION['user_role'] = $roleLabel !== '' ? $roleLabel : $roleKey;
+        }
+        $_SESSION['must_change_password'] = (int) ($user['must_change_password'] ?? 0);
+        if (!empty($user['student_id'])) {
+            $_SESSION['student_id'] = (string) $user['student_id'];
+        } else {
+            unset($_SESSION['student_id']);
+        }
+    } catch (Throwable $e) {
+        error_log('smsRefreshCurrentUserSession: ' . $e->getMessage());
+    }
 }
 
 /**
