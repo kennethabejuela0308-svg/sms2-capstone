@@ -78,7 +78,7 @@ renderBreadcrumbs($breadcrumbs);
             <div class="d-flex align-items-center gap-2">
                 <span class="um-live-badge" id="adminLogLiveBadge" title="Polling every 3 seconds">
                     <span class="um-live-dot" aria-hidden="true"></span>
-                    Live
+                    <span id="adminLogLiveLabel">Live</span>
                 </span>
                 <span class="small text-muted" id="adminLogSynced"><?= e($payload['synced_at']) ?></span>
                 <span class="small text-muted" id="adminLogCount"><?= $total ?> shown</span>

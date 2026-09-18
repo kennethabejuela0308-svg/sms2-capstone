@@ -382,13 +382,16 @@
             .replace(/'/g, '&#39;');
     }
 
-    function umFillSelect(select, values, allLabel) {
+    function umFillSelect(select, values, allLabel, pretty) {
         if (!select) return;
         var current = select.value;
         var html = '<option value="">' + umEsc(allLabel) + '</option>';
         (values || []).forEach(function (value) {
-            var label = String(value).replace(/_/g, ' ');
-            label = label.charAt(0).toUpperCase() + label.slice(1);
+            var label = String(value);
+            if (pretty) {
+                label = label.replace(/_/g, ' ');
+                label = label.charAt(0).toUpperCase() + label.slice(1);
+            }
             html += '<option value="' + umEsc(value) + '">' + umEsc(label) + '</option>';
         });
         select.innerHTML = html;
@@ -442,13 +445,13 @@
             knownIds[row.getAttribute('data-id') || ''] = true;
         });
         var badge = document.getElementById('adminLogLiveBadge');
+        var liveLabel = document.getElementById('adminLogLiveLabel');
         var syncedEl = document.getElementById('adminLogSynced');
         var inFlight = false;
 
         function setLiveState(ok) {
-            if (!badge) return;
-            badge.classList.toggle('is-stale', !ok);
-            badge.childNodes[badge.childNodes.length - 1].textContent = ok ? ' Live' : ' Reconnecting';
+            if (badge) badge.classList.toggle('is-stale', !ok);
+            if (liveLabel) liveLabel.textContent = ok ? 'Live' : 'Reconnecting';
         }
 
         function applyPayload(data) {
@@ -466,8 +469,8 @@
                     if (el) el.textContent = data.stats[key];
                 });
             }
-            umFillSelect(refs.actionFilter, data.actions, 'All actions');
-            umFillSelect(refs.moduleFilter, data.modules, 'All modules');
+            umFillSelect(refs.actionFilter, data.actions, 'All actions', true);
+            umFillSelect(refs.moduleFilter, data.modules, 'All modules', false);
 
             var incomingId = parseInt(data.latest_id || 0, 10) || 0;
             var logs = Array.isArray(data.logs) ? data.logs : [];
