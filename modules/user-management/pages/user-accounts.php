@@ -125,19 +125,24 @@ if ($pdo) {
             $insFacultyPerm->execute([$facultyRole]);
         }
 
-        // Research Grant account (CRAD Officer role)
-        $rgHash = password_hash('@Grant123', PASSWORD_DEFAULT);
-        $pdo->prepare(
-            "INSERT IGNORE INTO users
-                (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
-             VALUES
-                ('researchgrant', 'researchgrant@bestlink.edu.ph', ?, 'Research Grant', 'research_grant', NULL, 'active', NOW(), 0, 0, NULL)"
-        )->execute([$rgHash]);
-        $pdo->prepare(
-            "INSERT INTO role_permissions (role_key, module_key, granted)
-             VALUES ('research_grant', 'crad_grant', 1)
-             ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
-        )->execute();
+        // Research Grant login account is retired from User Management.
+        $pdo->exec(
+            "UPDATE users
+             SET status = 'inactive'
+             WHERE role_key = 'research_grant'
+                OR username = 'researchgrant'
+                OR email = 'researchgrant@bestlink.edu.ph'"
+        );
+        try {
+            $pdo->exec(
+                "DELETE FROM users
+                 WHERE role_key = 'research_grant'
+                    OR username = 'researchgrant'
+                    OR email = 'researchgrant@bestlink.edu.ph'"
+            );
+        } catch (Throwable $e) {
+            error_log('Research Grant account delete skipped: ' . $e->getMessage());
+        }
 
         // Review Committee account (grant proposal evaluator)
         $rcHash = password_hash('@Committee123', PASSWORD_DEFAULT);
@@ -240,6 +245,15 @@ foreach ($users as &$u) {
     }
 }
 unset($u);
+
+$users = array_values(array_filter($users, static function (array $u): bool {
+    $role = (string) ($u['role'] ?? '');
+    $username = strtolower((string) ($u['username'] ?? ''));
+    $email = strtolower((string) ($u['email'] ?? ''));
+    return $role !== 'research_grant'
+        && $username !== 'researchgrant'
+        && $email !== 'researchgrant@bestlink.edu.ph';
+}));
 
 function umRoleBadgeClass(string $role, string $label = ''): string
 {
@@ -381,7 +395,6 @@ renderBreadcrumbs($breadcrumbs);
             <option value="department_chair">Department Chair</option>
             <option value="research_office">Research Office</option>
             <option value="vpaa">VPAA</option>
-            <option value="research_grant">Research Grant</option>
             <option value="review_committee">Review Committee</option>
             <option value="student">Student</option>
         </select>
