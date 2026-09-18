@@ -304,23 +304,7 @@ function rcAssignmentResetStaleAssignments(PDO $pdo): void
                 SELECT 1
                 FROM research_groups g
                 LEFT JOIN research_proposals p ON p.id = g.proposal_id
-                LEFT JOIN title_approvals t ON t.id = g.title_approval_id
-                WHERE (
-                    (p.id IS NOT NULL AND p.status = 'Approved' AND p.registration_status = 'Registered')
-                 OR (
-                    t.id IS NOT NULL
-                    AND t.status = 'Approved'
-                    AND t.coordinator_status = 'Approved'
-                    AND t.crad_status = 'Approved'
-                    AND t.adviser_signature_data IS NOT NULL
-                    AND t.adviser_signature_data <> ''
-                    AND t.coordinator_signature_data IS NOT NULL
-                    AND t.coordinator_signature_data <> ''
-                    AND t.crad_signature_data IS NOT NULL
-                    AND t.crad_signature_data <> ''
-                 )
-                  )
-                  AND g.group_number IS NOT NULL
+                WHERE g.group_number IS NOT NULL
                   AND g.group_number <> ''
                   AND (
                     (a.research_group_id IS NOT NULL AND a.research_group_id = g.id)
@@ -793,38 +777,15 @@ function rcAssignmentLiveAdviserDisplayRows(PDO $pdo, array $groups): array
             ]);
             $db = $find->fetch(PDO::FETCH_ASSOC) ?: null;
             if (!$db) {
-                try {
-                    $insert->execute([
-                        ':research_group_id' => rcAssignmentNullableInt($group['research_group_id'] ?? $group['id'] ?? null),
-                        ':proposal_id' => rcAssignmentNullableInt($group['proposal_id'] ?? null),
-                        ':proposal_number' => (string) ($group['proposal_number'] ?? '') ?: null,
-                        ':group_number' => $groupNumber !== '' ? $groupNumber : null,
-                        ':adviser_user_id' => $userId > 0 ? $userId : null,
-                        ':adviser_name' => $name,
-                        ':adviser_email' => (string) ($account['assignee_email'] ?? ''),
-                    ]);
-                    $newId = (int) $pdo->lastInsertId();
-                    $db = [
-                        'id' => $newId,
-                        'expertise' => 'General Research Methods',
-                        'availability_status' => 'Available',
-                        'assignment_status' => 'Pending',
-                        'notes' => 'Synced from adviser user account.',
-                        'assigned_at' => null,
-                        'updated_at' => date('Y-m-d H:i:s'),
-                    ];
-                } catch (Throwable $e) {
-                    error_log('Live adviser row insert skipped: ' . $e->getMessage());
-                    $db = [
-                        'id' => 0,
-                        'expertise' => 'General Research Methods',
-                        'availability_status' => 'Available',
-                        'assignment_status' => 'Pending',
-                        'notes' => 'Synced from adviser user account.',
-                        'assigned_at' => null,
-                        'updated_at' => date('Y-m-d H:i:s'),
-                    ];
-                }
+                $db = [
+                    'id' => 0,
+                    'expertise' => 'General Research Methods',
+                    'availability_status' => 'Available',
+                    'assignment_status' => 'Pending',
+                    'notes' => 'Synced from adviser user account.',
+                    'assigned_at' => null,
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ];
             } else {
                 try {
                     $update->execute([
@@ -984,7 +945,10 @@ function rcAssignmentEnsureGroupCandidateRows(PDO $pdo, array $groups): void
                 (:group_number_gate <> '' AND group_number = :group_number_match)
              OR (:research_group_id_gate > 0 AND research_group_id = :research_group_id_match)
           )
-        ORDER BY id DESC
+        ORDER BY
+            (assignment_status = 'Assigned') DESC,
+            (assignment_status = 'Confirmed') DESC,
+            id DESC
         LIMIT 1
     ");
     $updateAdviser = $pdo->prepare("
@@ -1249,7 +1213,10 @@ function rcAssignmentFindCandidateRowForGroup(PDO $pdo, string $kind, array $can
              OR group_number = :group_number
              OR proposal_id = :proposal_id
           )
-        ORDER BY id DESC
+        ORDER BY
+            (assignment_status = 'Assigned') DESC,
+            (assignment_status = 'Confirmed') DESC,
+            id DESC
         LIMIT 1
     ");
     $stmt->execute([
@@ -1494,6 +1461,7 @@ function rcAssignmentSave(PDO $pdo, string $kind, int $assignmentId, string $gro
                 ':assigned_by' => $userId,
                 ':id' => $assignmentId,
             ]);
+            rcAssignmentCollapseDuplicatePendingRows($pdo, $assignmentId, $candidate, $selectedGroup);
         }
         rcAssignmentMaybeSendCompletionNotifications($pdo, $candidate, $groupNumber, $userId);
 
