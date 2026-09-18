@@ -806,6 +806,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !modal.hidden) closeModal(); });
     }
     renderTable();
+    refresh();
 
     let timer = window.setInterval(refresh, 2000);
     document.addEventListener('visibilitychange', function () {
