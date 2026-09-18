@@ -373,6 +373,22 @@ function getVisibleModules(array $modules): array
         $visible['crad_grant'] = smsReviewCommitteeGrantModule();
     }
 
+    if (smsIsGrantedAdminRole(getCurrentUserRoleKey()) && !isset($visible['crad'])) {
+        $visible['crad'] = [
+            'label' => 'CRAD',
+            'icon'  => 'fa-flask',
+            'hide_overview' => true,
+            'groups' => [
+                'Research Management' => [
+                    'research-coordinator-management',
+                ],
+            ],
+            'pages' => [
+                ['slug' => 'research-coordinator-management', 'title' => 'Research Coordinator Management'],
+            ],
+        ];
+    }
+
     if (in_array('student_portal', $allowedModules, true) && !isset($visible['student_portal'])) {
         $visible['student_portal'] = [
             'label' => 'Student Portal',
@@ -592,6 +608,11 @@ function requireModuleAccess(string $moduleKey): void
             '/modules/crad/grant-proposal-file.php',
         ];
         $roleKey = getCurrentUserRoleKey();
+        if (smsIsGrantedAdminRole($roleKey)
+            && str_ends_with($scriptPath, '/modules/crad/pages/research-coordinator-management.php')
+        ) {
+            return;
+        }
         if (in_array($roleKey, ['student', 'adviser'], true)) {
             foreach ($grantResearcherPages as $allowedPath) {
                 if (str_ends_with($scriptPath, $allowedPath)) {
