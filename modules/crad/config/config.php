@@ -921,8 +921,6 @@ function cradPruneDeletedTitleApprovalDependents(PDO $pdo): void
                 $stmt->execute([':sid' => $sid, ':stu' => $stu]);
             }
         }
-
-        cradReleaseAssignmentsWithoutTitleApproval($pdo);
     } catch (Throwable $e) {
         error_log('Title approval dependent prune failed: ' . $e->getMessage());
     }
