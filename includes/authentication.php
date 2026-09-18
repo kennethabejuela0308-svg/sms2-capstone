@@ -469,10 +469,32 @@ function smsAdminDefenseSchedulingHref(string $slug): ?string
     return BASE_URL . '/modules/faculty/pages/research-director.php?' . http_build_query($map[$slug]);
 }
 
+function smsAdminCoreSystemNav(): array
+{
+    return [
+        'groups' => [
+            'Core System' => [
+                'dashboard-analytics',
+                'grant-opportunities',
+                'proposals-applications',
+            ],
+        ],
+        'pages' => [
+            ['slug' => 'dashboard-analytics', 'title' => 'Dashboard & Analytics'],
+            ['slug' => 'grant-opportunities', 'title' => 'Grant Opportunities'],
+            ['slug' => 'proposals-applications', 'title' => 'Proposals & Applications'],
+        ],
+    ];
+}
+
 function smsAdminCoordinatorWorkflowPaths(): array
 {
     return [
         '/modules/crad/pages/research-coordinator-management.php',
+        '/modules/crad/pages/dashboard-analytics.php',
+        '/modules/crad/pages/grant-opportunities.php',
+        '/modules/crad/pages/proposals-applications.php',
+        '/modules/crad/api/grant-management.php',
         '/modules/crad/pages/retrieve-approved-research.php',
         '/modules/crad/pages/find-contact-adviser.php',
         '/modules/crad/pages/adviser-availability.php',
@@ -565,6 +587,9 @@ function getVisibleModules(array $modules): array
 
     if (getCurrentUserRoleKey() === 'crad_officer' && isset($visible['crad'])) {
         $visible['crad'] = smsRemoveModuleNavSlug($visible['crad'], 'research-coordinator-management');
+        $visible['crad'] = smsRemoveModuleNavSlug($visible['crad'], 'dashboard-analytics');
+        $visible['crad'] = smsRemoveModuleNavSlug($visible['crad'], 'grant-opportunities');
+        $visible['crad'] = smsRemoveModuleNavSlug($visible['crad'], 'proposals-applications');
     }
 
     if (getCurrentUserRoleKey() === 'research_coordinator' && isset($visible['crad'])) {
@@ -592,7 +617,10 @@ function getVisibleModules(array $modules): array
     }
 
     if (smsIsGrantedAdminRole(getCurrentUserRoleKey())) {
-        $assignmentNav = smsAdminDefenseSchedulingNav();
+        $assignmentNav = smsMergeModuleNav(
+            smsAdminCoreSystemNav(),
+            smsAdminDefenseSchedulingNav()
+        );
         if (!isset($visible['crad'])) {
             $visible['crad'] = smsMergeModuleNav([
                 'label' => 'CRAD',

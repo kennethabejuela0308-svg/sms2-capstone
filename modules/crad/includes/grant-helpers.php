@@ -28,6 +28,10 @@ function grantUserCanManage(): bool
         require_once dirname(__DIR__, 3) . '/includes/authentication.php';
     }
 
+    if (smsIsGrantedAdminRole(getCurrentUserRoleKey())) {
+        return true;
+    }
+
     if (smsRoleAllowedForModule(['crad_officer'], 'crad')) {
         return true;
     }
