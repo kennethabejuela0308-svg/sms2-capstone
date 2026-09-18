@@ -324,6 +324,10 @@ function getVisibleModules(array $modules): array
     $allowedModules = getAllowedModuleKeys();
     $visible = array_intersect_key($modules, array_flip($allowedModules));
 
+    if (getCurrentUserRoleKey() === 'crad_officer' && isset($visible['crad'])) {
+        $visible['crad'] = smsRemoveModuleNavSlug($visible['crad'], 'research-coordinator-management');
+    }
+
     if (getCurrentUserRoleKey() === 'research_coordinator' && isset($visible['crad'])) {
         $visible['crad'] = smsResearchCoordinatorCradModule();
     }

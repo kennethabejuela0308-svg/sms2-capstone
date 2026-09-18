@@ -22,7 +22,7 @@ require_once ROOT_PATH . '/includes/security.php';
 requireAuth();
 
 $roleKey = getCurrentUserRoleKey();
-if (!smsRoleAllowedForModule(['crad_officer'], 'crad')) {
+if (!smsIsGrantedAdminRole($roleKey) && !smsRoleAllowedForModule(['crad_officer'], 'crad')) {
     header('Location: ' . BASE_URL . '/dashboard/index.php');
     exit;
 }
