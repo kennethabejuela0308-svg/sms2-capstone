@@ -159,7 +159,7 @@
     updateSelectState();
     pollSelectionState();
     pollCheckAvailability();
-    window.setInterval(poll, 10000);
-    window.setInterval(pollSelectionState, 10000);
-    window.setInterval(pollCheckAvailability, 10000);
+    window.setInterval(poll, 2000);
+    window.setInterval(pollSelectionState, 2000);
+    window.setInterval(pollCheckAvailability, 2000);
 })();
