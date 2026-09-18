@@ -474,16 +474,15 @@ renderBreadcrumbs($breadcrumbs);
                         </tr>
                     <?php else: ?>
                         <?php foreach ([
-                            ['label' => 'System Accounts', 'users' => $systemUsers],
-                            ['label' => 'Faculty Accounts', 'users' => $facultyUsers],
-                            ['label' => 'Students Account', 'users' => $studentUsers],
+                            ['key' => 'system', 'label' => 'System Accounts', 'users' => $systemUsers],
+                            ['key' => 'faculty', 'label' => 'Faculty Accounts', 'users' => $facultyUsers],
+                            ['key' => 'student', 'label' => 'Students Account', 'users' => $studentUsers],
                         ] as $group): ?>
-                            <?php if (empty($group['users'])) continue; ?>
-                            <tr class="um-group-row" data-group-row>
+                            <tr class="um-group-row" data-group-row data-group-key="<?= e($group['key']) ?>"<?= empty($group['users']) ? ' hidden' : '' ?>>
                                 <td colspan="7">
                                     <div class="um-group-title">
                                         <span><?= e($group['label']) ?></span>
-                                        <small><?= count($group['users']) ?> account<?= count($group['users']) === 1 ? '' : 's' ?></small>
+                                        <small data-group-count><?= count($group['users']) ?> account<?= count($group['users']) === 1 ? '' : 's' ?></small>
                                     </div>
                                 </td>
                             </tr>
@@ -701,7 +700,7 @@ renderBreadcrumbs($breadcrumbs);
 </div>
 <?php endif; ?>
 
-<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js?v=20260917-pw3"></script>
+<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js?v=20260919-live-edit"></script>
 <script>
 (function () {
     var ENDPOINT = '<?= BASE_URL ?>/modules/user-management/includes/save-user.php';
