@@ -736,9 +736,15 @@ function rcAssignmentLiveAdviserDisplayRows(PDO $pdo, array $groups): array
         )
           AND (
                 (:gn_a = '' AND (group_number IS NULL OR group_number = ''))
-             OR (:gn_b <> '' AND group_number = :gn_c)
+             OR (:gn_b <> '' AND (
+                    group_number = :gn_c
+                 OR (:gid_a > 0 AND research_group_id = :gid_b)
+             ))
           )
-        ORDER BY id DESC
+        ORDER BY
+            (assignment_status = 'Assigned') DESC,
+            (assignment_status = 'Confirmed') DESC,
+            id DESC
         LIMIT 1
     ");
     $insert = $pdo->prepare("
@@ -771,6 +777,7 @@ function rcAssignmentLiveAdviserDisplayRows(PDO $pdo, array $groups): array
             $email = strtolower(trim((string) ($account['assignee_email'] ?? '')));
             $name = trim((string) ($account['assignee_name'] ?? ''));
             $userId = (int) ($account['assignee_user_id'] ?? 0);
+            $groupId = (int) ($group['research_group_id'] ?? $group['id'] ?? 0);
             $find->execute([
                 ':uid_a' => $userId,
                 ':uid_b' => $userId,
@@ -781,6 +788,8 @@ function rcAssignmentLiveAdviserDisplayRows(PDO $pdo, array $groups): array
                 ':gn_a' => $groupNumber,
                 ':gn_b' => $groupNumber,
                 ':gn_c' => $groupNumber,
+                ':gid_a' => $groupId,
+                ':gid_b' => $groupId,
             ]);
             $db = $find->fetch(PDO::FETCH_ASSOC) ?: null;
             if (!$db) {
@@ -860,19 +869,32 @@ function rcAssignmentMergeLiveAdviserRows(array $rows, array $liveRows): array
 {
     $merged = [];
     $seen = [];
-    foreach (array_merge($liveRows, $rows) as $row) {
+    $isAssigned = static function (array $row): bool {
+        return strcasecmp((string) ($row['assignment_status'] ?? ''), 'Assigned') === 0
+            || strcasecmp((string) ($row['assignment_status'] ?? ''), 'Confirmed') === 0;
+    };
+
+    foreach (array_merge($rows, $liveRows) as $row) {
         $key = strtolower(trim((string) ($row['group_number'] ?? ''))) . '|' . rcAssignmentCandidateKey(
             (string) ($row['assignee_email'] ?? ''),
             (string) ($row['assignee_name'] ?? '')
         );
-        if ($key === '|' || $key === '|name:' || isset($seen[$key])) {
+        if ($key === '|' || $key === '|name:') {
             continue;
         }
-        $seen[$key] = true;
-        $merged[] = $row;
+        if (!isset($seen[$key])) {
+            $seen[$key] = $row;
+            continue;
+        }
+        $current = $seen[$key];
+        if ($isAssigned($row) && !$isAssigned($current)) {
+            $seen[$key] = $row;
+        } elseif ((int) ($row['assignment_id'] ?? 0) > (int) ($current['assignment_id'] ?? 0) && $isAssigned($row) === $isAssigned($current)) {
+            $seen[$key] = $row;
+        }
     }
 
-    return $merged;
+    return array_values($seen);
 }
 
 function rcAssignmentResolveAdviserUserId(string $email, string $name): ?int
