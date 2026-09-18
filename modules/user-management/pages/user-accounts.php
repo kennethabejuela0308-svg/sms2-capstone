@@ -985,6 +985,7 @@ renderBreadcrumbs($breadcrumbs);
                             status: payload.status,
                             notes: payload.notes || ''
                         });
+                        form.dataset.umSaved = '1';
                         closeUserModal();
                         if (typeof umShowToast === 'function') {
                             umShowToast(
@@ -1007,6 +1008,59 @@ renderBreadcrumbs($breadcrumbs);
                 }).finally(function () {
                     if (submitBtn) submitBtn.disabled = false;
                 });
+            });
+        }
+
+        var modalEl = document.getElementById('umUserModal');
+        if (form && modalEl) {
+            function livePaintFromForm() {
+                if (form.dataset.umLive !== '1') return;
+                var user = userFromForm(form);
+                if (!user.id) return;
+                var row = findUserRow(user.id);
+                if (!row) return;
+                paintUserRow(row, user, form);
+            }
+
+            ['full_name', 'username', 'email', 'role', 'status', 'notes'].forEach(function (name) {
+                var field = form.querySelector('[name="' + name + '"]');
+                if (!field) return;
+                field.addEventListener('input', livePaintFromForm);
+                field.addEventListener('change', livePaintFromForm);
+            });
+
+            modalEl.addEventListener('show.bs.modal', function () {
+                form.dataset.umSaved = '0';
+                form.dataset.umLive = '0';
+            });
+
+            modalEl.addEventListener('shown.bs.modal', function () {
+                var user = userFromForm(form);
+                if (!user.id) return;
+                var row = findUserRow(user.id);
+                if (!row) return;
+                form.dataset.umSnapshot = JSON.stringify({
+                    id: user.id,
+                    full_name: row.dataset.name || '',
+                    username: row.dataset.username || '',
+                    email: row.dataset.email || '',
+                    role: row.dataset.role || '',
+                    status: row.dataset.status || 'active',
+                    notes: row.dataset.notes || ''
+                });
+                form.dataset.umLive = '1';
+                livePaintFromForm();
+            });
+
+            modalEl.addEventListener('hidden.bs.modal', function () {
+                form.dataset.umLive = '0';
+                if (form.dataset.umSaved === '1') return;
+                if (!form.dataset.umSnapshot) return;
+                try {
+                    var original = JSON.parse(form.dataset.umSnapshot);
+                    var row = findUserRow(original.id);
+                    if (row) paintUserRow(row, original, form);
+                } catch (err) { /* ignore */ }
             });
         }
 
