@@ -9,8 +9,10 @@ require_once ROOT_PATH . '/includes/authentication.php';
 require_once ROOT_PATH . '/modules/crad/config/config.php';
 require_once ROOT_PATH . '/includes/announcements.php';
 require_once __DIR__ . '/../../includes/breadcrumbs.php';
+require_once __DIR__ . '/includes/student-profile.php';
 
-$studentId = $_SESSION['student_id'] ?? 'S230000001';
+$studentUserId = (int) ($_SESSION['user_id'] ?? 0);
+$studentId = strtoupper(trim((string) ($_SESSION['student_id'] ?? '')));
 
 $latestTitleApproval = null;
 $researchCurrentStatus = 'Not Started';
