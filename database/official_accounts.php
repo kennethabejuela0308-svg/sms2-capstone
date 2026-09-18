@@ -101,15 +101,6 @@ function smsOfficialAccounts(): array
             'lookup' => [],
         ],
         [
-            'username' => 'researchdirector',
-            'email' => 'researchdirector@bestlink.edu.ph',
-            'password' => '@Director123',
-            'full_name' => 'Research Director',
-            'role_key' => 'research_director',
-            'student_id' => null,
-            'lookup' => ['research.director@bestlink.edu.ph'],
-        ],
-        [
             'username' => 'reviewcommittee',
             'email' => 'reviewcommittee@bestlink.edu.ph',
             'password' => '@Committee123',

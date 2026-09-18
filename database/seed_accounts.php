@@ -152,14 +152,6 @@ $accounts = [
         'student_id' => null,
     ],
     [
-        'username' => 'researchdirector',
-        'email' => 'researchdirector@bestlink.edu.ph',
-        'password' => '@Director123',
-        'full_name' => 'Research Director',
-        'role_key' => 'research_director',
-        'student_id' => null,
-    ],
-    [
         'username' => 'grammarian',
         'email' => 'grammarian@bestlink.edu.ph',
         'password' => '@Grammarian123',
