@@ -201,6 +201,16 @@ function rdPanelClearContext(): void
     unset($_SESSION[RD_PANEL_CONTEXT_KEY]);
 }
 
+function rdPanelEligibleRoleKeys(): array
+{
+    return ['panel', 'department_chair'];
+}
+
+function rdPanelRoleLabel(string $roleKey): string
+{
+    return $roleKey === 'department_chair' ? 'Department Chair' : 'Panel Member';
+}
+
 function rdPanelFacultyRows(): array
 {
     $sms = db();
@@ -209,31 +219,60 @@ function rdPanelFacultyRows(): array
         return [];
     }
 
-    $rows = $sms->query(
-        "SELECT id, full_name, username, email
+    $roles = rdPanelEligibleRoleKeys();
+    $placeholders = implode(',', array_fill(0, count($roles), '?'));
+    $stmt = $sms->prepare(
+        "SELECT id, full_name, username, email, role_key
          FROM users
-         WHERE role_key = 'panel'
+         WHERE role_key IN ($placeholders)
            AND status = 'active'
-         ORDER BY full_name ASC"
-    )->fetchAll() ?: [];
+         ORDER BY CASE WHEN role_key = 'department_chair' THEN 0 ELSE 1 END, full_name ASC"
+    );
+    $stmt->execute($roles);
+    $rows = $stmt->fetchAll() ?: [];
 
-    if (!$crad instanceof PDO || !$rows) {
-        return $rows;
+    if (!$rows) {
+        return [];
     }
 
-    $availabilityStmt = $crad->prepare("SELECT availability_status, notes FROM panel_member_availability WHERE panel_user_id = ?");
-    $loadStmt = $crad->prepare(
-        "SELECT COUNT(*) FROM research_panel_assignments
-         WHERE panel_user_id = ? AND assignment_status = 'Assigned' AND defense_phase = 'Pre-Oral Defense'"
-    );
+    $availabilityStmt = null;
+    $loadStmt = null;
+    $ensureAvailability = null;
+    if ($crad instanceof PDO) {
+        $availabilityStmt = $crad->prepare("SELECT availability_status, notes FROM panel_member_availability WHERE panel_user_id = ?");
+        $loadStmt = $crad->prepare(
+            "SELECT COUNT(*) FROM research_panel_assignments
+             WHERE panel_user_id = ? AND assignment_status = 'Assigned' AND defense_phase = 'Pre-Oral Defense'"
+        );
+        $ensureAvailability = $crad->prepare(
+            "INSERT INTO panel_member_availability (panel_user_id, availability_status, notes, updated_at, created_at)
+             VALUES (?, 'Available', '', NOW(), NOW())
+             ON DUPLICATE KEY UPDATE panel_user_id = panel_user_id"
+        );
+    }
+
     foreach ($rows as &$row) {
-        $availabilityStmt->execute([(int) $row['id']]);
+        $userId = (int) $row['id'];
+        $row['role_key'] = (string) ($row['role_key'] ?? 'panel');
+        $row['role_label'] = rdPanelRoleLabel($row['role_key']);
+        $row['expertise'] = $row['role_key'] === 'department_chair' ? 'Department Chair' : '';
+        $row['availability_status'] = 'Available';
+        $row['availability_notes'] = '';
+        $row['current_assignments'] = 0;
+        if (!$crad instanceof PDO) {
+            continue;
+        }
+        try {
+            $ensureAvailability?->execute([$userId]);
+        } catch (Throwable $e) {
+            error_log('Panel availability ensure failed: ' . $e->getMessage());
+        }
+        $availabilityStmt->execute([$userId]);
         $availability = $availabilityStmt->fetch() ?: [];
-        $loadStmt->execute([(int) $row['id']]);
-        $row['availability_status'] = (string) (($availability['availability_status'] ?? '') ?: 'Pending');
+        $loadStmt->execute([$userId]);
+        $row['availability_status'] = (string) (($availability['availability_status'] ?? '') ?: 'Available');
         $row['availability_notes'] = (string) ($availability['notes'] ?? '');
         $row['current_assignments'] = (int) $loadStmt->fetchColumn();
-        $row['expertise'] = '';
     }
     unset($row);
     return $rows;
@@ -590,6 +629,33 @@ function rdPanelAssign(array $data): array
         error_log('RD panel assignment failed: ' . $e->getMessage());
         return ['ok' => false, 'message' => 'Unable to assign panel members.'];
     }
+}
+
+function rdPanelRenderMemberCard(array $panel, array $selectedIds = []): void
+{
+    $panelId = (int) ($panel['id'] ?? 0);
+    $isSelected = in_array($panelId, $selectedIds, true);
+    $availabilityStatus = (string) ($panel['availability_status'] ?? 'Pending');
+    $roleLabel = (string) ($panel['role_label'] ?? rdPanelRoleLabel((string) ($panel['role_key'] ?? 'panel')));
+    ?>
+    <label class="rdpa-panel-card" data-rd-panel-card data-panel-id="<?= $panelId ?>">
+        <input class="form-check-input" type="checkbox" name="panel_ids[]" value="<?= $panelId ?>" <?= $isSelected ? 'checked' : '' ?>>
+        <strong data-rd-panel-name><?= e((string) ($panel['full_name'] ?? '')) ?></strong>
+        <span class="badge text-bg-<?= ($panel['role_key'] ?? '') === 'department_chair' ? 'primary' : 'secondary' ?> ms-1" data-rd-panel-role><?= e($roleLabel) ?></span>
+        <span class="email" data-rd-panel-email><?= e((string) ($panel['email'] ?? '')) ?></span>
+        <div class="rdpa-detail"><small>Expertise</small><span data-rd-panel-expertise><?= e((string) (($panel['expertise'] ?? '') !== '' ? $panel['expertise'] : 'Not recorded')) ?></span></div>
+        <div class="rdpa-detail"><small>Availability</small><span class="badge text-bg-<?= e(rdPanelBadgeClass($availabilityStatus)) ?>" data-rd-panel-availability><?= e($availabilityStatus) ?></span></div>
+        <div class="rdpa-detail"><small>Current Assignments</small><span data-rd-panel-assignments><?= (int) ($panel['current_assignments'] ?? 0) ?></span></div>
+        <span class="badge text-bg-success rdpa-selected-label">Selected</span>
+    </label>
+    <?php
+}
+
+function rdPanelMemberCardHtml(array $panel, array $selectedIds = []): string
+{
+    ob_start();
+    rdPanelRenderMemberCard($panel, $selectedIds);
+    return trim((string) ob_get_clean());
 }
 
 function rdPanelRenderRows(array $rows): void
