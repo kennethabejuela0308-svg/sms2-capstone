@@ -252,6 +252,14 @@ if (!function_exists('smsRoleHomeLabel')) {
 if (!function_exists('smsRoleHomeIsActive')) {
     function smsRoleHomeIsActive(string $roleKey, string $scriptPath, string $activePage): bool
     {
+        $roleKey = function_exists('smsNormalizeRoleKey')
+            ? smsNormalizeRoleKey($roleKey)
+            : $roleKey;
+
+        if ($roleKey === 'department_head') {
+            return false;
+        }
+
         $homeUrl = smsRoleHomeUrl($roleKey);
         $homePath = (string) (parse_url($homeUrl, PHP_URL_PATH) ?? '');
         if ($homePath !== '' && str_ends_with($scriptPath, $homePath)) {
