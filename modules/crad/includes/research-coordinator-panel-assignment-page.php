@@ -11,11 +11,14 @@ require_once ROOT_PATH . '/includes/breadcrumbs.php';
 require_once ROOT_PATH . '/modules/faculty/includes/research-director-panel-assignment.php';
 
 requireAuth();
-requireModuleAccess('crad');
 
-if (getCurrentUserRoleKey() !== 'research_coordinator') {
+$roleKey = getCurrentUserRoleKey();
+if (!smsCanManageCoordinatorAssignments($roleKey)) {
     header('Location: ' . BASE_URL . '/modules/crad/index.php');
     exit;
+}
+if (!smsIsGrantedAdminRole($roleKey)) {
+    requireModuleAccess('crad');
 }
 
 $rcPanelPageSlug = $rcPanelPageSlug ?? 'retrieve-defense-ready-research';

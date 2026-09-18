@@ -435,7 +435,7 @@ function rdPanelAssignedRows(int $groupId): array
 
 function rdPanelAssign(array $data): array
 {
-    if (getCurrentUserRoleKey() !== 'research_coordinator') {
+    if (!smsCanManageCoordinatorAssignments()) {
         return ['ok' => false, 'message' => 'Forbidden.'];
     }
 

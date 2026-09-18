@@ -13,7 +13,7 @@ require_once ROOT_PATH . '/includes/notifications.php';
 requireAuth();
 
 $roleKey = getCurrentUserRoleKey();
-if (!in_array($roleKey, ['research_coordinator', 'superadmin'], true)) {
+if (!smsCanManageCoordinatorAssignments($roleKey)) {
     header('Location: ' . BASE_URL . '/dashboard/index.php');
     exit;
 }

@@ -344,6 +344,95 @@ function smsRemoveModuleNavSlug(array $module, string $slug): array
     return $module;
 }
 
+function smsMergeModuleNav(array $base, array $extra): array
+{
+    $baseGroups = isset($base['groups']) && is_array($base['groups']) ? $base['groups'] : [];
+    $extraGroups = isset($extra['groups']) && is_array($extra['groups']) ? $extra['groups'] : [];
+    $base['groups'] = $baseGroups + $extraGroups;
+    foreach ($extraGroups as $label => $slugs) {
+        if (isset($baseGroups[$label]) && is_array($baseGroups[$label])) {
+            $base['groups'][$label] = array_values(array_unique(array_merge(
+                (array) $baseGroups[$label],
+                (array) $slugs
+            )));
+        }
+    }
+
+    $pages = isset($base['pages']) && is_array($base['pages']) ? $base['pages'] : [];
+    $existing = [];
+    foreach ($pages as $page) {
+        $existing[(string) ($page['slug'] ?? '')] = true;
+    }
+    foreach ($extra['pages'] ?? [] as $page) {
+        $slug = (string) ($page['slug'] ?? '');
+        if ($slug === '' || isset($existing[$slug])) {
+            continue;
+        }
+        $pages[] = $page;
+        $existing[$slug] = true;
+    }
+    $base['pages'] = $pages;
+
+    return $base;
+}
+
+function smsAdminCoordinatorAssignmentNav(): array
+{
+    return [
+        'groups' => [
+            'A. Adviser Assignment' => [
+                'retrieve-approved-research',
+                'find-contact-adviser',
+                'adviser-availability',
+                'assign-research-adviser',
+            ],
+            'B. Panel Assignment' => [
+                'retrieve-defense-ready-research',
+                'select-panel-members',
+                'check-panel-availability',
+                'assign-panel-members',
+            ],
+            'Coordination' => [
+                'manage-assignments',
+            ],
+        ],
+        'pages' => [
+            ['slug' => 'retrieve-approved-research', 'title' => 'Retrieve Approved Research'],
+            ['slug' => 'find-contact-adviser', 'title' => 'Find/Contact Adviser'],
+            ['slug' => 'adviser-availability', 'title' => 'Check Adviser Availability'],
+            ['slug' => 'assign-research-adviser', 'title' => 'Assign Research Adviser'],
+            ['slug' => 'retrieve-defense-ready-research', 'title' => 'Retrieve Defense-Ready Research'],
+            ['slug' => 'select-panel-members', 'title' => 'Select Panel Members'],
+            ['slug' => 'check-panel-availability', 'title' => 'Check Panel Availability'],
+            ['slug' => 'assign-panel-members', 'title' => 'Assign Panel Members'],
+            ['slug' => 'manage-assignments', 'title' => 'View/Manage Assignments'],
+        ],
+    ];
+}
+
+function smsAdminCoordinatorWorkflowPaths(): array
+{
+    return [
+        '/modules/crad/pages/research-coordinator-management.php',
+        '/modules/crad/pages/retrieve-approved-research.php',
+        '/modules/crad/pages/find-contact-adviser.php',
+        '/modules/crad/pages/adviser-availability.php',
+        '/modules/crad/pages/assign-research-adviser.php',
+        '/modules/crad/pages/retrieve-defense-ready-research.php',
+        '/modules/crad/pages/select-panel-members.php',
+        '/modules/crad/pages/check-panel-availability.php',
+        '/modules/crad/pages/assign-panel-members.php',
+        '/modules/crad/pages/manage-assignments.php',
+    ];
+}
+
+function smsCanManageCoordinatorAssignments(?string $roleKey = null): bool
+{
+    $roleKey = $roleKey ?? getCurrentUserRoleKey();
+
+    return smsIsGrantedAdminRole($roleKey) || $roleKey === 'research_coordinator';
+}
+
 function getVisibleModules(array $modules): array
 {
     $allowedModules = getAllowedModuleKeys();
@@ -373,20 +462,25 @@ function getVisibleModules(array $modules): array
         $visible['crad_grant'] = smsReviewCommitteeGrantModule();
     }
 
-    if (smsIsGrantedAdminRole(getCurrentUserRoleKey()) && !isset($visible['crad'])) {
-        $visible['crad'] = [
-            'label' => 'CRAD',
-            'icon'  => 'fa-flask',
-            'hide_overview' => true,
-            'groups' => [
-                'Research Management' => [
-                    'research-coordinator-management',
+    if (smsIsGrantedAdminRole(getCurrentUserRoleKey())) {
+        $assignmentNav = smsAdminCoordinatorAssignmentNav();
+        if (!isset($visible['crad'])) {
+            $visible['crad'] = smsMergeModuleNav([
+                'label' => 'CRAD',
+                'icon'  => 'fa-flask',
+                'hide_overview' => true,
+                'groups' => [
+                    'Research Management' => [
+                        'research-coordinator-management',
+                    ],
                 ],
-            ],
-            'pages' => [
-                ['slug' => 'research-coordinator-management', 'title' => 'Research Coordinator Management'],
-            ],
-        ];
+                'pages' => [
+                    ['slug' => 'research-coordinator-management', 'title' => 'Research Coordinator Management'],
+                ],
+            ], $assignmentNav);
+        } else {
+            $visible['crad'] = smsMergeModuleNav($visible['crad'], $assignmentNav);
+        }
     }
 
     if (in_array('student_portal', $allowedModules, true) && !isset($visible['student_portal'])) {
@@ -444,36 +538,12 @@ function smsResearchCoordinatorCradModule(): array
             'Approved Research' => [
                 'approved-research',
             ],
-            'A. Adviser Assignment' => [
-                'retrieve-approved-research',
-                'find-contact-adviser',
-                'adviser-availability',
-                'assign-research-adviser',
-            ],
-            'B. Panel Assignment' => [
-                'retrieve-defense-ready-research',
-                'select-panel-members',
-                'check-panel-availability',
-                'assign-panel-members',
-            ],
-            'Coordination' => [
-                'manage-assignments',
-            ],
             'System' => [
                 'security-settings',
             ],
         ],
         'pages' => [
             ['slug' => 'approved-research', 'title' => 'View Approved Research'],
-            ['slug' => 'retrieve-approved-research', 'title' => 'Retrieve Approved Research'],
-            ['slug' => 'find-contact-adviser', 'title' => 'Find/Contact Adviser'],
-            ['slug' => 'adviser-availability', 'title' => 'Check Adviser Availability'],
-            ['slug' => 'assign-research-adviser', 'title' => 'Assign Research Adviser'],
-            ['slug' => 'retrieve-defense-ready-research', 'title' => 'Retrieve Defense-Ready Research'],
-            ['slug' => 'select-panel-members', 'title' => 'Select Panel Members'],
-            ['slug' => 'check-panel-availability', 'title' => 'Check Panel Availability'],
-            ['slug' => 'assign-panel-members', 'title' => 'Assign Panel Members'],
-            ['slug' => 'manage-assignments', 'title' => 'View/Manage Assignments'],
             ['slug' => 'security-settings', 'title' => 'Security Settings'],
         ],
     ];
@@ -608,10 +678,12 @@ function requireModuleAccess(string $moduleKey): void
             '/modules/crad/grant-proposal-file.php',
         ];
         $roleKey = getCurrentUserRoleKey();
-        if (smsIsGrantedAdminRole($roleKey)
-            && str_ends_with($scriptPath, '/modules/crad/pages/research-coordinator-management.php')
-        ) {
-            return;
+        if (smsIsGrantedAdminRole($roleKey)) {
+            foreach (smsAdminCoordinatorWorkflowPaths() as $adminPath) {
+                if (str_ends_with($scriptPath, $adminPath)) {
+                    return;
+                }
+            }
         }
         if (in_array($roleKey, ['student', 'adviser'], true)) {
             foreach ($grantResearcherPages as $allowedPath) {
