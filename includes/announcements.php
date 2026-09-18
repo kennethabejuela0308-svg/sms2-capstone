@@ -24,6 +24,7 @@ function smsEnsureAnnouncementTables(): void
                 id INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 title VARCHAR(180) NOT NULL,
                 body TEXT NOT NULL,
+                image_path VARCHAR(255) NULL,
                 status ENUM('published','unpublished') NOT NULL DEFAULT 'published',
                 audience VARCHAR(40) NOT NULL DEFAULT 'student',
                 created_by INT UNSIGNED NULL,
@@ -36,6 +37,14 @@ function smsEnsureAnnouncementTables(): void
                 KEY idx_ann_audience (audience)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
         );
+        try {
+            $col = $pdo->query("SHOW COLUMNS FROM admin_announcements LIKE 'image_path'")->fetch();
+            if (!$col) {
+                $pdo->exec("ALTER TABLE admin_announcements ADD image_path VARCHAR(255) NULL AFTER body");
+            }
+        } catch (Throwable $e) {
+            error_log('smsEnsureAnnouncementTables image_path: ' . $e->getMessage());
+        }
         $ready = true;
     } catch (Throwable $e) {
         error_log('smsEnsureAnnouncementTables: ' . $e->getMessage());
@@ -54,7 +63,7 @@ function smsAnnouncementFetch(bool $publishedOnly = false, int $limit = 50): arr
     }
 
     $limit = max(1, min(100, $limit));
-    $sql = 'SELECT id, title, body, status, audience, created_by, created_by_name,
+    $sql = 'SELECT id, title, body, image_path, status, audience, created_by, created_by_name,
                    DATE_FORMAT(created_at, "%b %e, %Y %h:%i %p") AS created_label,
                    DATE_FORMAT(updated_at, "%b %e, %Y %h:%i %p") AS updated_label,
                    DATE_FORMAT(published_at, "%b %e, %Y %h:%i %p") AS published_label,
