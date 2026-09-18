@@ -820,7 +820,6 @@ function rcAssignmentLiveAdviserDisplayRows(PDO $pdo, array $groups): array
 
 function rcAssignmentMergeLiveAdviserRows(array $rows, array $liveRows): array
 {
-    $merged = [];
     $seen = [];
     $isAssigned = static function (array $row): bool {
         return strcasecmp((string) ($row['assignment_status'] ?? ''), 'Assigned') === 0
