@@ -1437,6 +1437,27 @@ function rcAssignmentPayload(string $kind): array
                 $groups,
                 static fn(array $group): bool => cradGroupHasActiveCoordinator($pdo, $group)
             ));
+            $officialLeaders = [];
+            foreach ($groups as $group) {
+                $gn = (string) ($group['group_number'] ?? '');
+                $leader = trim((string) ($group['leader_id'] ?? ''));
+                if ($leader !== '' && $gn !== '' && !str_starts_with($gn, 'STU-')) {
+                    $officialLeaders[strtolower($leader)] = true;
+                }
+            }
+            if ($officialLeaders !== []) {
+                $groups = array_values(array_filter(
+                    $groups,
+                    static function (array $group) use ($officialLeaders): bool {
+                        $gn = (string) ($group['group_number'] ?? '');
+                        $leader = strtolower(trim((string) ($group['leader_id'] ?? '')));
+                        if (str_starts_with($gn, 'STU-') && $leader !== '' && isset($officialLeaders[$leader])) {
+                            return false;
+                        }
+                        return true;
+                    }
+                ));
+            }
         }
         if (($rcPageSlug ?? '') === 'retrieve-approved-research') {
             $groups = array_values(array_filter($groups, static fn(array $group): bool => (int) ($group['title_approval_id'] ?? 0) > 0));
