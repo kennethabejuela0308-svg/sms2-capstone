@@ -731,14 +731,6 @@ function rcAssignmentLiveAdviserDisplayRows(PDO $pdo, array $groups): array
             id DESC
         LIMIT 1
     ");
-    $insert = $pdo->prepare("
-        INSERT INTO research_adviser_assignments
-            (research_group_id, proposal_id, proposal_number, group_number, adviser_user_id, adviser_name, adviser_email,
-             expertise, availability_status, assignment_status, notes, created_at, updated_at)
-        VALUES
-            (:research_group_id, :proposal_id, :proposal_number, :group_number, :adviser_user_id, :adviser_name, :adviser_email,
-             'General Research Methods', 'Available', 'Pending', 'Synced from adviser user account.', NOW(), NOW())
-    ");
     $update = $pdo->prepare("
         UPDATE research_adviser_assignments
            SET adviser_user_id = COALESCE(:adviser_user_id, adviser_user_id),
@@ -1183,6 +1175,45 @@ function rcAssignmentResetOtherRowsForGroup(PDO $pdo, string $table, int $keepId
     ");
     $stmt->execute([
         ':keep_id' => $keepId,
+        ':research_group_id' => (int) ($selectedGroup['id'] ?? 0),
+        ':group_number' => (string) ($selectedGroup['group_number'] ?? ''),
+        ':proposal_id' => (int) ($selectedGroup['proposal_id'] ?? 0),
+    ]);
+}
+
+function rcAssignmentCollapseDuplicatePendingRows(PDO $pdo, int $keepId, array $candidate, array $selectedGroup): void
+{
+    if ($keepId <= 0) {
+        return;
+    }
+
+    $email = strtolower(trim((string) ($candidate['adviser_email'] ?? '')));
+    $name = strtolower(trim((string) ($candidate['adviser_name'] ?? '')));
+    $userId = (int) ($candidate['adviser_user_id'] ?? 0);
+
+    $stmt = $pdo->prepare("
+        DELETE FROM research_adviser_assignments
+         WHERE id <> :keep_id
+           AND assignment_status <> 'Assigned'
+           AND (
+                (:uid_a > 0 AND adviser_user_id = :uid_b)
+             OR (:email_a <> '' AND LOWER(TRIM(adviser_email)) = :email_b)
+             OR (:name_a <> '' AND LOWER(TRIM(adviser_name)) = :name_b)
+           )
+           AND (
+                research_group_id = :research_group_id
+             OR group_number = :group_number
+             OR proposal_id = :proposal_id
+           )
+    ");
+    $stmt->execute([
+        ':keep_id' => $keepId,
+        ':uid_a' => $userId,
+        ':uid_b' => $userId,
+        ':email_a' => $email,
+        ':email_b' => $email,
+        ':name_a' => $name,
+        ':name_b' => $name,
         ':research_group_id' => (int) ($selectedGroup['id'] ?? 0),
         ':group_number' => (string) ($selectedGroup['group_number'] ?? ''),
         ':proposal_id' => (int) ($selectedGroup['proposal_id'] ?? 0),
@@ -2204,7 +2235,12 @@ renderBreadcrumbs($breadcrumbs);
             const encoded = attr(JSON.stringify(row));
             const loadCount = assigneeLoadCount(row);
             if (mode === 'assign') {
-                const isAssigned = Boolean(row.selected_group_match) && String(row.assignment_status || '').toLowerCase() === 'assigned';
+                const statusAssigned = ['assigned', 'confirmed'].includes(String(row.assignment_status || '').toLowerCase());
+                const groupMatches = !selectedGroup
+                    || String(row.group_number || '') === selectedGroup
+                    || String(row.proposal_number || '') === selectedGroup
+                    || Boolean(row.selected_group_match);
+                const isAssigned = statusAssigned && groupMatches;
                 const isAvailable = String(row.availability_status || '').toLowerCase() === 'available';
                 const disabled = isAssigned || !isAvailable;
                 const actionLabel = isAssigned ? 'Assigned' : (isAvailable ? 'Assign' : 'Not Available');
@@ -2406,12 +2442,26 @@ renderBreadcrumbs($breadcrumbs);
             });
             const data = await res.json();
             if (!data.ok) throw new Error(data.error || 'Failed to assign.');
-            rows = Array.isArray(data.rows) ? data.rows : rows;
+            const markAssigned = (list) => (Array.isArray(list) ? list : []).map((item) => {
+                const sameAdviser = Number(item.assignment_id || 0) === Number(row.assignment_id || 0)
+                    || (String(item.assignee_email || '').toLowerCase() !== '' && String(item.assignee_email || '').toLowerCase() === String(row.assignee_email || '').toLowerCase())
+                    || String(item.assignee_name || '').toLowerCase() === String(row.assignee_name || '').toLowerCase();
+                const sameGroup = String(item.group_number || '') === String(group.group_number || '')
+                    || String(item.proposal_number || '') === String(group.group_number || '')
+                    || String(item.group_number || '') === selectedGroup;
+                if (sameAdviser && sameGroup) {
+                    return { ...item, assignment_status: 'Assigned' };
+                }
+                return item;
+            });
+            rows = markAssigned(Array.isArray(data.rows) ? data.rows : rows);
             groups = Array.isArray(data.groups) ? data.groups : groups;
+            const assignedCount = rows.filter((item) => String(item.assignment_status || '').toLowerCase() === 'assigned').length;
+            const pendingCount = rows.filter((item) => String(item.assignment_status || '').toLowerCase() === 'pending').length;
             if (total) total.textContent = data.stats?.total ?? rows.length;
-            if (pending) pending.textContent = data.stats?.pending ?? 0;
+            if (pending) pending.textContent = pendingCount;
             if (available) available.textContent = data.stats?.available ?? 0;
-            if (assigned) assigned.textContent = data.stats?.assigned ?? 0;
+            if (assigned) assigned.textContent = assignedCount;
             if (lastSync) lastSync.textContent = `Synced ${data.last_sync || 'just now'}`;
             showNotice(data.message || 'Assignment saved.', 'ok');
             if (typeof window.SMSRefreshNotifications === 'function') {
