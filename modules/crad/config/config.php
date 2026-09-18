@@ -927,3 +927,66 @@ function cradPruneDeletedTitleApprovalDependents(PDO $pdo): void
         error_log('Title approval dependent prune failed: ' . $e->getMessage());
     }
 }
+
+/**
+ * If a student's Title Approval was removed, drop their coordinator/adviser
+ * assignments so they return to Assign Research Coordinator in real time.
+ */
+function cradReleaseAssignmentsWithoutTitleApproval(PDO $pdo): void
+{
+    if (!$pdo->query("SHOW TABLES LIKE 'title_approvals'")->fetchColumn()) {
+        return;
+    }
+
+    $release = static function (PDO $pdo, string $sid): void {
+        $sid = trim($sid);
+        if ($sid === '') {
+            return;
+        }
+        $stu = 'STU-' . strtoupper(preg_replace('/[^A-Za-z0-9_-]/', '', $sid) ?? '');
+        foreach (['research_coordinator_assignments', 'research_adviser_assignments'] as $table) {
+            if (!$pdo->query("SHOW TABLES LIKE " . $pdo->quote($table))->fetchColumn()) {
+                continue;
+            }
+            $stmt = $pdo->prepare("
+                DELETE FROM {$table}
+                 WHERE student_id = :sid
+                    OR group_number = :stu
+                    OR group_number = :sid
+            ");
+            $stmt->execute([':sid' => $sid, ':stu' => $stu]);
+        }
+    };
+
+    $ids = [];
+    if ($pdo->query("SHOW TABLES LIKE 'research_coordinator_assignments'")->fetchColumn()) {
+        $rows = $pdo->query("
+            SELECT student_id, group_number
+            FROM research_coordinator_assignments
+            WHERE status = 'Active'
+        ")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        foreach ($rows as $row) {
+            $sid = trim((string) ($row['student_id'] ?? ''));
+            $gn = trim((string) ($row['group_number'] ?? ''));
+            if ($sid === '' && str_starts_with($gn, 'STU-')) {
+                $sid = substr($gn, 4);
+            }
+            if ($sid !== '') {
+                $ids[$sid] = true;
+            }
+        }
+    }
+
+    foreach (array_keys($ids) as $sid) {
+        $check = $pdo->prepare("
+            SELECT id FROM title_approvals
+             WHERE student_id = :sid
+             LIMIT 1
+        ");
+        $check->execute([':sid' => $sid]);
+        if ($check->fetchColumn()) {
+            continue;
+        }
+        $release($pdo, $sid);
+    }
+}
