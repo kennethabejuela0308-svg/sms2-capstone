@@ -60,3 +60,10 @@ echo "admin_has_adviser=" . (in_array('A. Adviser Assignment', $adminGroups, tru
 echo "admin_has_panel=" . (in_array('B. Panel Assignment', $adminGroups, true) ? 'yes' : 'no') . PHP_EOL;
 echo "can_manage_head=" . (smsCanManageCoordinatorAssignments('department_head') ? 'yes' : 'no') . PHP_EOL;
 echo "home=" . smsRoleHomeUrl('department_head') . PHP_EOL;
+
+$perm = $pdo->query(
+    "SELECT granted FROM role_permissions WHERE role_key = 'sms_admin' AND module_key = 'crad'"
+)->fetchColumn();
+$hash = $pdo->query("SELECT password_hash FROM users WHERE username = 'depthead'")->fetchColumn();
+echo "sms_admin_crad=" . (string) $perm . PHP_EOL;
+echo "password_ok=" . (password_verify('@Depthead123', (string) $hash) ? 'yes' : 'no') . PHP_EOL;
