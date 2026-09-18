@@ -1706,8 +1706,11 @@ $stats = $payload['stats'];
 $pageTitle = $pageConfig['title'];
 $activeModule = 'crad';
 $activePage = $rcPageSlug;
+$rcNavLabel = getCurrentUserRoleKey() === 'department_head' ? 'Research Management' : 'Research Coordinator';
 $breadcrumbs = [
-    ['label' => 'Research Coordinator', 'url' => BASE_URL . '/modules/crad/index.php'],
+    ['label' => $rcNavLabel, 'url' => getCurrentUserRoleKey() === 'department_head'
+        ? BASE_URL . '/modules/crad/pages/retrieve-approved-research.php'
+        : BASE_URL . '/modules/crad/index.php'],
     ['label' => $pageTitle, 'url' => null],
 ];
 
