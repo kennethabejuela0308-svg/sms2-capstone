@@ -148,19 +148,23 @@ function rcSyncAssignmentFromUserAccount(int $userId, string $role, string $full
             $existing = $stmt->fetch();
 
             if ($existing) {
-                $linked = (int) ($existing['adviser_user_id'] ?? 0) === $userId;
-                if (!$linked) {
-                    $crad->prepare("UPDATE research_adviser_assignments SET adviser_user_id = :uid, updated_at = NOW() WHERE id = :id")
-                        ->execute([':uid' => $userId, ':id' => (int) $existing['id']]);
-                } else {
-                    $hasGroup = !empty($existing['research_group_id'])
-                        || !empty($existing['proposal_id'])
-                        || trim((string) ($existing['group_number'] ?? '')) !== '';
-                    if (!$hasGroup) {
-                        $crad->prepare("UPDATE research_adviser_assignments SET adviser_name = :name, adviser_email = :email, updated_at = NOW() WHERE id = :id")
-                            ->execute([':name' => $fullName, ':email' => $email, ':id' => (int) $existing['id']]);
-                    }
-                }
+                $crad->prepare(
+                    "UPDATE research_adviser_assignments
+                        SET adviser_user_id = :uid,
+                            adviser_name = :name,
+                            adviser_email = :email,
+                            availability_status = CASE
+                                WHEN assignment_status = 'Assigned' THEN availability_status
+                                ELSE 'Available'
+                            END,
+                            updated_at = NOW()
+                      WHERE id = :id"
+                )->execute([
+                    ':uid' => $userId,
+                    ':name' => $fullName,
+                    ':email' => $email,
+                    ':id' => (int) $existing['id'],
+                ]);
                 return;
             }
 
