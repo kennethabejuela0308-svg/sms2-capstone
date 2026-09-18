@@ -885,10 +885,20 @@ function chapterSubmitEvaluation(PDO $crad, array $submission, array $data): arr
             return ['ok' => false, 'error' => 'All scores must be numeric.'];
         }
         $score = (float) $raw;
-        if ($score < 0 || $score > $maxPoints) {
-            return ['ok' => false, 'error' => 'Each criterion is 20%. Enter a score from 0 to 20.'];
+        $weight = (float) $item['weight'];
+        if ($score < 0) {
+            return ['ok' => false, 'error' => $item['label'] . ' Score cannot be below 0.'];
+        }
+        if ($score > $maxPoints || $score > $weight) {
+            return ['ok' => false, 'error' => $item['label'] . ' Score cannot exceed ' . number_format($weight, 0) . '%. Evaluation was not submitted.'];
         }
         $scores[$key] = round($score, 2);
+    }
+
+    $overall = round(array_sum($scores), 2);
+    $totalMax = chapterEvaluationTotalMax();
+    if ($overall > $totalMax) {
+        return ['ok' => false, 'error' => 'Total score cannot exceed ' . number_format($totalMax, 0) . '%. Evaluation was not submitted.'];
     }
 
     $result = strtoupper(trim((string) ($data['result'] ?? '')));
@@ -896,7 +906,6 @@ function chapterSubmitEvaluation(PDO $crad, array $submission, array $data): arr
         return ['ok' => false, 'error' => 'Invalid evaluation result.'];
     }
     $studentStatus = $result === 'APPROVED' ? 'Accepted' : 'Needs Revision';
-    $overall = round(array_sum($scores), 2);
 
     try {
         $crad->beginTransaction();
