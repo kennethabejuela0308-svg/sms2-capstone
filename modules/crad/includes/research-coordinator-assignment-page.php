@@ -93,16 +93,14 @@ function rcAssignmentEnsureSchema(PDO $pdo): void
             INNER JOIN research_adviser_assignments keep
               ON LOWER(TRIM(a.adviser_email)) = LOWER(TRIM(keep.adviser_email))
              AND LOWER(TRIM(a.adviser_name)) = LOWER(TRIM(keep.adviser_name))
+             AND IFNULL(a.group_number, '') = IFNULL(keep.group_number, '')
              AND a.id < keep.id
             WHERE TRIM(a.adviser_email) <> ''
               AND TRIM(a.adviser_name) <> ''
         ");
 
-        if (!$pdo->query("SHOW INDEX FROM research_adviser_assignments WHERE Key_name = 'uniq_raa_adviser_identity'")->fetch()) {
-            $pdo->exec("
-                ALTER TABLE research_adviser_assignments
-                ADD UNIQUE KEY uniq_raa_adviser_identity (adviser_email, adviser_name)
-            ");
+        if ($pdo->query("SHOW INDEX FROM research_adviser_assignments WHERE Key_name = 'uniq_raa_adviser_identity'")->fetch()) {
+            $pdo->exec("ALTER TABLE research_adviser_assignments DROP INDEX uniq_raa_adviser_identity");
         }
     } catch (Throwable $e) {
         error_log('Research adviser duplicate guard skipped: ' . $e->getMessage());
@@ -444,7 +442,9 @@ function rcAssignmentRows(PDO $pdo, string $kind): array
                 OR CONVERT(g.group_number USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(a.group_number USING utf8mb4) COLLATE utf8mb4_unicode_ci
              LEFT JOIN research_proposals p ON p.id = COALESCE(a.proposal_id, g.proposal_id)
              LEFT JOIN title_approvals t ON t.id = g.title_approval_id
-             WHERE (
+             WHERE g.group_number IS NOT NULL
+               AND g.group_number <> ''
+               AND (
                     (p.id IS NOT NULL AND p.status = 'Approved' AND p.registration_status = 'Registered' AND p.proposal_number IS NOT NULL)
                  OR (
                     t.id IS NOT NULL
@@ -458,9 +458,17 @@ function rcAssignmentRows(PDO $pdo, string $kind): array
                     AND t.crad_signature_data IS NOT NULL
                     AND t.crad_signature_data <> ''
                  )
+                 OR EXISTS (
+                    SELECT 1
+                    FROM research_coordinator_assignments ca
+                    WHERE ca.status = 'Active'
+                      AND (
+                            ca.research_group_id = g.id
+                         OR ca.group_number = g.group_number
+                         OR (g.leader_id IS NOT NULL AND g.leader_id <> '' AND ca.student_id = g.leader_id)
+                      )
+                 )
                )
-               AND g.group_number IS NOT NULL
-               AND g.group_number <> ''
         ";
     }
 
@@ -664,11 +672,14 @@ function rcAssignmentAdviserAccountPool(): array
     try {
         $smsPdo = getDatabaseConnection();
         $stmt = $smsPdo->query("
-            SELECT id AS assignee_user_id, full_name AS assignee_name, email AS assignee_email
+            SELECT id AS assignee_user_id, full_name AS assignee_name, email AS assignee_email, role_key
             FROM users
-            WHERE role_key = 'adviser'
-              AND status = 'active'
-              AND full_name <> ''
+            WHERE status = 'active'
+              AND TRIM(full_name) <> ''
+              AND (
+                    role_key IN ('adviser', 'research_adviser')
+                 OR LOWER(REPLACE(role_key, ' ', '_')) LIKE '%adviser%'
+              )
             ORDER BY full_name ASC, id ASC
         ");
         $rows = $stmt->fetchAll() ?: [];
@@ -702,7 +713,7 @@ function rcAssignmentResolveAdviserUserId(string $email, string $name): ?int
         $stmt = $smsPdo->prepare("
             SELECT id
             FROM users
-            WHERE role_key = 'adviser'
+            WHERE role_key IN ('adviser', 'research_adviser')
               AND status = 'active'
               AND (
                     (:email_gate <> '' AND LOWER(TRIM(email)) = :email_match)
@@ -747,7 +758,7 @@ function rcAssignmentCandidatePool(PDO $pdo): array
     ")->fetchAll() ?: [];
 
     $pool = [];
-    foreach (array_merge($rows, rcAssignmentAdviserAccountPool()) as $row) {
+    foreach (array_merge(rcAssignmentAdviserAccountPool(), $rows) as $row) {
         $key = rcAssignmentCandidateKey((string) ($row['assignee_email'] ?? ''), (string) ($row['assignee_name'] ?? ''));
         if ($key === 'name:' || isset($pool[$key])) {
             continue;
