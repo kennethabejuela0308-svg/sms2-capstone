@@ -1019,9 +1019,11 @@ renderBreadcrumbs($breadcrumbs);
                         closeUserModal();
                         if (typeof umShowToast === 'function') {
                             umShowToast(
-                                data.password_updated
-                                    ? 'Password updated. The user can sign in with the new password now.'
-                                    : 'User account updated.',
+                                data.created
+                                    ? 'User account created.'
+                                    : (data.password_updated
+                                        ? 'Password updated. The user can sign in with the new password now.'
+                                        : 'User account updated.'),
                                 'success'
                             );
                         }
