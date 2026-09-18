@@ -176,12 +176,17 @@ if ($pdo) {
              FROM users u
              LEFT JOIN roles r ON r.role_key = u.role_key
              WHERE u.status IN (\'inactive\', \'suspended\')
+               AND u.role_key <> \'research_grant\'
+               AND u.username <> \'researchgrant\'
              ORDER BY u.full_name ASC'
         );
         $users = $stmt->fetchAll() ?: [];
         $archivedCount = count($users);
         $activeCount = (int) $pdo->query(
-            'SELECT COUNT(*) FROM users WHERE status NOT IN (\'inactive\', \'suspended\')'
+            'SELECT COUNT(*) FROM users
+             WHERE status NOT IN (\'inactive\', \'suspended\')
+               AND role_key <> \'research_grant\'
+               AND username <> \'researchgrant\''
         )->fetchColumn();
     } else {
         $stmt = $pdo->query(
@@ -192,11 +197,16 @@ if ($pdo) {
              FROM users u
              LEFT JOIN roles r ON r.role_key = u.role_key
              WHERE u.status NOT IN (\'inactive\', \'suspended\')
+               AND u.role_key <> \'research_grant\'
+               AND u.username <> \'researchgrant\'
              ORDER BY u.id ASC'
         );
         $users = $stmt->fetchAll() ?: [];
         $archivedCount = (int) $pdo->query(
-            'SELECT COUNT(*) FROM users WHERE status IN (\'inactive\', \'suspended\')'
+            'SELECT COUNT(*) FROM users
+             WHERE status IN (\'inactive\', \'suspended\')
+               AND role_key <> \'research_grant\'
+               AND username <> \'researchgrant\''
         )->fetchColumn();
     }
 }
