@@ -9,6 +9,7 @@ require_once __DIR__ . '/../config/config.php';
 require_once ROOT_PATH . '/includes/authentication.php';
 require_once ROOT_PATH . '/includes/breadcrumbs.php';
 require_once ROOT_PATH . '/includes/notifications.php';
+require_once __DIR__ . '/title-approval-assignees.php';
 
 requireAuth();
 
