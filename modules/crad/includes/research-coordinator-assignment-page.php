@@ -747,7 +747,7 @@ function rcAssignmentCandidatePool(PDO $pdo): array
             adviser_name AS assignee_name,
             adviser_email AS assignee_email,
             adviser_user_id AS assignee_user_id,
-                '' AS assignee_role,
+            'Research Adviser' AS assignee_role,
             expertise,
             availability_status,
             notes,
