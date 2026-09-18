@@ -31,6 +31,7 @@ function umRoleBadgeClass(string $role, string $label = ''): string
         'research_grant' => 'research_grant',
         'review_committee' => 'review_committee',
         'research_coordinator' => 'research_coordinator',
+        'department_head' => 'department_head',
         'department_chair' => 'department_chair',
         'research_office' => 'research_office',
         'vpaa' => 'vpaa',

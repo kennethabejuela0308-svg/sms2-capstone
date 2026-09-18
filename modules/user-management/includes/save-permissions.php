@@ -69,6 +69,7 @@ $defaults = [
     'qa'           => ['accreditation'],
     'crad_officer' => ['crad'],
     'research_coordinator' => ['crad'],
+    'department_head' => ['crad'],
     'research_grant' => ['crad_grant'],
     'review_committee' => ['crad_grant'],
 ];
