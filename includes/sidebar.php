@@ -27,7 +27,11 @@ $roleHomeActive = smsRoleHomeIsActive($roleKey, str_replace('\\', '/', (string) 
 $showMainDashboard = smsShowsMainDashboard($roleKey);
 $visibleModules = getVisibleModules($MODULES);
 $securitySettingsModule = '';
-if (!smsIsGrantedAdminRole($roleKey)) {
+$securitySettingsHrefOverride = '';
+if (smsIsGrantedAdminRole($roleKey)) {
+    $securitySettingsModule = 'admin';
+    $securitySettingsHrefOverride = BASE_URL . '/account/profile.php?tab=security';
+} else {
     foreach ($visibleModules as $securityModuleKey => $_securityModule) {
         if ($securityModuleKey !== 'user-management') {
             $securitySettingsModule = (string) $securityModuleKey;
@@ -755,7 +759,9 @@ $researchDirectorNavGroups = [
                 <?php endforeach; ?>
                 <?php if ($securitySettingsModule !== '' && !$moduleHasSecuritySettingsPage): ?>
                     <?php $secSettingsActive = ($activePage === 'security-settings'); ?>
-                    <?php $secSettingsHref = BASE_URL . '/account/module-security.php?module=' . urlencode($securitySettingsModule); ?>
+                    <?php $secSettingsHref = $securitySettingsHrefOverride !== ''
+                        ? $securitySettingsHrefOverride
+                        : BASE_URL . '/account/module-security.php?module=' . urlencode($securitySettingsModule); ?>
                     <li class="nav-item admin-module-item">
                         <button type="button"
                                 class="nav-link sidebar-parent admin-module-toggle <?= $secSettingsActive ? 'active' : '' ?>"
