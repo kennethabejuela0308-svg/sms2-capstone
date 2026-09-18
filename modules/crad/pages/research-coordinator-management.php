@@ -3,10 +3,9 @@
  * SMS 2 - Research Coordinator Management
  * Module: CRAD
  *
- * The CRAD Officer assigns and manages the Research Coordinator who is
- * responsible for each approved research group. Only research groups whose
- * Title Approval Form has been fully approved (Adviser, Coordinator, and
- * CRAD signatures present) are listed as eligible for assignment.
+ * Admin assigns a Research Coordinator from the Coordinator Roster to a
+ * student first. Adviser assignment happens next. Only then do both names
+ * appear on the student's Title Approval Form.
  *
  * Records live in the `research_coordinator_assignments` table. The page
  * refreshes in real time (5s polling) via the `ajax=coordinator-assignments`
@@ -18,6 +17,7 @@ require_once __DIR__ . '/../config/config.php';
 require_once ROOT_PATH . '/config/database.php';
 require_once ROOT_PATH . '/includes/authentication.php';
 require_once ROOT_PATH . '/includes/security.php';
+require_once __DIR__ . '/../includes/title-approval-assignees.php';
 
 requireAuth();
 
@@ -35,7 +35,7 @@ $breadcrumbs  = [
     ['label' => 'Research Coordinator Management', 'url' => null],
 ];
 $pageBannerIcon        = 'fa-user-tie';
-$pageBannerDescription = 'Assign and manage the Research Coordinator responsible for each approved research group. Only groups with a fully approved Title Approval Form (Adviser, Coordinator, CRAD) are listed here.';
+$pageBannerDescription = 'Assign a Research Coordinator from the Coordinator Roster to each student first. After that, assign a research adviser. Names appear on the Title Approval Form only once both assignments are saved.';
 
 require_once __DIR__ . '/../../../includes/breadcrumbs.php';
 
@@ -46,6 +46,8 @@ $pdo = getCradDatabaseConnection();
  */
 function rcmEnsureSchema(PDO $pdo): void
 {
+    cradEnsureAssigneeSchema($pdo);
+
     try {
         $exists = $pdo->query("SHOW TABLES LIKE 'research_groups'")->fetch();
         if ($exists) {
