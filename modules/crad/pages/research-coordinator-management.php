@@ -106,6 +106,86 @@ function rcmFullyApprovedClause(string $alias = 't'): string
 }
 
 /**
+ * Active students who still need a Research Coordinator from the roster.
+ *
+ * @return array<int, array<string, mixed>>
+ */
+function rcmEligibleStudents(PDO $pdo): array
+{
+    $main = db();
+    if (!$main) {
+        return [];
+    }
+
+    try {
+        $students = $main->query(
+            "SELECT student_id, full_name, email
+             FROM users
+             WHERE role_key = 'student'
+               AND status = 'active'
+               AND student_id IS NOT NULL
+               AND TRIM(student_id) <> ''
+             ORDER BY full_name ASC, student_id ASC"
+        )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable $e) {
+        error_log('Eligible student list failed: ' . $e->getMessage());
+        return [];
+    }
+
+    $assigned = [];
+    try {
+        foreach ($pdo->query("SELECT student_id, group_number FROM research_coordinator_assignments WHERE status = 'Active'")->fetchAll() as $a) {
+            $sid = trim((string) ($a['student_id'] ?? ''));
+            if ($sid !== '') {
+                $assigned[$sid] = true;
+            }
+            $gn = trim((string) ($a['group_number'] ?? ''));
+            if (str_starts_with($gn, 'STU-')) {
+                $assigned[substr($gn, 4)] = true;
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('Active coordinator student index failed: ' . $e->getMessage());
+    }
+
+    $titles = [];
+    try {
+        foreach ($pdo->query("SELECT student_id, proposed_title, department FROM title_approvals ORDER BY id DESC")->fetchAll() as $row) {
+            $sid = trim((string) ($row['student_id'] ?? ''));
+            if ($sid !== '' && !isset($titles[$sid])) {
+                $titles[$sid] = $row;
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('Student title lookup failed: ' . $e->getMessage());
+    }
+
+    $out = [];
+    foreach ($students as $student) {
+        $sid = trim((string) ($student['student_id'] ?? ''));
+        if ($sid === '' || isset($assigned[$sid])) {
+            continue;
+        }
+        $title = trim((string) ($titles[$sid]['proposed_title'] ?? ''));
+        $out[] = [
+            'group_id' => 0,
+            'group_number' => cradStudentAssignmentGroupNumber($sid),
+            'group_name' => (string) ($student['full_name'] ?? ''),
+            'research_title' => $title !== '' ? $title : 'Pending Title Approval',
+            'adviser' => '',
+            'proposal_number' => $sid,
+            'tap_proposal_number' => '',
+            'suggested_coordinator' => '',
+            'student_id' => $sid,
+            'student_name' => (string) ($student['full_name'] ?? ''),
+            'assign_kind' => 'student',
+        ];
+    }
+
+    return $out;
+}
+
+/**
  * Deduplicated coordinator pool.
  * Prefers user accounts with the Research Coordinator role, then falls back
  * to coordinator names recorded on approved Title Approval Forms.
@@ -195,7 +275,8 @@ function rcmCoordinatorPool(PDO $pdo): array
 function rcmEligibleGroups(PDO $pdo): array
 {
     $sql = "SELECT g.id AS group_id, g.group_number, g.group_name, g.research_title,
-                   g.adviser, g.proposal_number, t.proposal_number AS tap_proposal_number,
+                   g.adviser, g.proposal_number, g.leader_id,
+                   t.proposal_number AS tap_proposal_number,
                    t.coordinator_name AS suggested_coordinator
             FROM research_groups g
             JOIN title_approvals t ON t.id = g.title_approval_id
@@ -206,16 +287,45 @@ function rcmEligibleGroups(PDO $pdo): array
     $rows = $pdo->query($sql)->fetchAll();
 
     $activeGroups = [];
-    foreach ($pdo->query("SELECT group_number FROM research_coordinator_assignments WHERE status = 'Active'")->fetchAll() as $a) {
-        $activeGroups[$a['group_number']] = true;
+    $assignedLeaders = [];
+    foreach ($pdo->query("SELECT student_id, group_number FROM research_coordinator_assignments WHERE status = 'Active'")->fetchAll() as $a) {
+        $gn = trim((string) ($a['group_number'] ?? ''));
+        if ($gn !== '') {
+            $activeGroups[$gn] = true;
+        }
+        $sid = trim((string) ($a['student_id'] ?? ''));
+        if ($sid !== '') {
+            $assignedLeaders[$sid] = true;
+        }
+        if (str_starts_with($gn, 'STU-')) {
+            $assignedLeaders[substr($gn, 4)] = true;
+        }
     }
 
     $eligible = [];
+    $listedLeaders = [];
     foreach ($rows as $r) {
         if (isset($activeGroups[$r['group_number']])) {
             continue;
         }
+        $leaderId = trim((string) ($r['leader_id'] ?? ''));
+        if ($leaderId !== '' && isset($assignedLeaders[$leaderId])) {
+            continue;
+        }
+        $r['assign_kind'] = 'group';
+        $r['student_id'] = $leaderId;
         $eligible[] = $r;
+        if ($leaderId !== '') {
+            $listedLeaders[$leaderId] = true;
+        }
+    }
+
+    foreach (rcmEligibleStudents($pdo) as $studentRow) {
+        $sid = trim((string) ($studentRow['student_id'] ?? ''));
+        if ($sid !== '' && isset($listedLeaders[$sid])) {
+            continue;
+        }
+        $eligible[] = $studentRow;
     }
 
     return $eligible;
