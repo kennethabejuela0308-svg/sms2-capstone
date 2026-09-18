@@ -425,7 +425,7 @@ function rcAssignmentRows(PDO $pdo, string $kind): array
                 a.adviser_user_id AS assignee_user_id,
                 a.adviser_name AS assignee_name,
                 a.adviser_email AS assignee_email,
-                '' AS assignee_role,
+                'Research Adviser' AS assignee_role,
                 a.expertise,
                 a.availability_status,
                 a.assignment_status,
