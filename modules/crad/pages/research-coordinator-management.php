@@ -659,6 +659,7 @@ rcmEnsureSchema($pdo);
 
 function rcmPayload(PDO $pdo, ?string $flashMessage = null, bool $flashOk = true): array
 {
+    cradReleaseAssignmentsWithoutTitleApproval($pdo);
     cradPruneDeletedTitleApprovalDependents($pdo);
     $eligible    = rcmEligibleGroups($pdo);
     $pool        = rcmCoordinatorPool($pdo);

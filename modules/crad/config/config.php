@@ -929,8 +929,8 @@ function cradPruneDeletedTitleApprovalDependents(PDO $pdo): void
 }
 
 /**
- * If a student's Title Approval was removed, drop their coordinator/adviser
- * assignments so they return to Assign Research Coordinator in real time.
+ * If a student's Title Approval row was deleted, remove their coordinator
+ * and adviser assignments so they return to Assign Research Coordinator.
  */
 function cradReleaseAssignmentsWithoutTitleApproval(PDO $pdo): void
 {
@@ -938,55 +938,36 @@ function cradReleaseAssignmentsWithoutTitleApproval(PDO $pdo): void
         return;
     }
 
-    $release = static function (PDO $pdo, string $sid): void {
-        $sid = trim($sid);
-        if ($sid === '') {
-            return;
-        }
-        $stu = 'STU-' . strtoupper(preg_replace('/[^A-Za-z0-9_-]/', '', $sid) ?? '');
-        foreach (['research_coordinator_assignments', 'research_adviser_assignments'] as $table) {
-            if (!$pdo->query("SHOW TABLES LIKE " . $pdo->quote($table))->fetchColumn()) {
-                continue;
-            }
-            $stmt = $pdo->prepare("
-                DELETE FROM {$table}
-                 WHERE student_id = :sid
-                    OR group_number = :stu
-                    OR group_number = :sid
+    try {
+        if ($pdo->query("SHOW TABLES LIKE 'research_coordinator_assignments'")->fetchColumn()) {
+            $pdo->exec("
+                DELETE a FROM research_coordinator_assignments a
+                LEFT JOIN title_approvals t
+                  ON (
+                        (a.student_id IS NOT NULL AND TRIM(a.student_id) <> '' AND t.student_id = a.student_id)
+                     OR (a.group_number LIKE 'STU-%' AND t.student_id = SUBSTRING(a.group_number FROM 5))
+                  )
+                WHERE t.id IS NULL
             ");
-            $stmt->execute([':sid' => $sid, ':stu' => $stu]);
         }
-    };
-
-    $ids = [];
-    if ($pdo->query("SHOW TABLES LIKE 'research_coordinator_assignments'")->fetchColumn()) {
-        $rows = $pdo->query("
-            SELECT student_id, group_number
-            FROM research_coordinator_assignments
-            WHERE status = 'Active'
-        ")->fetchAll(PDO::FETCH_ASSOC) ?: [];
-        foreach ($rows as $row) {
-            $sid = trim((string) ($row['student_id'] ?? ''));
-            $gn = trim((string) ($row['group_number'] ?? ''));
-            if ($sid === '' && str_starts_with($gn, 'STU-')) {
-                $sid = substr($gn, 4);
-            }
-            if ($sid !== '') {
-                $ids[$sid] = true;
-            }
+        if ($pdo->query("SHOW TABLES LIKE 'research_adviser_assignments'")->fetchColumn()) {
+            $pdo->exec("
+                DELETE a FROM research_adviser_assignments a
+                LEFT JOIN title_approvals t
+                  ON (
+                        (a.student_id IS NOT NULL AND TRIM(a.student_id) <> '' AND t.student_id = a.student_id)
+                     OR (a.group_number LIKE 'STU-%' AND t.student_id = SUBSTRING(a.group_number FROM 5))
+                  )
+                WHERE t.id IS NULL
+                  AND (
+                        (a.student_id IS NOT NULL AND TRIM(a.student_id) <> '')
+                     OR (a.group_number LIKE 'STU-%')
+                     OR (a.group_number LIKE 'RG-%')
+                     OR (a.proposal_number LIKE 'TAP-%')
+                  )
+            ");
         }
-    }
-
-    foreach (array_keys($ids) as $sid) {
-        $check = $pdo->prepare("
-            SELECT id FROM title_approvals
-             WHERE student_id = :sid
-             LIMIT 1
-        ");
-        $check->execute([':sid' => $sid]);
-        if ($check->fetchColumn()) {
-            continue;
-        }
-        $release($pdo, $sid);
+    } catch (Throwable $e) {
+        error_log('Release assignments without title approval failed: ' . $e->getMessage());
     }
 }
