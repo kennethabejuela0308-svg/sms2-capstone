@@ -586,6 +586,13 @@ $researchDirectorNavGroups = [
                 <?php foreach ($visibleModules as $navModuleKey => $module): ?>
                     <?php
                     $isModuleActive = ($highlightModule === $navModuleKey);
+                    if (
+                        $roleKey === 'department_head'
+                        && $navModuleKey === 'crad'
+                        && $activePage !== 'security-settings'
+                    ) {
+                        $isModuleActive = true;
+                    }
                     $moduleFolder = match ($navModuleKey) {
                         'student_portal' => 'student-portal',
                         'crad_grant'     => 'crad',
