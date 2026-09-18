@@ -520,7 +520,7 @@ sort($programs, SORT_STRING);
                         <tr><td colspan="8">
                             <div class="cgsr-empty" data-cgsr-empty>
                                 <strong>No Registered Groups Yet</strong>
-                                <small>Groups appear here once their Title Approval Form is fully approved and an official Adviser and Research Coordinator are assigned.</small>
+                                <small>Groups appear here in real time as soon as a Research Group Number is generated.</small>
                             </div>
                         </td></tr>
                     <?php else: ?>
@@ -544,28 +544,28 @@ sort($programs, SORT_STRING);
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <div class="cgsr-title"><?= htmlspecialchars($r['research_title']) ?></div>
+                                    <div class="cgsr-title"><?= htmlspecialchars($r['research_title'] !== '' ? $r['research_title'] : 'Untitled research') ?></div>
                                     <span class="cgsr-meta-block"><?= htmlspecialchars($r['program']) ?></span>
                                 </td>
                                 <td>
-                                    <div class="cgsr-title"><?= htmlspecialchars($r['leader']['name']) ?></div>
+                                    <div class="cgsr-title"><?= htmlspecialchars($r['leader']['name'] !== '' ? $r['leader']['name'] : '—') ?></div>
                                     <?php if (trim((string) $r['leader']['id']) !== ''): ?>
                                         <span class="cgsr-meta-block"><?= htmlspecialchars($r['leader']['id']) ?></span>
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <div class="cgsr-title"><?= htmlspecialchars($r['adviser']) ?></div>
+                                    <div class="cgsr-title"><?= htmlspecialchars($r['adviser'] !== '' ? $r['adviser'] : '—') ?></div>
                                     <?php if (trim((string) $r['adviser_email']) !== ''): ?>
                                         <span class="cgsr-meta-block"><?= htmlspecialchars($r['adviser_email']) ?></span>
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <div class="cgsr-title"><?= htmlspecialchars($r['coordinator']) ?></div>
+                                    <div class="cgsr-title"><?= htmlspecialchars($r['coordinator'] !== '' ? $r['coordinator'] : '—') ?></div>
                                     <?php if (trim((string) $r['coordinator_email']) !== ''): ?>
                                         <span class="cgsr-meta-block"><?= htmlspecialchars($r['coordinator_email']) ?></span>
                                     <?php endif; ?>
                                 </td>
-                                <td><div class="cgsr-title"><?= htmlspecialchars($r['academic_year']) ?></div></td>
+                                    <td><div class="cgsr-title"><?= htmlspecialchars($r['academic_year'] !== '' ? $r['academic_year'] : '—') ?></div></td>
                                 <td><span class="cgsr-badge cgsr-badge-registered"><?= smsIcon('check') ?> Registered</span></td>
                                 <td>
                                     <button type="button" class="cgsr-btn cgsr-btn-primary" data-cgsr-view="<?= htmlspecialchars($r['group_number']) ?>">
