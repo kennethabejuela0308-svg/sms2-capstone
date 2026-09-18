@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 function cradStudentAssignmentGroupNumber(string $studentId): string
 {
-    $safe = preg_replace('/[^A-Za-z0-9_-]/', '', trim($studentId));
+    $safe = strtoupper(preg_replace('/[^A-Za-z0-9_-]/', '', trim($studentId)) ?? '');
     if ($safe === '') {
         $safe = 'UNKNOWN';
     }
@@ -376,10 +376,10 @@ function cradStudentOfficialAssignees(PDO $pdo, string $studentId): array
         'coordinator_assigned' => $coordinatorAssigned,
         'adviser_assigned' => $adviserAssigned,
         'ready' => $ready,
-        'coordinator_name' => $ready ? $coordinatorName : '',
-        'coordinator_email' => $ready ? $coordinatorEmail : '',
-        'adviser_name' => $ready ? $adviserName : '',
-        'adviser_email' => $ready ? $adviserEmail : '',
+        'coordinator_name' => $coordinatorAssigned ? $coordinatorName : '',
+        'coordinator_email' => $coordinatorAssigned ? $coordinatorEmail : '',
+        'adviser_name' => $adviserAssigned ? $adviserName : '',
+        'adviser_email' => $adviserAssigned ? $adviserEmail : '',
         'group_number' => (string) ($adv['group_number'] ?? $coord['group_number'] ?? $stuGroup),
     ];
 }
