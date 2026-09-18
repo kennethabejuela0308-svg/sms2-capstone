@@ -22,7 +22,11 @@ require_once __DIR__ . '/../includes/title-approval-assignees.php';
 requireAuth();
 
 $roleKey = getCurrentUserRoleKey();
-if (!smsIsGrantedAdminRole($roleKey) && !smsRoleAllowedForModule(['crad_officer'], 'crad')) {
+if (
+    !smsIsGrantedAdminRole($roleKey)
+    && $roleKey !== 'department_head'
+    && !smsRoleAllowedForModule(['crad_officer'], 'crad')
+) {
     header('Location: ' . BASE_URL . '/dashboard/index.php');
     exit;
 }
@@ -30,8 +34,12 @@ if (!smsIsGrantedAdminRole($roleKey) && !smsRoleAllowedForModule(['crad_officer'
 $pageTitle    = 'Research Coordinator Management';
 $activeModule = 'crad';
 $activePage   = 'research-coordinator-management';
+$rcmNavLabel  = $roleKey === 'department_head' ? 'Research Management' : 'CRAD';
+$rcmNavUrl    = $roleKey === 'department_head'
+    ? BASE_URL . '/modules/crad/pages/research-coordinator-management.php'
+    : BASE_URL . '/modules/crad/index.php';
 $breadcrumbs  = [
-    ['label' => 'CRAD', 'url' => BASE_URL . '/modules/crad/index.php'],
+    ['label' => $rcmNavLabel, 'url' => $rcmNavUrl],
     ['label' => 'Research Coordinator Management', 'url' => null],
 ];
 $pageBannerIcon        = 'fa-user-tie';

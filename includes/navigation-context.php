@@ -189,7 +189,7 @@ if (!function_exists('smsRoleHomeUrl')) {
         $homes = [
             'student'              => BASE_URL . '/modules/student-portal/pages/dashboard.php',
             'research_coordinator' => BASE_URL . '/modules/crad/index.php',
-            'department_head'      => BASE_URL . '/modules/crad/pages/retrieve-approved-research.php',
+            'department_head'      => BASE_URL . '/modules/crad/pages/research-coordinator-management.php',
             'department_chair'     => grantReviewWorkflowPageUrl('approval-workflows', 0, 'crad'),
             'research_office'      => grantReviewWorkflowPageUrl('approval-workflows', 0, 'crad'),
             'vpaa'                 => grantReviewWorkflowPageUrl('approval-workflows', 0, 'accreditation'),

@@ -500,6 +500,7 @@ function smsDepartmentHeadWorkflowPaths(): array
     return [
         '/account/module-security.php',
         '/account/security.php',
+        '/modules/crad/pages/research-coordinator-management.php',
         '/modules/crad/pages/retrieve-approved-research.php',
         '/modules/crad/pages/find-contact-adviser.php',
         '/modules/crad/pages/adviser-availability.php',
@@ -519,6 +520,7 @@ function smsDepartmentHeadCradModule(): array
         'label' => 'Research Management',
         'icon'  => 'fa-flask',
         'hide_overview' => true,
+        'show_ungrouped_pages' => true,
         'groups' => [
             'A. Adviser Assignment' => [
                 'retrieve-approved-research',
@@ -535,6 +537,7 @@ function smsDepartmentHeadCradModule(): array
             ],
         ],
         'pages' => [
+            ['slug' => 'research-coordinator-management', 'title' => 'Research Coordinator Management'],
             ['slug' => 'retrieve-approved-research', 'title' => 'Retrieve Approved Research'],
             ['slug' => 'find-contact-adviser', 'title' => 'Find/Contact Adviser'],
             ['slug' => 'adviser-availability', 'title' => 'Check Adviser Availability'],
@@ -595,17 +598,13 @@ function getVisibleModules(array $modules): array
                 'label' => 'CRAD',
                 'icon'  => 'fa-flask',
                 'hide_overview' => true,
-                'groups' => [
-                    'Research Management' => [
-                        'research-coordinator-management',
-                    ],
-                ],
-                'pages' => [
-                    ['slug' => 'research-coordinator-management', 'title' => 'Research Coordinator Management'],
-                ],
             ], $assignmentNav);
         } else {
             $visible['crad'] = smsMergeModuleNav($visible['crad'], $assignmentNav);
+        }
+        $visible['crad'] = smsRemoveModuleNavSlug($visible['crad'], 'research-coordinator-management');
+        if (isset($visible['crad']['groups']['Research Management'])) {
+            unset($visible['crad']['groups']['Research Management']);
         }
     }
 
