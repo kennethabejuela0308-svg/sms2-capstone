@@ -218,6 +218,7 @@ function rcAssignmentSyncApprovedTitleGroups(PDO $pdo): void
 
             $lastRow = $pdo->query("SELECT MAX(id) AS max_id FROM research_groups")->fetch();
             $seq = (int) ($lastRow['max_id'] ?? 0) + 1;
+            $newGroupNumber = rcAssignmentBuildGroupNumber($seq);
             $ins = $pdo->prepare("
                 INSERT INTO research_groups
                     (proposal_id, title_approval_id, proposal_number, group_number, group_name,
@@ -580,6 +581,66 @@ function rcAssignmentApprovedGroups(PDO $pdo): array
     ");
 
     $groups = $stmt->fetchAll() ?: [];
+    $byNumber = [];
+    foreach ($groups as $group) {
+        $key = (string) ($group['group_number'] ?? '');
+        if ($key !== '') {
+            $byNumber[$key] = $group;
+        }
+    }
+
+    try {
+        $coordGroups = $pdo->query("
+            SELECT
+                g.id AS research_group_id,
+                g.proposal_id,
+                g.title_approval_id,
+                COALESCE(p.proposal_number, t.proposal_number, g.proposal_number) AS proposal_number,
+                g.group_number,
+                g.group_name,
+                COALESCE(NULLIF(g.research_title, ''), p.research_title, t.proposed_title, 'Pending Title Approval') AS research_title,
+                COALESCE(NULLIF(g.college_dept, ''), p.college_department, t.department) AS college_dept,
+                COALESCE(NULLIF(g.adviser, ''), p.research_adviser, t.adviser_name, '') AS approved_adviser_name,
+                COALESCE(t.adviser_email, '') AS approved_adviser_email,
+                COALESCE(t.status, '') AS adviser_approval_status,
+                COALESCE(t.coordinator_name, '') AS coordinator_approved_name,
+                COALESCE(t.coordinator_status, '') AS coordinator_approval_status,
+                COALESCE(t.coordinator_reviewed_at, t.updated_at, t.created_at) AS coordinator_approved_at,
+                COALESCE(t.crad_status, '') AS crad_approval_status,
+                COALESCE(t.crad_reviewed_at, t.updated_at, t.created_at) AS crad_approved_at,
+                g.leader_name,
+                g.leader_id,
+                g.leader_email,
+                g.leader_contact,
+                g.status AS group_status,
+                COALESCE(p.status, t.status) AS proposal_status,
+                COALESCE(p.registration_status, 'Title Approved') AS registration_status,
+                COALESCE(g.created_at, p.registered_at, p.approved_at, t.crad_reviewed_at, t.updated_at, p.created_at) AS updated_at
+             FROM research_groups g
+             INNER JOIN research_coordinator_assignments ca
+               ON ca.status = 'Active'
+              AND (
+                    ca.research_group_id = g.id
+                 OR ca.group_number = g.group_number
+                 OR (g.leader_id IS NOT NULL AND g.leader_id <> '' AND ca.student_id = g.leader_id)
+              )
+             LEFT JOIN research_proposals p ON p.id = g.proposal_id
+             LEFT JOIN title_approvals t ON t.id = g.title_approval_id
+             WHERE g.group_number IS NOT NULL
+               AND g.group_number <> ''
+             ORDER BY updated_at DESC, g.id DESC
+        ")->fetchAll() ?: [];
+        foreach ($coordGroups as $group) {
+            $key = (string) ($group['group_number'] ?? '');
+            if ($key !== '' && !isset($byNumber[$key])) {
+                $byNumber[$key] = $group;
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('Coordinator-ready assignment groups skipped: ' . $e->getMessage());
+    }
+
+    $groups = array_values($byNumber);
     foreach ($groups as &$group) {
         $group['required_expertise'] = rcAssignmentRequiredExpertise((string) ($group['research_title'] ?? ''));
     }
