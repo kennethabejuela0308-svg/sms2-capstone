@@ -367,7 +367,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                                     <img class="print-adviser-sig-img" src="<?= htmlspecialchars($coordinatorSignatureData) ?>" alt="Coordinator Signature">
                                 <?php endif; ?>
                             </div>
-                            <strong class="print-approver-name"><?= htmlspecialchars($assignedCoordName) ?></strong>
+                            <strong class="print-approver-name" id="tafCoordinatorName"><?= htmlspecialchars($assignedCoordName) ?></strong>
                             <span class="print-approver-role">Program Research Coordinator</span>
                         </div>
                         <div class="print-approval-divider"></div>
