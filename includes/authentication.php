@@ -600,6 +600,9 @@ function requireModuleAccess(string $moduleKey): void
             }
         }
 
+        if (str_ends_with($scriptPath, '/dashboard/index.php')) {
+            return;
+        }
         header('Location: ' . BASE_URL . '/dashboard/index.php');
         exit;
     }
