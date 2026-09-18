@@ -12,18 +12,72 @@ require_once ROOT_PATH . '/modules/crad/includes/title-approval-assignees.php';
 $studentId     = $_SESSION['student_id'] ?? 'S230000001';
 $studentUserId = $_SESSION['user_id']    ?? null;
 $studentName   = $_SESSION['user_name']  ?? 'Juan Dela Cruz';
-$nameParts = array_values(array_filter(preg_split('/\s+/', trim($studentName)) ?: []));
-if (count($nameParts) >= 3) {
-    $lastName = $nameParts[count($nameParts) - 2] . ' ' . $nameParts[count($nameParts) - 1];
-    $firstNames = implode(' ', array_slice($nameParts, 0, -2));
-} elseif (count($nameParts) === 2) {
-    $lastName = $nameParts[1];
-    $firstNames = $nameParts[0];
-} else {
-    $lastName = $nameParts[0] ?? 'Dela Cruz';
-    $firstNames = 'Juan';
-}
-$defaultMemberName = $lastName . ', ' . $firstNames . ' A.';
+
+/**
+ * Format a person name as "Last, First M.I." (CRAD Form S2).
+ * Example: John Kenneth C. Abejuela → Abejuela, John Kenneth C.
+ */
+$smsFormatLastFirstMi = static function (string $fullName): string {
+    $fullName = trim(preg_replace('/\s+/', ' ', $fullName) ?? '');
+    if ($fullName === '') {
+        return '';
+    }
+
+    $isMiddleInitial = static function (string $token): bool {
+        return (bool) preg_match('/^[A-Za-z]\.?$/', $token);
+    };
+    $isSurnameParticle = static function (string $token): bool {
+        return in_array(strtolower(rtrim($token, '.')), [
+            'de', 'del', 'dela', 'da', 'das', 'do', 'dos',
+            'la', 'las', 'los', 'van', 'von', 'san', 'santa', 'sta', 'sto',
+        ], true);
+    };
+    $normalizeMi = static function (string $token): string {
+        return strtoupper(substr($token, 0, 1)) . '.';
+    };
+
+    $lastName = '';
+    $given = '';
+    $middleInitial = '';
+
+    if (str_contains($fullName, ',')) {
+        [$lastName, $rest] = array_pad(array_map('trim', explode(',', $fullName, 2)), 2, '');
+        $restParts = array_values(array_filter(preg_split('/\s+/', $rest) ?: [], static fn($p) => $p !== ''));
+        if ($restParts !== [] && $isMiddleInitial($restParts[count($restParts) - 1])) {
+            $middleInitial = $normalizeMi(array_pop($restParts));
+        }
+        $given = implode(' ', $restParts);
+    } else {
+        $parts = array_values(array_filter(preg_split('/\s+/', $fullName) ?: [], static fn($p) => $p !== ''));
+        if ($parts === []) {
+            return '';
+        }
+        if (count($parts) === 1) {
+            return $parts[0];
+        }
+
+        $lastParts = [array_pop($parts)];
+        while ($parts !== [] && $isSurnameParticle($parts[count($parts) - 1])) {
+            array_unshift($lastParts, array_pop($parts));
+        }
+        $lastName = implode(' ', $lastParts);
+
+        if ($parts !== [] && $isMiddleInitial($parts[count($parts) - 1])) {
+            $middleInitial = $normalizeMi(array_pop($parts));
+        }
+        $given = implode(' ', $parts);
+    }
+
+    $formatted = trim($lastName);
+    $suffix = trim($given . ($middleInitial !== '' ? ' ' . $middleInitial : ''));
+    if ($suffix !== '') {
+        $formatted .= ', ' . $suffix;
+    }
+
+    return $formatted;
+};
+
+$defaultMemberName = $smsFormatLastFirstMi($studentName);
 $defaultOrNumber = 'OR-' . date('y') . str_pad((string) random_int(10000, 99999), 5, '0', STR_PAD_LEFT);
 $requestedResubmitId = (int) ($_GET['resubmit_title_approval'] ?? 0);
 $submitted = ($_GET['process'] ?? '') === 'submit-proposal';
@@ -501,7 +555,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                         <div class="crad-field-row crad-field-row-3">
                             <div class="crad-field">
                                 <label>Full Name (Last, First, M.I.) <span>*</span></label>
-                                <input type="text" name="member_name[]" value="<?= htmlspecialchars($defaultMemberName) ?>" required>
+                                <input type="text" name="member_name[]" value="<?= htmlspecialchars($defaultMemberName) ?>" placeholder="Abejuela, John Kenneth C." required>
                             </div>
                             <div class="crad-field">
                                 <label>Section <span>*</span></label>
