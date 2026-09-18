@@ -38,13 +38,13 @@ if (smsIsGrantedAdminRole($roleKey)) {
             break;
         }
     }
-    if ($securitySettingsModule === '' && in_array($roleKey, ['vpaa', 'research_office', 'department_chair', 'research_coordinator'], true)) {
+    if ($securitySettingsModule === '' && in_array($roleKey, ['vpaa', 'research_office', 'department_chair', 'department_head', 'research_coordinator'], true)) {
         if (!function_exists('smsPrimaryModuleForRole')) {
             require_once __DIR__ . '/security-workflow.php';
         }
         $securitySettingsModule = (string) smsPrimaryModuleForRole($roleKey);
     }
-    if ($roleKey === 'research_coordinator') {
+    if ($roleKey === 'research_coordinator' || $roleKey === 'department_head') {
         $securitySettingsModule = $securitySettingsModule !== '' ? $securitySettingsModule : 'crad';
         $securitySettingsHrefOverride = BASE_URL . '/account/module-security.php?module=crad';
     }

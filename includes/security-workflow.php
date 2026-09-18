@@ -609,6 +609,7 @@ function smsPrimaryModuleForRole(string $roleKey): string
         'registrar'    => 'registrar',
         'crad_officer' => 'crad',
         'research_coordinator' => 'crad',
+        'department_head' => 'crad',
         'department_chair' => 'crad',
         'research_office' => 'crad',
         'research_grant' => 'crad_grant',
