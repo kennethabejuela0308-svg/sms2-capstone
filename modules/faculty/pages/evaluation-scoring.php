@@ -84,7 +84,32 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
                 <section class="glass-panel p-4">
                     <?php if (!empty($submission['evaluation_id'])): ?>
                         <h5 class="mb-3">Evaluation Completed</h5>
-                        <p class="text-muted">This submission already has a saved evaluation and cannot be scored again.</p>
+                        <p class="text-muted mb-3">This submission already has a saved evaluation and cannot be scored again.</p>
+                        <div class="table-responsive mb-3">
+                            <table class="table align-middle mb-0">
+                                <thead><tr><th>Criterion</th><th>Weight</th><th>Score</th><th>Remarks</th></tr></thead>
+                                <tbody>
+                                    <?php foreach (chapterEvaluationCriteria() as $item):
+                                        $scoreKey = $item['key'] . '_score';
+                                        $remarksKey = $item['key'] . '_remarks';
+                                    ?>
+                                        <tr>
+                                            <td><?= e($item['label']) ?></td>
+                                            <td><?= number_format((float) $item['weight'], 0) ?>%</td>
+                                            <td><?= e(number_format((float) ($submission[$scoreKey] ?? 0), 2)) ?> / <?= number_format((float) $item['weight'], 0) ?></td>
+                                            <td><?= e((string) ($submission[$remarksKey] ?? '')) ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <th colspan="2">Total</th>
+                                        <th><?= e(number_format((float) ($submission['overall_score'] ?? 0), 2)) ?> / <?= number_format(chapterEvaluationTotalMax(), 0) ?>%</th>
+                                        <th></th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
                         <a class="btn btn-outline-primary" href="<?= BASE_URL ?>/modules/faculty/pages/evaluation-history.php">View Evaluation History</a>
                     <?php elseif ((string) $submission['status'] === 'Submitted'): ?>
                         <h5 class="mb-3">Start Review</h5>
@@ -92,18 +117,49 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
                         <form method="post" data-once-form><?= csrfField() ?><input type="hidden" name="submission_id" value="<?= (int) $submission['id'] ?>"><input type="hidden" name="action" value="start_review"><button class="btn btn-sms-primary" data-submit-once><?= smsIcon('play', ['class' => 'me-2']) ?>Start Review</button></form>
                     <?php else: ?>
                         <h5 class="mb-3"><?= smsIcon('star-half-alt', ['class' => 'me-2 text-primary']) ?>Evaluation</h5>
-                        <form method="post" data-once-form>
+                        <p class="text-muted mb-3">Each criterion is worth <strong>20%</strong>. Perfect scores across all five criteria total <strong>100%</strong>.</p>
+                        <form method="post" data-once-form id="grammarianEvalForm">
                             <?= csrfField() ?><input type="hidden" name="submission_id" value="<?= (int) $submission['id'] ?>"><input type="hidden" name="action" value="submit_evaluation">
-                            <?php foreach ([['content','Content'],['methodology','Methodology'],['references','References'],['format','Format']] as [$key, $label]): ?>
+                            <?php foreach (chapterEvaluationCriteria() as $item): ?>
                                 <div class="row g-2 align-items-end mb-3">
-                                    <div class="col-md-3"><label class="form-label" for="<?= e($key) ?>Score"><?= e($label) ?> Score</label><input id="<?= e($key) ?>Score" type="number" class="form-control" name="<?= e($key) ?>_score" min="0" max="100" step="0.01" required></div>
-                                    <div class="col-md-9"><label class="form-label" for="<?= e($key) ?>Remarks"><?= e($label) ?> Remarks</label><input id="<?= e($key) ?>Remarks" type="text" class="form-control" name="<?= e($key) ?>_remarks" maxlength="1000"></div>
+                                    <div class="col-md-3">
+                                        <label class="form-label" for="<?= e($item['key']) ?>Score"><?= e($item['label']) ?> Score (<?= number_format((float) $item['weight'], 0) ?>%)</label>
+                                        <input id="<?= e($item['key']) ?>Score" type="number" class="form-control js-eval-score" name="<?= e($item['key']) ?>_score" min="0" max="<?= number_format(chapterEvaluationMaxPoints(), 0) ?>" step="0.01" required>
+                                    </div>
+                                    <div class="col-md-9">
+                                        <label class="form-label" for="<?= e($item['key']) ?>Remarks"><?= e($item['label']) ?> Remarks</label>
+                                        <input id="<?= e($item['key']) ?>Remarks" type="text" class="form-control" name="<?= e($item['key']) ?>_remarks" maxlength="1000">
+                                    </div>
                                 </div>
                             <?php endforeach; ?>
+                            <div class="alert alert-light border d-flex justify-content-between align-items-center mb-3">
+                                <strong>Total Score</strong>
+                                <span class="fs-5 fw-bold"><span id="evalTotalScore">0.00</span> / <?= number_format(chapterEvaluationTotalMax(), 0) ?>%</span>
+                            </div>
                             <div class="mb-3"><label class="form-label" for="overallFeedback">General Evaluation Feedback</label><textarea id="overallFeedback" class="form-control" name="overall_feedback" rows="4"></textarea></div>
                             <div class="mb-3"><label class="form-label" for="evaluationResult">Result</label><select id="evaluationResult" class="form-select" name="result" required><option value="">Select result...</option><option value="APPROVED">APPROVED</option><option value="APPROVED WITH REVISION">APPROVED WITH REVISION</option></select></div>
                             <button class="btn btn-sms-primary" data-submit-once><?= smsIcon('check', ['class' => 'me-2']) ?>Submit Evaluation</button>
                         </form>
+                        <script>
+                        (function () {
+                            var inputs = document.querySelectorAll('#grammarianEvalForm .js-eval-score');
+                            var totalEl = document.getElementById('evalTotalScore');
+                            if (!inputs.length || !totalEl) return;
+                            function updateTotal() {
+                                var sum = 0;
+                                inputs.forEach(function (input) {
+                                    var n = parseFloat(input.value);
+                                    if (!isNaN(n)) sum += n;
+                                });
+                                totalEl.textContent = sum.toFixed(2);
+                            }
+                            inputs.forEach(function (input) {
+                                input.addEventListener('input', updateTotal);
+                                input.addEventListener('change', updateTotal);
+                            });
+                            updateTotal();
+                        })();
+                        </script>
                     <?php endif; ?>
                 </section>
             </div>
