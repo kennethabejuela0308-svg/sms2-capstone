@@ -101,21 +101,14 @@ foreach ($paymentTransactions as $txn) {
     }
 }
 
-$studentProfile = [
-    'name' => getCurrentUserName() ?: 'Student',
-    'student_id' => $studentId,
-    'program' => 'Bachelor of Science in Information Technology',
-    'year_level' => '4th Year',
-    'section' => 'BSIT 4A',
-    'semester' => '1st Semester',
-    'school_year' => '2026-2027',
-    'status' => 'Enrolled',
-    'email' => (string) ($_SESSION['user_email'] ?? 'student@bcp.edu.ph'),
-    'mobile' => '0917 000 0001',
-    'address' => 'Novaliches, Quezon City',
-    'guardian' => 'Maria Dela Cruz',
-    'guardian_contact' => '0918 000 0002',
-];
+$studentProfile = studentPortalLoadProfile(
+    db(),
+    $studentUserId,
+    $studentId,
+    getCurrentUserName() ?: 'Student',
+    (string) ($_SESSION['user_email'] ?? '')
+);
+$studentId = (string) ($studentProfile['student_id'] ?: $studentId);
 
 if (!function_exists('spProfileInitials')) {
     function spProfileInitials(string $name): string
@@ -413,7 +406,7 @@ require_once __DIR__ . '/../../includes/layout-start.php';
                         <div class="stat-icon me-3"><?= smsIcon('star') ?></div>
                         <div>
                             <h6 class="text-muted">Standing</h6>
-                            <h4 class="fw-bold mb-0 fs-6">Good Standing</h4>
+                            <h4 class="fw-bold mb-0 fs-6"><?= htmlspecialchars($studentProfile['standing']) ?></h4>
                         </div>
                     </div>
                 </section>
