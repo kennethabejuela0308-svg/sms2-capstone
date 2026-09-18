@@ -981,9 +981,9 @@ function rcAssignmentEnsureGroupCandidateRows(PDO $pdo, array $groups): void
     ");
     $insertAdviser = $pdo->prepare("
         INSERT INTO research_adviser_assignments
-            (research_group_id, proposal_id, proposal_number, group_number, adviser_user_id, adviser_name, adviser_email, expertise, availability_status, assignment_status, notes, assigned_by, assigned_at, created_at, updated_at, notification_sent_at, notification_sent_by)
+            (research_group_id, proposal_id, proposal_number, group_number, student_id, adviser_user_id, adviser_name, adviser_email, expertise, availability_status, assignment_status, notes, assigned_by, assigned_at, created_at, updated_at, notification_sent_at, notification_sent_by)
         VALUES
-            (:research_group_id, :proposal_id, :proposal_number, :group_number, :adviser_user_id, :adviser_name, :adviser_email, :expertise, :availability_status, 'Pending', :notes, NULL, NULL, NOW(), NOW(), NULL, NULL)
+            (:research_group_id, :proposal_id, :proposal_number, :group_number, NULLIF(:student_id, ''), :adviser_user_id, :adviser_name, :adviser_email, :expertise, :availability_status, 'Pending', :notes, NULL, NULL, NOW(), NOW(), NULL, NULL)
     ");
 
     foreach ($groups as $group) {
