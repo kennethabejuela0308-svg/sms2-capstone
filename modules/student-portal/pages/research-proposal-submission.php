@@ -474,7 +474,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                 <?php if (!$alreadySentToAdviser): ?>
                     <div class="crad-waiting-names-note" id="tafWaitingNamesNote"<?= $approvalNamesReady ? ' hidden' : '' ?> role="status">
                         <?= smsIcon('lock') ?>
-                        <span>Hindi pa maaaring i-send. Maghintay hanggang maglagay si Admin ng Research Adviser at Research Coordinator sa Section IX.</span>
+                        <span>Sending is not available yet. Wait until Admin assigns a Research Adviser and Research Coordinator in Section IX.</span>
                     </div>
                 <?php endif; ?>
             </div>
@@ -1896,7 +1896,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
     btn.addEventListener('click', function () {
         if (btn.disabled || btn.classList.contains('is-sent') || btn.classList.contains('is-waiting-names')) return;
         if (!hasApprovalNames()) {
-            showNotice('Hindi pa maaaring i-send. Wala pang name sa Research Adviser at Research Coordinator sa Section IX.', 'error');
+            showNotice('Sending is not available yet. Research Adviser and Research Coordinator names are still blank in Section IX.', 'error');
             syncSendButton();
             return;
         }
