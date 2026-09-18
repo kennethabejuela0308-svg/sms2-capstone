@@ -172,6 +172,19 @@ if ($pdo) {
              WHERE username = 'reviewcommittee'
                AND role_key <> 'review_committee'"
         )->execute();
+
+        $deptHeadHash = password_hash('@Depthead123', PASSWORD_DEFAULT);
+        $pdo->prepare(
+            "INSERT IGNORE INTO users
+                (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
+             VALUES
+                ('depthead', 'depthead@bestlink.edu.ph', ?, 'Department Head', 'department_head', NULL, 'active', NOW(), 0, 0, NULL)"
+        )->execute([$deptHeadHash]);
+        $pdo->prepare(
+            "UPDATE users
+             SET role_key = 'department_head', full_name = 'Department Head', email = 'depthead@bestlink.edu.ph', status = 'active'
+             WHERE username = 'depthead'"
+        )->execute();
     } catch (Throwable $e) {
         error_log('Default user account ensure failed: ' . $e->getMessage());
     }
@@ -259,6 +272,9 @@ foreach ($users as &$u) {
     if ($u['role'] === 'panel') {
         $u['roleLabel'] = 'Panel Member';
     }
+    if ($u['role'] === 'department_head') {
+        $u['roleLabel'] = 'Department Head';
+    }
     if ($u['role'] === 'review_committee') {
         $u['roleLabel'] = 'Review Committee';
     }
@@ -289,6 +305,7 @@ function umRoleBadgeClass(string $role, string $label = ''): string
         'research_grant' => 'research_grant',
         'review_committee' => 'review_committee',
         'research_coordinator' => 'research_coordinator',
+        'department_head' => 'department_head',
         'department_chair' => 'department_chair',
         'research_office' => 'research_office',
         'vpaa' => 'vpaa',
@@ -646,6 +663,7 @@ renderBreadcrumbs($breadcrumbs);
                                 <option value="qa">QA Office</option>
                                 <option value="crad">CRAD Officer</option>
                                 <option value="research_coordinator">Research Coordinator</option>
+            <option value="department_head">Department Head</option>
             <option value="department_chair">Department Chair</option>
             <option value="research_office">Research Office</option>
             <option value="vpaa">VPAA</option>
