@@ -737,6 +737,27 @@ renderBreadcrumbs($breadcrumbs);
             && /[^A-Za-z0-9]/.test(password);
     }
 
+    var FACULTY_ROLES = ['hr', 'adviser', 'grammarian', 'panel'];
+    var GROUP_LABELS = {
+        system: 'System Accounts',
+        faculty: 'Faculty Accounts',
+        student: 'Students Account'
+    };
+    var ROLE_BADGE_ALIASES = {
+        admin: 'superadmin',
+        super_admin: 'superadmin',
+        sms_admin: 'sms_admin',
+        crad_officer: 'crad',
+        crad: 'crad',
+        department_head: 'department_head',
+        departmenthead: 'department_head',
+        department_chair: 'department_chair',
+        research_office: 'research_office',
+        research_coordinator: 'research_coordinator',
+        review_committee: 'review_committee',
+        research_director: 'research_director'
+    };
+
     function roleLabelFromSelect(form, role) {
         var select = form.querySelector('[name="role"]');
         if (!select) return role;
@@ -746,17 +767,88 @@ renderBreadcrumbs($breadcrumbs);
         return opt ? (opt.textContent || role).trim() : role;
     }
 
-    function applySavedUserRow(form, user) {
-        if (!user || !user.id) return;
-        var row = document.querySelector('.um-user-row[data-uid="' + user.id + '"]');
-        if (!row) return;
+    function roleBadgeClass(role) {
+        var value = String(role || '').toLowerCase().replace(/[\s-]/g, '_');
+        value = ROLE_BADGE_ALIASES[value] || value;
+        return value.replace(/[^a-z0-9_]/g, '') || 'student';
+    }
 
-        var name = user.full_name || '';
+    function groupKeyForRole(role) {
+        role = String(role || '');
+        if (role === 'student') return 'student';
+        if (FACULTY_ROLES.indexOf(role) !== -1) return 'faculty';
+        return 'system';
+    }
+
+    function refreshGroupCounts() {
+        document.querySelectorAll('tr.um-group-row[data-group-key]').forEach(function (groupRow) {
+            var count = 0;
+            var cursor = groupRow.nextElementSibling;
+            while (cursor && !cursor.hasAttribute('data-group-row')) {
+                if (cursor.classList.contains('um-user-row')) count++;
+                cursor = cursor.nextElementSibling;
+            }
+            groupRow.hidden = count === 0;
+            var label = groupRow.querySelector('[data-group-count]');
+            if (label) {
+                label.textContent = count + ' account' + (count === 1 ? '' : 's');
+            }
+        });
+    }
+
+    function ensureGroupRow(key) {
+        var existing = document.querySelector('tr.um-group-row[data-group-key="' + key + '"]');
+        if (existing) return existing;
+        var tbody = document.getElementById('umTableBody');
+        if (!tbody) return null;
+        var tr = document.createElement('tr');
+        tr.className = 'um-group-row';
+        tr.setAttribute('data-group-row', '');
+        tr.setAttribute('data-group-key', key);
+        tr.innerHTML = '<td colspan="7"><div class="um-group-title"><span>'
+            + (GROUP_LABELS[key] || key)
+            + '</span><small data-group-count>0 accounts</small></div></td>';
+        var order = ['system', 'faculty', 'student'];
+        var idx = order.indexOf(key);
+        var inserted = false;
+        for (var i = idx + 1; i < order.length; i++) {
+            var next = document.querySelector('tr.um-group-row[data-group-key="' + order[i] + '"]');
+            if (next) {
+                tbody.insertBefore(tr, next);
+                inserted = true;
+                break;
+            }
+        }
+        if (!inserted) tbody.appendChild(tr);
+        return tr;
+    }
+
+    function moveRowToGroup(row, role) {
+        var groupRow = ensureGroupRow(groupKeyForRole(role));
+        if (!groupRow) return;
+        var insertAfter = groupRow;
+        var cursor = groupRow.nextElementSibling;
+        while (cursor && cursor.classList.contains('um-user-row')) {
+            if (cursor === row) {
+                refreshGroupCounts();
+                return;
+            }
+            insertAfter = cursor;
+            cursor = cursor.nextElementSibling;
+        }
+        insertAfter.after(row);
+        refreshGroupCounts();
+    }
+
+    function paintUserRow(row, user, form) {
+        if (!row || !user) return;
+        var name = user.full_name || user.name || '';
         var username = user.username || '';
         var email = user.email || '';
         var role = user.role || '';
         var status = user.status || 'active';
-        var roleLabel = roleLabelFromSelect(form, role);
+        var notes = user.notes || '';
+        var roleLabel = form ? roleLabelFromSelect(form, role) : (user.roleLabel || role);
         var statusLabel = status === 'inactive' ? 'Archived' : (status.charAt(0).toUpperCase() + status.slice(1));
 
         row.dataset.name = name;
@@ -764,7 +856,7 @@ renderBreadcrumbs($breadcrumbs);
         row.dataset.email = email;
         row.dataset.role = role;
         row.dataset.status = status;
-        row.dataset.notes = user.notes || '';
+        row.dataset.notes = notes;
 
         var nameEl = row.querySelector('.um-user-name');
         var emailEl = row.querySelector('.um-user-email');
@@ -774,11 +866,11 @@ renderBreadcrumbs($breadcrumbs);
         var statusEl = row.querySelector('.user-status');
         if (nameEl) nameEl.textContent = name;
         if (emailEl) emailEl.textContent = email;
-        if (avatarEl && name) avatarEl.textContent = name.trim().charAt(0).toUpperCase();
+        if (avatarEl) avatarEl.textContent = name.trim() ? name.trim().charAt(0).toUpperCase() : '?';
         if (userCode) userCode.textContent = username;
         if (roleEl) {
             roleEl.textContent = roleLabel;
-            roleEl.className = 'role-badge ' + String(role).replace(/[^a-z0-9_]/g, '');
+            roleEl.className = 'role-badge ' + roleBadgeClass(role);
         }
         if (statusEl) {
             statusEl.textContent = statusLabel;
@@ -792,8 +884,38 @@ renderBreadcrumbs($breadcrumbs);
             editBtn.dataset.email = email;
             editBtn.dataset.role = role;
             editBtn.dataset.status = status;
-            editBtn.dataset.notes = user.notes || '';
+            editBtn.dataset.notes = notes;
         }
+
+        moveRowToGroup(row, role);
+        if (typeof window.umApplyUserFilters === 'function') {
+            window.umApplyUserFilters();
+        }
+    }
+
+    function userFromForm(form) {
+        var fd = new FormData(form);
+        return {
+            id: fd.get('user_id') || '',
+            full_name: String(fd.get('full_name') || ''),
+            username: String(fd.get('username') || ''),
+            email: String(fd.get('email') || ''),
+            role: String(fd.get('role') || ''),
+            status: String(fd.get('status') || 'active'),
+            notes: String(fd.get('notes') || '')
+        };
+    }
+
+    function findUserRow(userId) {
+        if (!userId) return null;
+        return document.querySelector('.um-user-row[data-uid="' + userId + '"]');
+    }
+
+    function applySavedUserRow(form, user) {
+        if (!user || !user.id) return;
+        var row = findUserRow(user.id);
+        if (!row) return;
+        paintUserRow(row, user, form);
     }
 
     function closeUserModal() {

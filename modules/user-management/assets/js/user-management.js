@@ -61,6 +61,7 @@
         if (searchInput)  searchInput.addEventListener('input',  applyFilters);
         if (roleFilter)   roleFilter.addEventListener('change',   applyFilters);
         if (statusFilter) statusFilter.addEventListener('change', applyFilters);
+        window.umApplyUserFilters = applyFilters;
     }
 
     /* ── Custom confirm modal ───────────────────────────────── */
