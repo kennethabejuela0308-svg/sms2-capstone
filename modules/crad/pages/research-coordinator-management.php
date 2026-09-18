@@ -1811,11 +1811,11 @@ document.addEventListener('DOMContentLoaded', function () {
             return '<tr data-rcm-row data-status="eligible" data-search="' + esc(searchText) + '">' +
                 '<td><div class="rcm-title">' + esc(g.group_number) + '</div>' +
                     (g.group_name ? '<span class="rcm-meta">' + esc(g.group_name) + '</span>' : '') +
-                    (g.proposal_number ? '<span class="rcm-meta">' + esc(g.proposal_number) + '</span>' : '') + '</td>' +
+                    (g.student_id ? '<span class="rcm-meta">' + esc(g.student_id) + '</span>' : (g.proposal_number ? '<span class="rcm-meta">' + esc(g.proposal_number) + '</span>' : '')) + '</td>' +
                 '<td><div class="rcm-title rcm-truncate" title="' + esc(g.research_title || '') + '">' + esc(g.research_title || '') + '</div></td>' +
                 '<td>' + esc(g.adviser || '') + '</td>' +
-                '<td><select class="rcm-select rcm-coordinator-select" data-group="' + esc(g.group_number) + '">' + options + '</select>' + hint + '</td>' +
-                '<td><button type="button" class="rcm-btn rcm-btn-primary rcm-assign-btn" data-group="' + esc(g.group_number) + '"><?= smsIcon('check') ?> Assign</button></td>' +
+                '<td><select class="rcm-select rcm-coordinator-select" data-group="' + esc(g.group_number) + '" data-student="' + esc(g.student_id || '') + '">' + options + '</select>' + hint + '</td>' +
+                '<td><button type="button" class="rcm-btn rcm-btn-primary rcm-assign-btn" data-group="' + esc(g.group_number) + '" data-student="' + esc(g.student_id || '') + '"><?= smsIcon('check') ?> Assign</button></td>' +
                 '</tr>';
         }).join('');
         if (empty) empty.hidden = true;
@@ -2033,6 +2033,7 @@ document.addEventListener('DOMContentLoaded', function () {
         fd.append('ajax', 'assign');
         fd.append('_token', CSRF);
         fd.append('group_number', btn.dataset.group);
+        fd.append('student_id', btn.dataset.student || '');
         fd.append('coordinator', select.value);
 
         fetch(endpoint, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'fetch' } })
