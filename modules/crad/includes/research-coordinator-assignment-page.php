@@ -783,6 +783,10 @@ function rcAssignmentEnsureGroupCandidateRows(PDO $pdo, array $groups): void
                 (:email_gate <> '' AND LOWER(TRIM(adviser_email)) = :email_match)
              OR (:name_gate <> '' AND LOWER(TRIM(adviser_name)) = :name_match)
         )
+          AND (
+                (:group_number_gate <> '' AND group_number = :group_number_match)
+             OR (:research_group_id_gate > 0 AND research_group_id = :research_group_id_match)
+          )
         ORDER BY id DESC
         LIMIT 1
     ");
@@ -846,6 +850,10 @@ function rcAssignmentEnsureGroupCandidateRows(PDO $pdo, array $groups): void
                 ':email_match' => $email,
                 ':name_gate' => $name,
                 ':name_match' => $name,
+                ':group_number_gate' => (string) ($group['group_number'] ?? ''),
+                ':group_number_match' => (string) ($group['group_number'] ?? ''),
+                ':research_group_id_gate' => (int) ($group['research_group_id'] ?? 0),
+                ':research_group_id_match' => (int) ($group['research_group_id'] ?? 0),
             ]);
             $existing = $adviserExists->fetch();
             $adviserUserId = rcAssignmentNullableInt($adviser['assignee_user_id'] ?? null)
