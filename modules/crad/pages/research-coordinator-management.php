@@ -739,50 +739,91 @@ if ($ajax === 'assign') {
     }
 
     $groupNumber = trim((string) ($_POST['group_number'] ?? ''));
+    $studentId   = trim((string) ($_POST['student_id'] ?? ''));
     $selection   = rcmResolveCoordinatorSelection(rcmCoordinatorPool($pdo), (string) ($_POST['coordinator'] ?? ''));
 
-    if ($groupNumber === '') {
-        echo json_encode(['ok' => false, 'message' => 'Missing research group.']);
+    if ($studentId === '' && str_starts_with($groupNumber, 'STU-')) {
+        $studentId = substr($groupNumber, 4);
+    }
+
+    if ($groupNumber === '' && $studentId === '') {
+        echo json_encode(['ok' => false, 'message' => 'Missing research group or student.']);
         exit;
     }
     if ($selection === null) {
-        echo json_encode(['ok' => false, 'message' => 'Please choose a valid Research Coordinator.']);
+        echo json_encode(['ok' => false, 'message' => 'Please choose a valid Research Coordinator from the roster.']);
         exit;
     }
 
-    // Load the research group and confirm it is fully approved.
-    $stmt = $pdo->prepare(
-        "SELECT g.id AS group_id, g.group_number, g.group_name, g.research_title,
-                g.proposal_number, g.title_approval_id, t.proposal_number AS tap_proposal_number
-         FROM research_groups g
-         JOIN title_approvals t ON t.id = g.title_approval_id
-         WHERE g.group_number = ? AND g.title_approval_id IS NOT NULL
-           AND " . rcmFullyApprovedClause('t') . "
-         LIMIT 1"
-    );
-    $stmt->execute([$groupNumber]);
-    $group = $stmt->fetch();
+    $group = null;
+    if ($studentId !== '' || str_starts_with($groupNumber, 'STU-')) {
+        $studentName = '';
+        $title = '';
+        $department = '';
+        $main = db();
+        if ($main && $studentId !== '') {
+            $u = $main->prepare("SELECT full_name FROM users WHERE student_id = :sid LIMIT 1");
+            $u->execute([':sid' => $studentId]);
+            $studentName = trim((string) $u->fetchColumn());
+        }
+        try {
+            $t = $pdo->prepare("SELECT proposed_title, department FROM title_approvals WHERE student_id = :sid ORDER BY id DESC LIMIT 1");
+            $t->execute([':sid' => $studentId]);
+            $titleRow = $t->fetch(PDO::FETCH_ASSOC) ?: [];
+            $title = trim((string) ($titleRow['proposed_title'] ?? ''));
+            $department = trim((string) ($titleRow['department'] ?? ''));
+        } catch (Throwable) {
+        }
+        $placeholder = cradEnsureStudentPlaceholderGroup($pdo, $studentId, $studentName, $title, $department);
+        $group = [
+            'group_id' => (int) ($placeholder['id'] ?? 0),
+            'group_number' => (string) ($placeholder['group_number'] ?? $groupNumber),
+            'group_name' => (string) ($placeholder['group_name'] ?? $studentName),
+            'research_title' => (string) ($placeholder['research_title'] ?? $title),
+            'proposal_number' => $studentId,
+            'title_approval_id' => $placeholder['title_approval_id'] ?? null,
+            'tap_proposal_number' => '',
+            'leader_id' => $studentId,
+        ];
+        $groupNumber = (string) $group['group_number'];
+    } else {
+        $stmt = $pdo->prepare(
+            "SELECT g.id AS group_id, g.group_number, g.group_name, g.research_title,
+                    g.proposal_number, g.title_approval_id, g.leader_id,
+                    t.proposal_number AS tap_proposal_number
+             FROM research_groups g
+             LEFT JOIN title_approvals t ON t.id = g.title_approval_id
+             WHERE g.group_number = ?
+             LIMIT 1"
+        );
+        $stmt->execute([$groupNumber]);
+        $group = $stmt->fetch();
+        if ($group && $studentId === '') {
+            $studentId = trim((string) ($group['leader_id'] ?? ''));
+        }
+    }
 
     if (!$group) {
-        echo json_encode(['ok' => false, 'message' => 'This group is not eligible. Only fully approved Title Approval Forms can be assigned a coordinator.']);
+        echo json_encode(['ok' => false, 'message' => 'This student or research group is not available for coordinator assignment.']);
         exit;
     }
 
-    $proposalNumber = (string) ($group['proposal_number'] !== null && $group['proposal_number'] !== '' ? $group['proposal_number'] : $group['tap_proposal_number']);
+    $proposalNumber = (string) ($group['proposal_number'] !== null && $group['proposal_number'] !== '' ? $group['proposal_number'] : ($group['tap_proposal_number'] ?? ''));
 
     $pdo->beginTransaction();
     try {
         $stmt = $pdo->prepare(
             "INSERT INTO research_coordinator_assignments
                 (research_group_id, title_approval_id, proposal_number, group_number, group_name, research_title,
-                 coordinator_user_id, coordinator_name, coordinator_email, status, assigned_by, assigned_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active', ?, NOW())
+                 student_id, coordinator_user_id, coordinator_name, coordinator_email, status, assigned_by, assigned_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active', ?, NOW())
              ON DUPLICATE KEY UPDATE
                 research_group_id = VALUES(research_group_id),
                 title_approval_id = VALUES(title_approval_id),
                 proposal_number = VALUES(proposal_number),
                 group_name = VALUES(group_name),
                 research_title = VALUES(research_title),
+                student_id = VALUES(student_id),
                 coordinator_user_id = VALUES(coordinator_user_id),
                 coordinator_name = VALUES(coordinator_name),
                 coordinator_email = VALUES(coordinator_email),
@@ -792,11 +833,12 @@ if ($ajax === 'assign') {
         );
         $stmt->execute([
             (int) $group['group_id'],
-            $group['title_approval_id'] !== null ? (int) $group['title_approval_id'] : null,
+            $group['title_approval_id'] !== null && (int) $group['title_approval_id'] > 0 ? (int) $group['title_approval_id'] : null,
             $proposalNumber !== '' ? $proposalNumber : null,
             $groupNumber,
             (string) $group['group_name'],
             (string) $group['research_title'],
+            $studentId !== '' ? $studentId : null,
             $selection['user_id'] > 0 ? $selection['user_id'] : null,
             $selection['name'],
             $selection['email'],
@@ -804,8 +846,12 @@ if ($ajax === 'assign') {
         ]);
         $pdo->commit();
 
+        if ($studentId !== '') {
+            cradSyncTitleApprovalAssigneeNames($pdo, $studentId);
+        }
+
         if (function_exists('logActivity')) {
-            logActivity('assign', 'Assigned coordinator "' . $selection['name'] . '" to research group ' . $groupNumber, 'crad');
+            logActivity('assign', 'Assigned coordinator "' . $selection['name'] . '" to ' . ($studentId !== '' ? 'student ' . $studentId : 'research group ' . $groupNumber), 'crad');
         }
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) {
@@ -815,7 +861,7 @@ if ($ajax === 'assign') {
         exit;
     }
 
-    echo json_encode(rcmPayload($pdo, 'Coordinator assigned to ' . $groupNumber . '.'));
+    echo json_encode(rcmPayload($pdo, 'Coordinator assigned' . ($studentId !== '' ? ' to student ' . $studentId : ' to ' . $groupNumber) . '.'));
     exit;
 }
 
@@ -844,6 +890,18 @@ if ($ajax === 'set-status') {
     }
 
     $pdo->prepare("UPDATE research_coordinator_assignments SET status = ? WHERE id = ?")->execute([$status, $id]);
+
+    $sidStmt = $pdo->prepare("SELECT student_id, group_number FROM research_coordinator_assignments WHERE id = ?");
+    $sidStmt->execute([$id]);
+    $sidRow = $sidStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    $studentId = trim((string) ($sidRow['student_id'] ?? ''));
+    if ($studentId === '') {
+        $gn = trim((string) ($sidRow['group_number'] ?? ''));
+        $studentId = cradStudentIdFromAssignmentGroup($gn);
+    }
+    if ($studentId !== '') {
+        cradSyncTitleApprovalAssigneeNames($pdo, $studentId);
+    }
 
     if (function_exists('logActivity')) {
         logActivity($status === 'Active' ? 'activate' : 'deactivate', 'Coordinator "' . $row['coordinator_name'] . '" assignment for group ' . $row['group_number'] . ' set to ' . $status, 'crad');
@@ -1245,7 +1303,7 @@ $csrf     = csrfToken();
             <table class="rcm-table">
                 <thead>
                     <tr>
-                        <th>Research Group</th>
+                        <th>Student / Group</th>
                         <th>Title</th>
                         <th>Adviser</th>
                         <th style="min-width:240px;">Research Coordinator</th>
@@ -1266,7 +1324,7 @@ $csrf     = csrfToken();
                             $defaultValue = $matchingOption !== null
                                 ? ($matchingOption['user_id'] > 0 ? (string) $matchingOption['user_id'] : 'name:' . $matchingOption['name'])
                                 : '';
-                            $searchText = strtolower(trim(($g['group_number'] ?? '') . ' ' . ($g['group_name'] ?? '') . ' ' . ($g['research_title'] ?? '') . ' ' . ($g['adviser'] ?? '') . ' ' . ($g['proposal_number'] ?? '') . ' ' . $suggested));
+                            $searchText = strtolower(trim(($g['group_number'] ?? '') . ' ' . ($g['group_name'] ?? '') . ' ' . ($g['research_title'] ?? '') . ' ' . ($g['adviser'] ?? '') . ' ' . ($g['proposal_number'] ?? '') . ' ' . ($g['student_id'] ?? '') . ' ' . $suggested));
                         ?>
                         <tr data-rcm-row data-status="eligible" data-search="<?= htmlspecialchars($searchText) ?>">
                             <td>
@@ -1274,14 +1332,16 @@ $csrf     = csrfToken();
                                 <?php if (trim((string) ($g['group_name'] ?? '')) !== ''): ?>
                                     <span class="rcm-meta"><?= htmlspecialchars($g['group_name']) ?></span>
                                 <?php endif; ?>
-                                <?php if (trim((string) ($g['proposal_number'] ?? '')) !== ''): ?>
+                                <?php if (trim((string) ($g['student_id'] ?? '')) !== ''): ?>
+                                    <span class="rcm-meta"><?= htmlspecialchars((string) $g['student_id']) ?></span>
+                                <?php elseif (trim((string) ($g['proposal_number'] ?? '')) !== ''): ?>
                                     <span class="rcm-meta"><?= htmlspecialchars($g['proposal_number']) ?></span>
                                 <?php endif; ?>
                             </td>
                             <td><div class="rcm-title rcm-truncate" title="<?= htmlspecialchars($g['research_title']) ?>"><?= htmlspecialchars($g['research_title']) ?></div></td>
                             <td><?= htmlspecialchars((string) ($g['adviser'] ?? '')) ?></td>
                             <td>
-                                <select class="rcm-select rcm-coordinator-select" data-group="<?= htmlspecialchars($g['group_number'], ENT_QUOTES) ?>">
+                                <select class="rcm-select rcm-coordinator-select" data-group="<?= htmlspecialchars($g['group_number'], ENT_QUOTES) ?>" data-student="<?= htmlspecialchars((string) ($g['student_id'] ?? ''), ENT_QUOTES) ?>">
                                     <option value="">Select coordinator…</option>
                                     <?php foreach ($pool as $c): ?>
                                         <?php
