@@ -257,6 +257,9 @@ require_once __DIR__ . '/../../includes/layout-start.php';
                     <?php foreach ($studentAnnouncements as $announcement): ?>
                         <article class="student-ann-item">
                             <h3><?= htmlspecialchars((string) $announcement['title']) ?></h3>
+                            <?php if (!empty($announcement['image_url'])): ?>
+                                <img class="student-ann-image" src="<?= htmlspecialchars((string) $announcement['image_url']) ?>" alt="">
+                            <?php endif; ?>
                             <p><?= nl2br(htmlspecialchars((string) $announcement['body'])) ?></p>
                             <small><?= htmlspecialchars((string) $announcement['posted_by']) ?> · <?= htmlspecialchars((string) $announcement['posted_at']) ?></small>
                         </article>
