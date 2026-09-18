@@ -670,7 +670,7 @@ function smsRolesForModule(string $moduleKey): array
         'faculty'            => ['hr', 'adviser', 'panel', 'grammarian', 'superadmin', 'sms_admin'],
         'cocurricular'       => ['osa', 'superadmin', 'sms_admin'],
         'lms'                => ['it_office', 'superadmin', 'sms_admin'],
-        'crad'               => ['crad_officer', 'research_coordinator', 'superadmin', 'sms_admin'],
+        'crad'               => ['crad_officer', 'research_coordinator', 'department_head', 'superadmin', 'sms_admin'],
         'crad_grant'         => ['research_grant', 'review_committee', 'superadmin', 'sms_admin'],
         'accreditation'      => ['qa', 'superadmin', 'sms_admin'],
         'reports-analytics'  => ['superadmin', 'sms_admin', 'registrar', 'finance', 'hr', 'it_office', 'osa', 'qa', 'crad_officer', 'research_coordinator'],
