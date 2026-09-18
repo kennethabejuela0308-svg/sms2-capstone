@@ -1005,6 +1005,7 @@ function rcAssignmentEnsureGroupCandidateRows(PDO $pdo, array $groups): void
             ':proposal_id' => rcAssignmentNullableInt($group['proposal_id'] ?? null),
             ':proposal_number' => (string) ($group['proposal_number'] ?? ''),
             ':group_number' => (string) ($group['group_number'] ?? ''),
+            ':student_id' => trim((string) ($group['leader_id'] ?? $group['student_id'] ?? '')),
         ];
 
         foreach ($groupAdvisers as $adviser) {
@@ -1319,6 +1320,104 @@ function rcAssignmentMaybeSendCompletionNotifications(PDO $pdo, array $candidate
     smsMarkResearchAdviserAssignmentNotificationSent($pdo, $groupNumber, $userId);
 }
 
+function rcAssignmentApplyOfficialAssignedState(PDO $pdo, array $groups): void
+{
+    foreach ($groups as $group) {
+        $groupNumber = trim((string) ($group['group_number'] ?? ''));
+        if ($groupNumber === '' || str_starts_with($groupNumber, 'STU-')) {
+            continue;
+        }
+        $groupId = (int) ($group['research_group_id'] ?? $group['id'] ?? 0);
+        $leaderId = trim((string) ($group['leader_id'] ?? $group['student_id'] ?? ''));
+        $stuNumber = $leaderId !== '' ? cradStudentAssignmentGroupNumber($leaderId) : '';
+
+        try {
+            $assigned = $pdo->prepare("
+                SELECT id, adviser_name, adviser_email, adviser_user_id
+                FROM research_adviser_assignments
+                WHERE assignment_status IN ('Assigned', 'Confirmed')
+                  AND (
+                        group_number = :gn_a
+                     OR (:gid_a > 0 AND research_group_id = :gid_b)
+                     OR (:sid_a <> '' AND student_id = :sid_b)
+                     OR (:stu_a <> '' AND group_number = :stu_b)
+                  )
+                ORDER BY (assignment_status = 'Confirmed') DESC, assigned_at DESC, id DESC
+            ");
+            $assigned->execute([
+                ':gn_a' => $groupNumber,
+                ':gid_a' => $groupId,
+                ':gid_b' => $groupId,
+                ':sid_a' => $leaderId,
+                ':sid_b' => $leaderId,
+                ':stu_a' => $stuNumber,
+                ':stu_b' => $stuNumber,
+            ]);
+            $keep = $assigned->fetch(PDO::FETCH_ASSOC);
+            if (!$keep) {
+                continue;
+            }
+            $keepId = (int) ($keep['id'] ?? 0);
+            if ($keepId <= 0) {
+                continue;
+            }
+
+            $pdo->prepare("
+                UPDATE research_adviser_assignments
+                   SET research_group_id = COALESCE(:gid, research_group_id),
+                       group_number = :gn,
+                       student_id = COALESCE(NULLIF(:sid, ''), student_id),
+                       assignment_status = 'Assigned',
+                       updated_at = NOW()
+                 WHERE id = :id
+                 LIMIT 1
+            ")->execute([
+                ':gid' => $groupId > 0 ? $groupId : null,
+                ':gn' => $groupNumber,
+                ':sid' => $leaderId,
+                ':id' => $keepId,
+            ]);
+
+            $email = strtolower(trim((string) ($keep['adviser_email'] ?? '')));
+            $name = strtolower(trim((string) ($keep['adviser_name'] ?? '')));
+            $userId = (int) ($keep['adviser_user_id'] ?? 0);
+            $pdo->prepare("
+                DELETE FROM research_adviser_assignments
+                 WHERE id <> :keep_id
+                   AND assignment_status <> 'Assigned'
+                   AND (
+                        (:uid_a > 0 AND adviser_user_id = :uid_b)
+                     OR (:email_a <> '' AND LOWER(TRIM(adviser_email)) = :email_b)
+                     OR (:name_a <> '' AND LOWER(TRIM(adviser_name)) = :name_b)
+                   )
+                   AND (
+                        group_number = :gn
+                     OR (:gid > 0 AND research_group_id = :gid2)
+                     OR (:sid <> '' AND student_id = :sid2)
+                     OR (:stu <> '' AND group_number = :stu2)
+                   )
+            ")->execute([
+                ':keep_id' => $keepId,
+                ':uid_a' => $userId,
+                ':uid_b' => $userId,
+                ':email_a' => $email,
+                ':email_b' => $email,
+                ':name_a' => $name,
+                ':name_b' => $name,
+                ':gn' => $groupNumber,
+                ':gid' => $groupId,
+                ':gid2' => $groupId,
+                ':sid' => $leaderId,
+                ':sid2' => $leaderId,
+                ':stu' => $stuNumber,
+                ':stu2' => $stuNumber,
+            ]);
+        } catch (Throwable $e) {
+            error_log('Official adviser assigned-state apply skipped: ' . $e->getMessage());
+        }
+    }
+}
+
 function rcAssignmentPayload(string $kind): array
 {
     try {
@@ -1328,6 +1427,7 @@ function rcAssignmentPayload(string $kind): array
         rcAssignmentResetStaleAssignments($pdo);
         $groups = rcAssignmentApprovedGroups($pdo);
         rcAssignmentEnsureGroupCandidateRows($pdo, $groups);
+        rcAssignmentApplyOfficialAssignedState($pdo, $groups);
         $rows = rcAssignmentEnrichRows(rcAssignmentRows($pdo, $kind));
         $liveRows = rcAssignmentLiveAdviserDisplayRows($pdo, $groups);
         $rows = rcAssignmentEnrichRows(rcAssignmentMergeLiveAdviserRows($rows, $liveRows));
