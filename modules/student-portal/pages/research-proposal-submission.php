@@ -7,6 +7,7 @@ require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../../../modules/crad/config/config.php';
 require_once ROOT_PATH . '/includes/authentication.php';
 require_once ROOT_PATH . '/includes/breadcrumbs.php';
+require_once ROOT_PATH . '/modules/crad/includes/title-approval-assignees.php';
 
 $studentId     = $_SESSION['student_id'] ?? 'S230000001';
 $studentUserId = $_SESSION['user_id']    ?? null;
@@ -118,99 +119,44 @@ if ($resubmitSubmission && ((string) ($resubmitSubmission['status'] ?? '') === '
 $assignedAdviserName  = '';
 $assignedAdviserEmail = '';
 $assignedCoordName    = '';
-$defaultCoordinatorName = 'Mrs. Kris Guevarra';
 
-/* Restore adviser info directly from the saved submission row when available */
+/* Restore signatures from the saved submission; names always come from Admin assignments. */
 $adviserSignatureData = ''; // base64 PNG of the adviser's digital signature (if approved)
 $coordinatorSignatureData = '';
 $cradSignatureData = '';
 $coordinatorScreening = [];
 if ($existingSubmission) {
-    $assignedAdviserName  = (string) ($existingSubmission['adviser_name']  ?? '');
-    $assignedAdviserEmail = (string) ($existingSubmission['adviser_email'] ?? '');
-    $assignedCoordName    = (string) ($existingSubmission['coordinator_name'] ?? '');
     $adviserSignatureData = (string) ($existingSubmission['adviser_signature_data'] ?? '');
     $coordinatorSignatureData = (string) ($existingSubmission['coordinator_signature_data'] ?? '');
     $cradSignatureData = (string) ($existingSubmission['crad_signature_data'] ?? '');
     $decodedScreening = json_decode((string) ($existingSubmission['coordinator_screening_json'] ?? '{}'), true);
     $coordinatorScreening = is_array($decodedScreening) ? $decodedScreening : [];
-} elseif ($resubmitSubmission) {
-    $assignedAdviserName  = (string) ($resubmitSubmission['adviser_name']  ?? '');
-    $assignedAdviserEmail = (string) ($resubmitSubmission['adviser_email'] ?? '');
-    $assignedCoordName    = (string) ($resubmitSubmission['coordinator_name'] ?? '');
 }
 
-if ($submitted && $assignedAdviserName === '') {
-    try {
-        $cradPdo = getCradDatabaseConnection();
-        // Find the adviser assigned (assignment_status='Assigned') for the
-        // most recent research group this student leads.
-        $advStmt = $cradPdo->prepare(
-            "SELECT a.adviser_name, a.adviser_email
-             FROM research_groups g
-             JOIN research_adviser_assignments a
-               ON (
-                    a.research_group_id = g.id
-                 OR (a.group_number IS NOT NULL AND a.group_number <> '' AND a.group_number = g.group_number)
-                 OR (a.proposal_id IS NOT NULL AND a.proposal_id = g.proposal_id)
-               )
-             WHERE g.leader_id = :sid
-               AND a.assignment_status = 'Assigned'
-             ORDER BY g.id DESC
-             LIMIT 1"
-        );
-        $advStmt->execute([':sid' => $studentId]);
-        $advRow = $advStmt->fetch();
-        if ($advRow) {
-            $assignedAdviserName  = (string) $advRow['adviser_name'];
-            $assignedAdviserEmail = (string) $advRow['adviser_email'];
-        }
-
-        // Fallback: any adviser linked to this student (Pending is OK)
-        if ($assignedAdviserName === '') {
-            $advStmt2 = $cradPdo->prepare(
-                "SELECT a.adviser_name, a.adviser_email
-                 FROM research_groups g
-                 JOIN research_adviser_assignments a
-                   ON (
-                        a.research_group_id = g.id
-                     OR (a.group_number IS NOT NULL AND a.group_number <> '' AND a.group_number = g.group_number)
-                     OR (a.proposal_id IS NOT NULL AND a.proposal_id = g.proposal_id)
-                   )
-                 WHERE g.leader_id = :sid
-                 ORDER BY g.id DESC, a.id ASC
-                 LIMIT 1"
-            );
-            $advStmt2->execute([':sid' => $studentId]);
-            $advRow2 = $advStmt2->fetch();
-            if ($advRow2) {
-                $assignedAdviserName  = (string) $advRow2['adviser_name'];
-                $assignedAdviserEmail = (string) $advRow2['adviser_email'];
-            }
-        }
-
-        // Coordinator name (first research_coordinator in users)
-        try {
-            $mainPdo  = db();
-            $coordRow = $mainPdo?->query(
-                "SELECT full_name FROM users WHERE role_key = 'research_coordinator' LIMIT 1"
-            )?->fetch();
-            $assignedCoordName = $coordRow ? (string) $coordRow['full_name'] : $defaultCoordinatorName;
-        } catch (Throwable) {
-            $assignedCoordName = $defaultCoordinatorName;
-        }
-    } catch (Throwable $e) {
-        // Silently fall through — button will show but adviser_name may be empty
-        error_log('Adviser lookup failed: ' . $e->getMessage());
-    }
+try {
+    $cradPdoAssign = (isset($cradPdoEarly) && $cradPdoEarly instanceof PDO)
+        ? $cradPdoEarly
+        : getCradDatabaseConnection();
+    $officialAssignees = cradStudentOfficialAssignees($cradPdoAssign, (string) $studentId);
+    $assignedAdviserName  = (string) ($officialAssignees['adviser_name'] ?? '');
+    $assignedAdviserEmail = (string) ($officialAssignees['adviser_email'] ?? '');
+    $assignedCoordName    = (string) ($officialAssignees['coordinator_name'] ?? '');
+} catch (Throwable $e) {
+    error_log('Title approval assignee lookup failed: ' . $e->getMessage());
 }
-// Hardcoded fallback so the print preview always shows someone
-if ($assignedAdviserName === '') {
-    $assignedAdviserName  = 'Dr. Roberto M. Santos';
-    $assignedAdviserEmail = 'rsantos@bestlink.edu.ph';
-}
-if ($assignedCoordName === '') {
-    $assignedCoordName = $defaultCoordinatorName;
+
+if (isset($_GET['ajax']) && (string) $_GET['ajax'] === 'assignees') {
+    requireAuth();
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        'ok' => true,
+        'adviser_name' => $assignedAdviserName,
+        'adviser_email' => $assignedAdviserEmail,
+        'coordinator_name' => $assignedCoordName,
+        'ready' => $assignedAdviserName !== '' && $assignedCoordName !== '',
+        'server_time' => date('c'),
+    ]);
+    exit;
 }
 
 $pageTitle = 'Research Proposal Submission';
@@ -411,7 +357,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                                     <img class="print-adviser-sig-img" src="<?= htmlspecialchars($adviserSignatureData) ?>" alt="Adviser Signature">
                                 <?php endif; ?>
                             </div>
-                            <strong class="print-approver-name"><?= htmlspecialchars($assignedAdviserName) ?></strong>
+                            <strong class="print-approver-name" id="tafAdviserName"><?= htmlspecialchars($assignedAdviserName) ?></strong>
                             <span class="print-approver-role">Research Adviser</span>
                         </div>
                         <div class="print-approval-block">
