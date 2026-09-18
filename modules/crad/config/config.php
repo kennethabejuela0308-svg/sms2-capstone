@@ -796,81 +796,124 @@ function cradEnsureTitleApprovalAdviserAssignmentConsistency(PDO $pdo, bool $rec
         AFTER DELETE ON title_approvals
         FOR EACH ROW
         BEGIN
-            UPDATE research_adviser_assignments a
-               SET a.assignment_status = 'Pending'
-             WHERE a.assignment_status = 'Assigned'
-               AND (
-                    (OLD.proposal_number IS NOT NULL
-                     AND OLD.proposal_number <> ''
-                     AND a.proposal_number = OLD.proposal_number)
-                 OR (a.research_group_id IS NOT NULL
-                     AND a.research_group_id IN (
-                        SELECT g.id
-                        FROM research_groups g
-                        WHERE g.title_approval_id = OLD.id
-                     ))
-                 OR (a.group_number IS NOT NULL
-                     AND a.group_number <> ''
-                     AND a.group_number IN (
-                        SELECT g2.group_number
-                        FROM research_groups g2
-                        WHERE g2.title_approval_id = OLD.id
-                     ))
-               );
+            DELETE FROM research_coordinator_assignments
+             WHERE (title_approval_id IS NOT NULL AND title_approval_id = OLD.id)
+                OR (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND student_id = OLD.student_id)
+                OR (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND group_number = CONCAT('STU-', OLD.student_id))
+                OR (OLD.proposal_number IS NOT NULL AND OLD.proposal_number <> '' AND proposal_number = OLD.proposal_number);
+
+            DELETE FROM research_adviser_assignments
+             WHERE (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND student_id = OLD.student_id)
+                OR (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND group_number = CONCAT('STU-', OLD.student_id))
+                OR (OLD.proposal_number IS NOT NULL AND OLD.proposal_number <> '' AND proposal_number = OLD.proposal_number);
+
+            DELETE FROM research_groups
+             WHERE (title_approval_id IS NOT NULL AND title_approval_id = OLD.id)
+                OR (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND group_number = CONCAT('STU-', OLD.student_id))
+                OR (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND leader_id = OLD.student_id AND group_number LIKE 'STU-%');
         END
     ");
     $result['changed'] = true;
 
-    if ($reconcileExisting) {
-        $validTitle = cradValidTitleApprovalWhereSql('t');
-        $stmt = $pdo->prepare("
-            UPDATE research_adviser_assignments a
-            LEFT JOIN research_groups g
-              ON (a.research_group_id IS NOT NULL AND a.research_group_id = g.id)
-              OR (a.group_number IS NOT NULL AND a.group_number <> '' AND a.group_number = g.group_number)
-               SET a.assignment_status = 'Pending'
-             WHERE a.assignment_status = 'Assigned'
-               AND (
-                    (
-                        g.title_approval_id IS NOT NULL
-                        AND NOT EXISTS (
-                            SELECT 1
-                            FROM title_approvals t
-                            WHERE t.id = g.title_approval_id
-                              AND {$validTitle}
-                        )
-                    )
-                 OR (
-                        a.proposal_number IS NOT NULL
-                        AND a.proposal_number <> ''
-                        AND a.proposal_number LIKE 'TAP-%'
-                        AND NOT EXISTS (
-                            SELECT 1
-                            FROM title_approvals t
-                            WHERE t.proposal_number = a.proposal_number
-                              AND {$validTitle}
-                        )
-                    )
-                 OR (
-                        g.proposal_number IS NOT NULL
-                        AND g.proposal_number <> ''
-                        AND g.proposal_number LIKE 'TAP-%'
-                        AND NOT EXISTS (
-                            SELECT 1
-                            FROM title_approvals t
-                            WHERE t.proposal_number = g.proposal_number
-                              AND {$validTitle}
-                        )
-                    )
-               )
-        ");
-        $stmt->execute();
-        $result['reconciled'] = $stmt->rowCount();
-    }
+    cradPruneDeletedTitleApprovalDependents($pdo);
 
-    $suffix = $result['reconciled'] > 0
-        ? ' Reconciled ' . $result['reconciled'] . ' existing assignment(s).'
-        : '';
-    $result['message'] = 'Installed non-destructive title approval delete sync trigger.' . $suffix;
+    $result['message'] = 'Installed title approval delete cascade for coordinator and adviser assignments.';
     return $result;
+}
+
+/**
+ * Remove coordinator/adviser rows (and leftover STU- groups) whose Title Approval
+ * or official research group no longer exists. Safe to call on every live poll.
+ */
+function cradPruneDeletedTitleApprovalDependents(PDO $pdo): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    try {
+        if ($pdo->query("SHOW TABLES LIKE 'research_coordinator_assignments'")->fetchColumn()) {
+            if ($pdo->query("SHOW COLUMNS FROM research_coordinator_assignments LIKE 'title_approval_id'")->fetch()) {
+                $pdo->exec("
+                    DELETE a FROM research_coordinator_assignments a
+                    LEFT JOIN title_approvals t ON t.id = a.title_approval_id
+                    WHERE a.title_approval_id IS NOT NULL
+                      AND a.title_approval_id <> 0
+                      AND t.id IS NULL
+                ");
+            }
+            $pdo->exec("
+                DELETE a FROM research_coordinator_assignments a
+                LEFT JOIN research_groups g
+                  ON (a.research_group_id IS NOT NULL AND a.research_group_id = g.id)
+                  OR (a.group_number IS NOT NULL AND a.group_number <> '' AND a.group_number = g.group_number)
+                WHERE g.id IS NULL
+                  AND (
+                        (a.research_group_id IS NOT NULL AND a.research_group_id > 0)
+                     OR (a.group_number IS NOT NULL AND a.group_number <> '' AND a.group_number NOT LIKE 'STU-%')
+                  )
+            ");
+        }
+
+        if ($pdo->query("SHOW TABLES LIKE 'research_adviser_assignments'")->fetchColumn()) {
+            $studentIds = [];
+            if ($pdo->query("SHOW TABLES LIKE 'research_groups'")->fetchColumn()) {
+                $orphans = $pdo->query("
+                    SELECT DISTINCT COALESCE(NULLIF(a.student_id, ''), '') AS student_id
+                    FROM research_adviser_assignments a
+                    LEFT JOIN research_groups g
+                      ON (a.research_group_id IS NOT NULL AND a.research_group_id = g.id)
+                      OR (a.group_number IS NOT NULL AND a.group_number <> '' AND a.group_number = g.group_number)
+                    WHERE g.id IS NULL
+                      AND a.group_number IS NOT NULL
+                      AND a.group_number <> ''
+                      AND a.group_number NOT LIKE 'STU-%'
+                ");
+                foreach (($orphans ? $orphans->fetchAll(PDO::FETCH_COLUMN) : []) as $sid) {
+                    $sid = trim((string) $sid);
+                    if ($sid !== '') {
+                        $studentIds[$sid] = true;
+                    }
+                }
+            }
+
+            $pdo->exec("
+                DELETE a FROM research_adviser_assignments a
+                LEFT JOIN research_groups g
+                  ON (a.research_group_id IS NOT NULL AND a.research_group_id = g.id)
+                  OR (a.group_number IS NOT NULL AND a.group_number <> '' AND a.group_number = g.group_number)
+                WHERE g.id IS NULL
+                  AND (
+                        (a.research_group_id IS NOT NULL AND a.research_group_id > 0)
+                     OR (a.group_number IS NOT NULL AND a.group_number <> '' AND a.group_number NOT LIKE 'STU-%')
+                  )
+            ");
+
+            foreach (array_keys($studentIds) as $sid) {
+                $stu = 'STU-' . strtoupper(preg_replace('/[^A-Za-z0-9_-]/', '', $sid) ?? '');
+                $stmt = $pdo->prepare("
+                    DELETE FROM research_adviser_assignments
+                     WHERE student_id = :sid
+                        OR group_number = :stu
+                ");
+                $stmt->execute([':sid' => $sid, ':stu' => $stu]);
+                $stmt = $pdo->prepare("
+                    DELETE FROM research_coordinator_assignments
+                     WHERE student_id = :sid
+                        OR group_number = :stu
+                ");
+                $stmt->execute([':sid' => $sid, ':stu' => $stu]);
+                $stmt = $pdo->prepare("
+                    DELETE FROM research_groups
+                     WHERE leader_id = :sid
+                       AND group_number LIKE 'STU-%'
+                ");
+                $stmt->execute([':sid' => $sid]);
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('Title approval dependent prune failed: ' . $e->getMessage());
+    }
 }
