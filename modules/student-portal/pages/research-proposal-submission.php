@@ -1870,4 +1870,47 @@ require_once ROOT_PATH . '/includes/layout-start.php';
 })();
 </script>
 
+<script>
+(function () {
+    var adviserEl = document.getElementById('tafAdviserName');
+    var coordEl = document.getElementById('tafCoordinatorName');
+    var sendBtn = document.getElementById('sendToAdviserBtn');
+    if (!adviserEl && !coordEl && !sendBtn) return;
+
+    var endpoint = <?= json_encode(BASE_URL . '/modules/student-portal/pages/research-proposal-submission.php?ajax=assignees') ?>;
+
+    function applyNames(data) {
+        if (!data || !data.ok) return;
+        var adviserName = String(data.adviser_name || '');
+        var adviserEmail = String(data.adviser_email || '');
+        var coordName = String(data.coordinator_name || '');
+        if (adviserEl && adviserEl.textContent !== adviserName) {
+            adviserEl.textContent = adviserName;
+        }
+        if (coordEl && coordEl.textContent !== coordName) {
+            coordEl.textContent = coordName;
+        }
+        if (sendBtn) {
+            sendBtn.dataset.adviser = adviserName;
+            sendBtn.dataset.adviserEmail = adviserEmail;
+            sendBtn.dataset.coordinator = coordName;
+        }
+    }
+
+    function poll() {
+        fetch(endpoint + '&t=' + Date.now(), {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'fetch' },
+            credentials: 'same-origin',
+            cache: 'no-store'
+        })
+            .then(function (res) { return res.json(); })
+            .then(applyNames)
+            .catch(function () {});
+    }
+
+    poll();
+    setInterval(poll, 3000);
+})();
+</script>
+
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>
