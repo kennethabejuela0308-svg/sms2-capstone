@@ -700,6 +700,181 @@ function rcAssignmentAdviserAccountPool(): array
     ], $rows);
 }
 
+/**
+ * Live User Management advisers, attached to each assignment group so they
+ * appear immediately on Find/Contact, Availability, and Assign pages.
+ *
+ * @param array<int, array<string, mixed>> $groups
+ * @return array<int, array<string, mixed>>
+ */
+function rcAssignmentLiveAdviserDisplayRows(PDO $pdo, array $groups): array
+{
+    $accounts = rcAssignmentAdviserAccountPool();
+    if ($accounts === []) {
+        return [];
+    }
+
+    $groupList = $groups !== [] ? $groups : [[
+        'research_group_id' => 0,
+        'proposal_id' => 0,
+        'title_approval_id' => 0,
+        'proposal_number' => '',
+        'group_number' => '',
+        'group_name' => '',
+        'research_title' => '',
+        'college_dept' => '',
+        'required_expertise' => 'General Research Methods',
+    ]];
+
+    $find = $pdo->prepare("
+        SELECT id, expertise, availability_status, assignment_status, notes, assigned_at, updated_at, group_number
+        FROM research_adviser_assignments
+        WHERE (
+                (:uid_a > 0 AND adviser_user_id = :uid_b)
+             OR (:email_a <> '' AND LOWER(TRIM(adviser_email)) = :email_b)
+             OR (:name_a <> '' AND LOWER(TRIM(adviser_name)) = :name_b)
+        )
+          AND (
+                (:gn_a = '' AND (group_number IS NULL OR group_number = ''))
+             OR (:gn_b <> '' AND group_number = :gn_c)
+          )
+        ORDER BY id DESC
+        LIMIT 1
+    ");
+    $insert = $pdo->prepare("
+        INSERT INTO research_adviser_assignments
+            (research_group_id, proposal_id, proposal_number, group_number, adviser_user_id, adviser_name, adviser_email,
+             expertise, availability_status, assignment_status, notes, created_at, updated_at)
+        VALUES
+            (:research_group_id, :proposal_id, :proposal_number, :group_number, :adviser_user_id, :adviser_name, :adviser_email,
+             'General Research Methods', 'Available', 'Pending', 'Synced from adviser user account.', NOW(), NOW())
+    ");
+    $update = $pdo->prepare("
+        UPDATE research_adviser_assignments
+           SET adviser_user_id = COALESCE(:adviser_user_id, adviser_user_id),
+               adviser_name = :adviser_name,
+               adviser_email = :adviser_email,
+               availability_status = CASE
+                   WHEN assignment_status = 'Assigned' THEN availability_status
+                   ELSE 'Available'
+               END,
+               notes = COALESCE(NULLIF(notes, ''), 'Synced from adviser user account.'),
+               updated_at = NOW()
+         WHERE id = :id
+         LIMIT 1
+    ");
+
+    $out = [];
+    foreach ($groupList as $group) {
+        $groupNumber = (string) ($group['group_number'] ?? '');
+        foreach ($accounts as $account) {
+            $email = strtolower(trim((string) ($account['assignee_email'] ?? '')));
+            $name = trim((string) ($account['assignee_name'] ?? ''));
+            $userId = (int) ($account['assignee_user_id'] ?? 0);
+            $find->execute([
+                ':uid_a' => $userId,
+                ':uid_b' => $userId,
+                ':email_a' => $email,
+                ':email_b' => $email,
+                ':name_a' => strtolower($name),
+                ':name_b' => strtolower($name),
+                ':gn_a' => $groupNumber,
+                ':gn_b' => $groupNumber,
+                ':gn_c' => $groupNumber,
+            ]);
+            $db = $find->fetch(PDO::FETCH_ASSOC) ?: null;
+            if (!$db) {
+                try {
+                    $insert->execute([
+                        ':research_group_id' => rcAssignmentNullableInt($group['research_group_id'] ?? $group['id'] ?? null),
+                        ':proposal_id' => rcAssignmentNullableInt($group['proposal_id'] ?? null),
+                        ':proposal_number' => (string) ($group['proposal_number'] ?? '') ?: null,
+                        ':group_number' => $groupNumber !== '' ? $groupNumber : null,
+                        ':adviser_user_id' => $userId > 0 ? $userId : null,
+                        ':adviser_name' => $name,
+                        ':adviser_email' => (string) ($account['assignee_email'] ?? ''),
+                    ]);
+                    $newId = (int) $pdo->lastInsertId();
+                    $db = [
+                        'id' => $newId,
+                        'expertise' => 'General Research Methods',
+                        'availability_status' => 'Available',
+                        'assignment_status' => 'Pending',
+                        'notes' => 'Synced from adviser user account.',
+                        'assigned_at' => null,
+                        'updated_at' => date('Y-m-d H:i:s'),
+                    ];
+                } catch (Throwable $e) {
+                    error_log('Live adviser row insert skipped: ' . $e->getMessage());
+                    $db = [
+                        'id' => 0,
+                        'expertise' => 'General Research Methods',
+                        'availability_status' => 'Available',
+                        'assignment_status' => 'Pending',
+                        'notes' => 'Synced from adviser user account.',
+                        'assigned_at' => null,
+                        'updated_at' => date('Y-m-d H:i:s'),
+                    ];
+                }
+            } else {
+                try {
+                    $update->execute([
+                        ':adviser_user_id' => $userId > 0 ? $userId : null,
+                        ':adviser_name' => $name,
+                        ':adviser_email' => (string) ($account['assignee_email'] ?? ''),
+                        ':id' => (int) ($db['id'] ?? 0),
+                    ]);
+                } catch (Throwable $e) {
+                    error_log('Live adviser row update skipped: ' . $e->getMessage());
+                }
+            }
+
+            $out[] = [
+                'assignment_kind' => 'adviser',
+                'assignment_id' => (int) ($db['id'] ?? 0),
+                'title_approval_id' => (int) ($group['title_approval_id'] ?? 0),
+                'assignee_user_id' => $userId,
+                'assignee_name' => $name,
+                'assignee_email' => (string) ($account['assignee_email'] ?? ''),
+                'assignee_role' => 'Research Adviser',
+                'expertise' => (string) (($db['expertise'] ?? '') !== '' ? $db['expertise'] : ($account['expertise'] ?? 'General Research Methods')),
+                'availability_status' => (string) (($db['availability_status'] ?? '') !== '' ? $db['availability_status'] : 'Available'),
+                'assignment_status' => (string) (($db['assignment_status'] ?? '') !== '' ? $db['assignment_status'] : 'Pending'),
+                'notes' => (string) ($db['notes'] ?? 'Synced from adviser user account.'),
+                'assigned_at' => $db['assigned_at'] ?? null,
+                'updated_at' => (string) ($db['updated_at'] ?? date('Y-m-d H:i:s')),
+                'group_number' => $groupNumber,
+                'group_name' => (string) ($group['group_name'] ?? ''),
+                'research_title' => (string) ($group['research_title'] ?? ''),
+                'college_dept' => (string) ($group['college_dept'] ?? ''),
+                'proposal_number' => (string) ($group['proposal_number'] ?? ''),
+                'source' => 'user_account',
+            ];
+        }
+    }
+
+    return $out;
+}
+
+function rcAssignmentMergeLiveAdviserRows(array $rows, array $liveRows): array
+{
+    $merged = [];
+    $seen = [];
+    foreach (array_merge($liveRows, $rows) as $row) {
+        $key = strtolower(trim((string) ($row['group_number'] ?? ''))) . '|' . rcAssignmentCandidateKey(
+            (string) ($row['assignee_email'] ?? ''),
+            (string) ($row['assignee_name'] ?? '')
+        );
+        if ($key === '|' || $key === '|name:' || isset($seen[$key])) {
+            continue;
+        }
+        $seen[$key] = true;
+        $merged[] = $row;
+    }
+
+    return $merged;
+}
+
 function rcAssignmentResolveAdviserUserId(string $email, string $name): ?int
 {
     $email = strtolower(trim($email));
@@ -1116,6 +1291,8 @@ function rcAssignmentPayload(string $kind): array
         $groups = rcAssignmentApprovedGroups($pdo);
         rcAssignmentEnsureGroupCandidateRows($pdo, $groups);
         $rows = rcAssignmentEnrichRows(rcAssignmentRows($pdo, $kind));
+        $liveRows = rcAssignmentLiveAdviserDisplayRows($pdo, $groups);
+        $rows = rcAssignmentEnrichRows(rcAssignmentMergeLiveAdviserRows($rows, $liveRows));
         global $rcPageSlug;
         if (($rcPageSlug ?? '') === 'assign-research-adviser') {
             $groups = array_values(array_filter(
@@ -1349,6 +1526,7 @@ if (($_POST['ajax'] ?? '') === 'assign') {
 
 if (($_GET['ajax'] ?? '') === 'assignments') {
     header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store, no-cache, must-revalidate');
     echo json_encode(rcAssignmentPayload($rcAssignmentKind));
     exit;
 }
@@ -1785,7 +1963,7 @@ renderBreadcrumbs($breadcrumbs);
     let activeContact = null;
     let refreshing = false;
     let refreshTimer = null;
-    const refreshDelay = 2000;
+    const refreshDelay = 1000;
 
     const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
