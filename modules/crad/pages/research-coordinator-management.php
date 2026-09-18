@@ -1363,7 +1363,7 @@ $csrf     = csrfToken();
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <button type="button" class="rcm-btn rcm-btn-primary rcm-assign-btn" data-group="<?= htmlspecialchars($g['group_number'], ENT_QUOTES) ?>">
+                                <button type="button" class="rcm-btn rcm-btn-primary rcm-assign-btn" data-group="<?= htmlspecialchars($g['group_number'], ENT_QUOTES) ?>" data-student="<?= htmlspecialchars((string) ($g['student_id'] ?? ''), ENT_QUOTES) ?>">
                                     <?= smsIcon('check') ?> Assign
                                 </button>
                             </td>
@@ -1781,7 +1781,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (!eligible.length) {
             tbody.innerHTML = '';
-            card.dataset.emptyMessage = '<strong>No Pending Assignments</strong><br><small>All research groups currently have assigned coordinators. New groups appear here once their Title Approval Form is fully approved by the Adviser, Coordinator, and CRAD.</small>';
+            card.dataset.emptyMessage = '<strong>No Pending Assignments</strong><br><small>Assign a Research Coordinator from the roster to each student first. Students appear here until they have an active coordinator.</small>';
             if (empty) {
                 empty.hidden = false;
                 empty.innerHTML = card.dataset.emptyMessage;
@@ -1797,7 +1797,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     defaultValue = c.user_id > 0 ? String(c.user_id) : 'name:' + c.name;
                 }
             });
-            const searchText = [g.group_number, g.group_name, g.research_title, g.adviser, g.proposal_number, suggested].join(' ').toLowerCase();
+            const searchText = [g.group_number, g.group_name, g.research_title, g.adviser, g.proposal_number, g.student_id, suggested].join(' ').toLowerCase();
             const options = ['<option value="">Select coordinator…</option>'].concat(pool.map(function (c) {
                 const optValue = c.user_id > 0 ? String(c.user_id) : 'name:' + c.name;
                 let label = c.name;
