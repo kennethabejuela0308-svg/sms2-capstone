@@ -6,7 +6,7 @@ require_once __DIR__ . '/../../includes/authentication.php';
 
 $cradRoleKey = getCurrentUserRoleKey();
 if ($cradRoleKey === 'department_head') {
-    header('Location: ' . BASE_URL . '/modules/crad/pages/retrieve-approved-research.php');
+    header('Location: ' . BASE_URL . '/modules/crad/pages/research-coordinator-management.php');
     exit;
 }
 $cradOverviewLabel = $cradRoleKey === 'research_coordinator' ? 'Research Coordinator' : 'CRAD';

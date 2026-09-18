@@ -733,7 +733,7 @@ function requireModuleAccess(string $moduleKey): void
             }
         }
         if (!$isAllowedDepartmentHeadPage) {
-            header('Location: ' . BASE_URL . '/modules/crad/pages/retrieve-approved-research.php');
+            header('Location: ' . BASE_URL . '/modules/crad/pages/research-coordinator-management.php');
             exit;
         }
     }

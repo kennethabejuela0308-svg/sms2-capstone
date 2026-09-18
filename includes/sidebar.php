@@ -648,6 +648,40 @@ $researchDirectorNavGroups = [
                                     </a>
                                 </li>
                                 <?php endif; ?>
+                                <?php
+                                $groupedSlugSet = [];
+                                if ($showModuleGroups) {
+                                    foreach ($module['groups'] as $groupSlugsForSet) {
+                                        foreach ((array) $groupSlugsForSet as $groupedSlug) {
+                                            $groupedSlugSet[(string) $groupedSlug] = true;
+                                        }
+                                    }
+                                }
+                                ?>
+                                <?php if (!empty($module['show_ungrouped_pages'])): ?>
+                                    <?php foreach ($modulePages as $page): ?>
+                                        <?php
+                                        $ungroupedSlug = (string) ($page['slug'] ?? '');
+                                        if ($ungroupedSlug === '' || isset($groupedSlugSet[$ungroupedSlug])) {
+                                            continue;
+                                        }
+                                        $isPageActive = ($isModuleActive && $activePage === $ungroupedSlug);
+                                        $pageHref = BASE_URL . '/modules/' . $moduleFolder . '/pages/' . $ungroupedSlug . '.php';
+                                        if ($ungroupedSlug === 'security-settings') {
+                                            $pageHref = BASE_URL . '/account/module-security.php?module=' . urlencode((string) $navModuleKey);
+                                        }
+                                        ?>
+                                        <li class="nav-item">
+                                            <a class="nav-link sidebar-sub <?= $isPageActive ? 'active' : '' ?>"
+                                               href="<?= htmlspecialchars($pageHref) ?>"
+                                               data-title="<?= htmlspecialchars((string) $page['title']) ?>"
+                                               title="<?= htmlspecialchars((string) $page['title']) ?>">
+                                                <?= smsIcon(smsNavPageIcon($ungroupedSlug), ['aria-hidden' => 'true']) ?>
+                                                <span><?= htmlspecialchars((string) $page['title']) ?></span>
+                                            </a>
+                                        </li>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
                                 <?php if ($showModuleGroups): ?>
                                     <?php foreach ($module['groups'] as $groupLabel => $groupSlugs): ?>
                                         <?php
