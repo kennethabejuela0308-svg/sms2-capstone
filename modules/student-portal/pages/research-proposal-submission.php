@@ -141,6 +141,7 @@ try {
     $assignedAdviserName  = (string) ($officialAssignees['adviser_name'] ?? '');
     $assignedAdviserEmail = (string) ($officialAssignees['adviser_email'] ?? '');
     $assignedCoordName    = (string) ($officialAssignees['coordinator_name'] ?? '');
+    cradSyncTitleApprovalAssigneeNames($cradPdoAssign, (string) $studentId);
 } catch (Throwable $e) {
     error_log('Title approval assignee lookup failed: ' . $e->getMessage());
 }
