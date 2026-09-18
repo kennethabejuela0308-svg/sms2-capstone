@@ -12,6 +12,36 @@ require_once ROOT_PATH . '/modules/crad/config/config.php';
 require_once ROOT_PATH . '/includes/icons.php';
 require_once ROOT_PATH . '/modules/crad/includes/research-progress-helpers.php';
 
+/**
+ * Grammarian scoring: five criteria at 20% each = 100%.
+ *
+ * @return list<array{key:string,label:string,weight:float}>
+ */
+function chapterEvaluationCriteria(): array
+{
+    return [
+        ['key' => 'content', 'label' => 'Content', 'weight' => 20.0],
+        ['key' => 'methodology', 'label' => 'Methodology', 'weight' => 20.0],
+        ['key' => 'references', 'label' => 'References', 'weight' => 20.0],
+        ['key' => 'format', 'label' => 'Format', 'weight' => 20.0],
+        ['key' => 'grammar', 'label' => 'Grammar', 'weight' => 20.0],
+    ];
+}
+
+function chapterEvaluationMaxPoints(): float
+{
+    return 20.0;
+}
+
+function chapterEvaluationTotalMax(): float
+{
+    $total = 0.0;
+    foreach (chapterEvaluationCriteria() as $item) {
+        $total += (float) $item['weight'];
+    }
+    return $total;
+}
+
 function chapterRegistryFullyApprovedClause(string $alias = 't'): string
 {
     return "{$alias}.status = 'Approved'
@@ -203,10 +233,12 @@ function chapterEnsureSchema(PDO $crad): void
             methodology_score DECIMAL(5,2) NOT NULL,
             references_score DECIMAL(5,2) NOT NULL,
             format_score DECIMAL(5,2) NOT NULL,
+            grammar_score DECIMAL(5,2) NOT NULL DEFAULT 0,
             content_remarks TEXT DEFAULT NULL,
             methodology_remarks TEXT DEFAULT NULL,
             references_remarks TEXT DEFAULT NULL,
             format_remarks TEXT DEFAULT NULL,
+            grammar_remarks TEXT DEFAULT NULL,
             overall_feedback TEXT DEFAULT NULL,
             result ENUM('APPROVED','APPROVED WITH REVISION') NOT NULL,
             overall_score DECIMAL(5,2) DEFAULT NULL,
@@ -241,6 +273,19 @@ function chapterEnsureSchema(PDO $crad): void
             KEY idx_chapter_notification_created (created_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
+
+    try {
+        $grammarScore = $crad->query("SHOW COLUMNS FROM chapter_evaluations LIKE 'grammar_score'")->fetch();
+        if (!$grammarScore) {
+            $crad->exec("ALTER TABLE chapter_evaluations ADD COLUMN grammar_score DECIMAL(5,2) NOT NULL DEFAULT 0 AFTER format_score");
+        }
+        $grammarRemarks = $crad->query("SHOW COLUMNS FROM chapter_evaluations LIKE 'grammar_remarks'")->fetch();
+        if (!$grammarRemarks) {
+            $crad->exec("ALTER TABLE chapter_evaluations ADD COLUMN grammar_remarks TEXT DEFAULT NULL AFTER format_remarks");
+        }
+    } catch (Throwable $e) {
+        error_log('Chapter evaluation grammar column check skipped: ' . $e->getMessage());
+    }
 }
 
 function chapterDb(): PDO
@@ -324,6 +369,8 @@ function chapterSubmissionSelectSql(): string
                    rg.adviser, rg.leader_id, rg.leader_email, rg.leader_name,
                    ce.id AS evaluation_id, ce.evaluator_name, ce.result,
                    ce.content_score, ce.methodology_score, ce.references_score, ce.format_score,
+                   ce.grammar_score, ce.grammar_remarks, ce.content_remarks, ce.methodology_remarks,
+                   ce.references_remarks, ce.format_remarks,
                    ce.overall_score, ce.overall_feedback, ce.evaluated_at
             FROM chapter_submissions cs
             INNER JOIN research_groups rg ON rg.id = cs.research_group_id
@@ -829,18 +876,19 @@ function chapterSubmitEvaluation(PDO $crad, array $submission, array $data): arr
         return ['ok' => false, 'error' => 'This submission already has an evaluation.'];
     }
 
-    $scoreKeys = ['content_score', 'methodology_score', 'references_score', 'format_score'];
+    $maxPoints = chapterEvaluationMaxPoints();
     $scores = [];
-    foreach ($scoreKeys as $key) {
+    foreach (chapterEvaluationCriteria() as $item) {
+        $key = $item['key'] . '_score';
         $raw = trim((string) ($data[$key] ?? ''));
         if ($raw === '' || !is_numeric($raw)) {
             return ['ok' => false, 'error' => 'All scores must be numeric.'];
         }
         $score = (float) $raw;
-        if ($score < 0 || $score > 100) {
-            return ['ok' => false, 'error' => 'Scores must be from 0 to 100 only.'];
+        if ($score < 0 || $score > $maxPoints) {
+            return ['ok' => false, 'error' => 'Each criterion is 20%. Enter a score from 0 to 20.'];
         }
-        $scores[$key] = $score;
+        $scores[$key] = round($score, 2);
     }
 
     $result = strtoupper(trim((string) ($data['result'] ?? '')));
@@ -848,7 +896,7 @@ function chapterSubmitEvaluation(PDO $crad, array $submission, array $data): arr
         return ['ok' => false, 'error' => 'Invalid evaluation result.'];
     }
     $studentStatus = $result === 'APPROVED' ? 'Accepted' : 'Needs Revision';
-    $overall = array_sum($scores) / 4;
+    $overall = round(array_sum($scores), 2);
 
     try {
         $crad->beginTransaction();
