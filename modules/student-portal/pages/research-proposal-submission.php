@@ -1929,10 +1929,10 @@ require_once ROOT_PATH . '/includes/layout-start.php';
         .then(function (data) {
             /* Adviser has no account */
             if (!data.ok && data.no_account) {
-                btn.disabled = false;
                 if (icon) icon.className = 'fas fa-paper-plane';
                 if (text) text.textContent = 'Send to Adviser';
                 showNotice('The message cannot be sent because the adviser does not have an account.', 'error');
+                syncSendButton();
                 return;
             }
             if (!data.ok) throw new Error(data.message || 'Server error');
