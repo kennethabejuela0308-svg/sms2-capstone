@@ -607,13 +607,9 @@ function smsResearchCoordinatorCradModule(): array
             'Approved Research' => [
                 'approved-research',
             ],
-            'System' => [
-                'security-settings',
-            ],
         ],
         'pages' => [
             ['slug' => 'approved-research', 'title' => 'View Approved Research'],
-            ['slug' => 'security-settings', 'title' => 'Security Settings'],
         ],
     ];
 }
