@@ -338,6 +338,10 @@ try {
             error_log('Assignment sync after user save: ' . $e->getMessage());
             throw $e;
         }
+        if ($role === 'student') {
+            require_once ROOT_PATH . '/modules/student-portal/includes/student-profile.php';
+            studentPortalEnsureProfileForUser($id, (string) ($studentId ?? ''), $role);
+        }
         logActivity(
             $passwordUpdated ? 'password_reset' : 'update',
             ($passwordUpdated ? 'Updated user and password for ' : 'Updated user ') . $username,
@@ -387,6 +391,10 @@ try {
 
         $newUserId = (int) $pdo->lastInsertId();
         rcSyncAssignmentFromUserAccount($newUserId, $role, $fullName, $email, $status);
+        if ($role === 'student') {
+            require_once ROOT_PATH . '/modules/student-portal/includes/student-profile.php';
+            studentPortalEnsureProfileForUser($newUserId, (string) ($studentId ?? ''), $role);
+        }
         $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) {

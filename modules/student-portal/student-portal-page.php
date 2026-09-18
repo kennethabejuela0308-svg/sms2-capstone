@@ -13,6 +13,14 @@ require_once __DIR__ . '/includes/student-profile.php';
 
 $studentUserId = (int) ($_SESSION['user_id'] ?? 0);
 $studentId = strtoupper(trim((string) ($_SESSION['student_id'] ?? '')));
+$studentProfile = studentPortalLoadProfile(
+    db(),
+    $studentUserId,
+    $studentId,
+    getCurrentUserName() ?: 'Student',
+    (string) ($_SESSION['user_email'] ?? '')
+);
+$studentId = (string) ($studentProfile['student_id'] ?: $studentId);
 
 $latestTitleApproval = null;
 $researchCurrentStatus = 'Not Started';
@@ -100,15 +108,6 @@ foreach ($paymentTransactions as $txn) {
         break;
     }
 }
-
-$studentProfile = studentPortalLoadProfile(
-    db(),
-    $studentUserId,
-    $studentId,
-    getCurrentUserName() ?: 'Student',
-    (string) ($_SESSION['user_email'] ?? '')
-);
-$studentId = (string) ($studentProfile['student_id'] ?: $studentId);
 
 if (!function_exists('spProfileInitials')) {
     function spProfileInitials(string $name): string
