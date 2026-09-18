@@ -46,6 +46,11 @@
     color: #818cf8;
     border: 1px solid rgba(99,102,241,0.28);
 }
+.role-badge.department_head {
+    background: rgba(99,102,241,0.14);
+    color: #a5b4fc;
+    border: 1px solid rgba(99,102,241,0.28);
+}
 .role-badge.department_chair {
     background: rgba(14,165,233,0.14);
     color: #38bdf8;
@@ -100,6 +105,11 @@
 [data-theme="light"] .role-badge.review_committee {
     background: rgba(79,70,229,0.10);
     color: #4f46e5;
+    border-color: rgba(79,70,229,0.22);
+}
+[data-theme="light"] .role-badge.department_head {
+    background: rgba(79,70,229,0.10);
+    color: #4338ca;
     border-color: rgba(79,70,229,0.22);
 }
 [data-theme="light"] .role-badge.department_chair {

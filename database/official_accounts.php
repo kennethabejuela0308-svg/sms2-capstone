@@ -101,6 +101,15 @@ function smsOfficialAccounts(): array
             'lookup' => [],
         ],
         [
+            'username' => 'depthead',
+            'email' => 'depthead@bestlink.edu.ph',
+            'password' => '@Depthead123',
+            'full_name' => 'Department Head',
+            'role_key' => 'department_head',
+            'student_id' => null,
+            'lookup' => [],
+        ],
+        [
             'username' => 'deptchair',
             'email' => 'deptchair@bestlink.edu.ph',
             'password' => '@Department123',

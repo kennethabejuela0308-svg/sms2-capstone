@@ -428,6 +428,7 @@ renderBreadcrumbs($breadcrumbs);
             <option value="qa">QA Office</option>
             <option value="crad">CRAD Officer</option>
             <option value="research_coordinator">Research Coordinator</option>
+            <option value="department_head">Department Head</option>
             <option value="department_chair">Department Chair</option>
             <option value="research_office">Research Office</option>
             <option value="vpaa">VPAA</option>

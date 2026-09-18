@@ -31,6 +31,7 @@ $roles = [
     ['qa', 'QA Office', 'Accreditation and quality'],
     ['crad_officer', 'CRAD Officer', 'Research and development'],
     ['research_coordinator', 'Research Coordinator', 'Research coordination access'],
+    ['department_head', 'Department Head', 'Adviser and panel assignment'],
     ['department_chair', 'Department Chair', 'Grant approval — department chair sign-off'],
     ['research_office', 'Research Office', 'Grant approval — research office sign-off'],
     ['vpaa', 'VPAA', 'Grant approval — VPAA sign-off'],
@@ -59,6 +60,7 @@ $perms = [
     'registrar'    => ['registrar', 'curriculum', 'scheduling'],
     'crad_officer' => ['crad'],
     'research_coordinator' => ['crad'],
+    'department_head' => ['crad'],
     'department_chair' => ['crad'],
     'research_office' => ['crad'],
     'research_director' => ['faculty'],
@@ -87,6 +89,14 @@ foreach ($perms as $role => $modules) {
 echo "Creating / updating accounts…" . PHP_EOL;
 
 $accounts = [
+    [
+        'username' => 'depthead',
+        'email' => 'depthead@bestlink.edu.ph',
+        'password' => '@Depthead123',
+        'full_name' => 'Department Head',
+        'role_key' => 'department_head',
+        'student_id' => null,
+    ],
     [
         'username' => 'deptchair',
         'email' => 'deptchair@bestlink.edu.ph',
