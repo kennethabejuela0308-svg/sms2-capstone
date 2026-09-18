@@ -747,7 +747,7 @@ function rcAssignmentCandidatePool(PDO $pdo): array
             adviser_name AS assignee_name,
             adviser_email AS assignee_email,
             adviser_user_id AS assignee_user_id,
-            'Research Adviser' AS assignee_role,
+                '' AS assignee_role,
             expertise,
             availability_status,
             notes,
@@ -875,7 +875,11 @@ function rcAssignmentEnsureGroupCandidateRows(PDO $pdo, array $groups): void
                 ]);
                 continue;
             }
-            $insertAdviser->execute($groupParams + $adviserParams);
+            try {
+                $insertAdviser->execute($groupParams + $adviserParams);
+            } catch (Throwable $e) {
+                error_log('Adviser candidate insert skipped: ' . $e->getMessage());
+            }
         }
     }
 }
@@ -1119,7 +1123,7 @@ function rcAssignmentPayload(string $kind): array
                 static fn(array $group): bool => cradGroupHasActiveCoordinator($pdo, $group)
             ));
         }
-        if (in_array(($rcPageSlug ?? ''), ['retrieve-approved-research', 'find-contact-adviser'], true)) {
+        if (($rcPageSlug ?? '') === 'retrieve-approved-research') {
             $groups = array_values(array_filter($groups, static fn(array $group): bool => (int) ($group['title_approval_id'] ?? 0) > 0));
         }
         if (($rcPageSlug ?? '') === 'retrieve-approved-research') {
