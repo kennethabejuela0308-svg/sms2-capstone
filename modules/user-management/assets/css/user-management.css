@@ -46,10 +46,11 @@
     color: #818cf8;
     border: 1px solid rgba(99,102,241,0.28);
 }
-.role-badge.department_head {
-    background: rgba(99,102,241,0.14);
-    color: #a5b4fc;
-    border: 1px solid rgba(99,102,241,0.28);
+.role-badge.department_head,
+.role-badge.departmenthead {
+    background: rgba(16,185,129,0.16) !important;
+    color: #34d399 !important;
+    border: 1px solid rgba(16,185,129,0.32) !important;
 }
 .role-badge.department_chair {
     background: rgba(14,165,233,0.14);
@@ -107,10 +108,11 @@
     color: #4f46e5;
     border-color: rgba(79,70,229,0.22);
 }
-[data-theme="light"] .role-badge.department_head {
-    background: rgba(79,70,229,0.10);
-    color: #4338ca;
-    border-color: rgba(79,70,229,0.22);
+[data-theme="light"] .role-badge.department_head,
+[data-theme="light"] .role-badge.departmenthead {
+    background: rgba(5,150,105,0.12) !important;
+    color: #047857 !important;
+    border: 1px solid rgba(5,150,105,0.30) !important;
 }
 [data-theme="light"] .role-badge.department_chair {
     background: rgba(2,132,199,0.10);
