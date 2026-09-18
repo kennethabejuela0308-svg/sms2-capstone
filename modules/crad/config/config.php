@@ -878,7 +878,6 @@ function cradPruneDeletedTitleApprovalDependents(PDO $pdo): void
         }
 
         if ($pdo->query("SHOW TABLES LIKE 'research_adviser_assignments'")->fetchColumn()) {
-            $studentIds = [];
             if ($pdo->query("SHOW TABLES LIKE 'research_groups'")->fetchColumn()) {
                 $orphans = $pdo->query("
                     SELECT DISTINCT COALESCE(NULLIF(a.student_id, ''), '') AS student_id

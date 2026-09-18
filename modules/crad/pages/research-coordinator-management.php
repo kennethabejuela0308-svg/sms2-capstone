@@ -89,6 +89,13 @@ function rcmEnsureSchema(PDO $pdo): void
     } catch (Throwable $e) {
         error_log('Coordinator assignment group_number nullable check skipped: ' . $e->getMessage());
     }
+
+    try {
+        cradEnsureTitleApprovalAdviserAssignmentConsistency($pdo);
+    } catch (Throwable $e) {
+        error_log('Coordinator title-approval cascade ensure skipped: ' . $e->getMessage());
+    }
+    cradPruneDeletedTitleApprovalDependents($pdo);
 }
 
 /**
@@ -652,6 +659,7 @@ rcmEnsureSchema($pdo);
 
 function rcmPayload(PDO $pdo, ?string $flashMessage = null, bool $flashOk = true): array
 {
+    cradPruneDeletedTitleApprovalDependents($pdo);
     $eligible    = rcmEligibleGroups($pdo);
     $pool        = rcmCoordinatorPool($pdo);
     $assignments = rcmAssignments($pdo);
@@ -2281,7 +2289,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (modalOverlay) modalOverlay.addEventListener('click', function (e) { if (e.target === modalOverlay) closeModal(); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
     pollNow();
-    pollTimer = setInterval(pollNow, 5000);
+    pollTimer = setInterval(pollNow, 2000);
 });
 </script>
 

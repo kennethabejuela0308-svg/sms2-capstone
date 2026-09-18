@@ -1425,6 +1425,7 @@ function rcAssignmentPayload(string $kind): array
     try {
         $pdo = getCradDatabaseConnection();
         rcAssignmentEnsureSchema($pdo);
+        cradPruneDeletedTitleApprovalDependents($pdo);
         rcAssignmentSyncApprovedTitleGroups($pdo);
         rcAssignmentResetStaleAssignments($pdo);
         $groups = rcAssignmentApprovedGroups($pdo);
