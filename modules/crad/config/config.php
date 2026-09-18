@@ -855,6 +855,26 @@ function cradPruneDeletedTitleApprovalDependents(PDO $pdo): void
                      OR (a.group_number IS NOT NULL AND a.group_number <> '' AND a.group_number NOT LIKE 'STU-%')
                   )
             ");
+            $coordOrphans = $pdo->query("
+                SELECT DISTINCT COALESCE(NULLIF(a.student_id, ''), '') AS student_id
+                FROM research_coordinator_assignments a
+                LEFT JOIN research_groups g
+                  ON (a.research_group_id IS NOT NULL AND a.research_group_id = g.id)
+                  OR (a.group_number IS NOT NULL AND a.group_number <> '' AND a.group_number = g.group_number)
+                WHERE g.id IS NULL
+                  AND a.group_number IS NOT NULL
+                  AND a.group_number <> ''
+                  AND a.group_number NOT LIKE 'STU-%'
+            ");
+            $studentIds = [];
+            foreach (($coordOrphans ? $coordOrphans->fetchAll(PDO::FETCH_COLUMN) : []) as $sid) {
+                $sid = trim((string) $sid);
+                if ($sid !== '') {
+                    $studentIds[$sid] = true;
+                }
+            }
+        } else {
+            $studentIds = [];
         }
 
         if ($pdo->query("SHOW TABLES LIKE 'research_adviser_assignments'")->fetchColumn()) {
