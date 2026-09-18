@@ -115,11 +115,15 @@ function smsAnnouncementPublish(string $title, string $body): array
     if ($title === '' || $body === '') {
         return ['ok' => false, 'error' => 'Title and message are required.'];
     }
-    if (mb_strlen($title) > 180) {
-        return ['ok' => false, 'error' => 'Title is too long.'];
-    }
-    if (mb_strlen($body) > 4000) {
-        return ['ok' => false, 'error' => 'Message is too long.'];
+    if (function_exists('mb_strlen')) {
+        if (mb_strlen($title) > 180) {
+            return ['ok' => false, 'error' => 'Title is too long.'];
+        }
+        if (mb_strlen($body) > 4000) {
+            return ['ok' => false, 'error' => 'Message is too long.'];
+        }
+    } elseif (strlen($title) > 180 || strlen($body) > 4000) {
+        return ['ok' => false, 'error' => 'Announcement is too long.'];
     }
     if (!$pdo) {
         return ['ok' => false, 'error' => 'Database is unavailable.'];
