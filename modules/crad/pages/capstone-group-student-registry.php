@@ -3,24 +3,20 @@
  * SMS 2 - Capstone Group/Student Registry
  * Module: CRAD
  *
- * Official registry of finalized / registered Capstone Research Groups.
+ * Official registry of Capstone Research Groups.
  *
  * This page is READ-ONLY. It does NOT insert, update, or delete any rows.
  * It derives every displayed record from the existing CRAD workflow tables so
  * the registry is always real-time and accurate:
  *
- *   - research_groups                       -> the registered research group
- *   - title_approvals                       -> fully approved title gate (Adviser,
- *                                              Coordinator & CRAD signatures present)
+ *   - research_groups                       -> generated Research Group Number
+ *   - title_approvals                       -> title / members when linked
  *   - research_coordinator_assignments      -> official (Active) Research Coordinator
  *   - research_adviser_assignments          -> official (Assigned) Adviser
  *   - proposal_members / title_approvals    -> group leader + members
  *
- * Eligibility: a group only appears once its finalized information is available
- * (fully approved title, official adviser, official coordinator, members,
- * program/department and academic year). Incomplete / pending groups never show
- * up here. Because nothing is stored, there are no duplicates and no stale or
- * "ghost" records - every refresh reflects the live source data.
+ * A group appears here as soon as CRAD generates its Research Group Number
+ * (RG-YYYY-NNN). Placeholder assignment groups (STU-*) stay hidden.
  */
 require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../config/config.php';
@@ -44,37 +40,16 @@ $breadcrumbs  = [
     ['label' => 'Capstone Group/Student Registry', 'url' => null],
 ];
 $pageBannerIcon        = 'fa-clipboard-list';
-$pageBannerDescription = 'Official registry of finalized research groups and their members. Only groups with a fully approved title, official adviser and research coordinator, complete members, program, and academic year are listed.';
+$pageBannerDescription = 'Official registry of research groups and their members. Groups appear here in real time as soon as a Research Group Number is generated.';
 
 require_once __DIR__ . '/../../../includes/breadcrumbs.php';
 
 $pdo = getCradDatabaseConnection();
 
 /**
- * SQL gate reused from the existing Title Approval workflow: the group's
- * Title Approval Form must be fully approved by the Adviser, the Research
- * Coordinator, and CRAD (all three signatures present).
- */
-function cgsrFullyApprovedClause(string $alias = 't'): string
-{
-    return "{$alias}.status = 'Approved'
-        AND {$alias}.coordinator_status = 'Approved'
-        AND {$alias}.crad_status = 'Approved'
-        AND {$alias}.adviser_signature_data IS NOT NULL AND {$alias}.adviser_signature_data <> ''
-        AND {$alias}.coordinator_signature_data IS NOT NULL AND {$alias}.coordinator_signature_data <> ''
-        AND {$alias}.crad_signature_data IS NOT NULL AND {$alias}.crad_signature_data <> ''";
-}
-/**
- * Returns only the research groups that are fully qualified to appear in the
- * official registry. A group qualifies when:
- *   - it has a Title Approval Form that is fully approved (gate above), AND
- *   - it has an official (Active) Research Coordinator assignment, AND
- *   - it has an official Adviser assignment, AND
- *   - its finalized title, program/department and academic year are present.
- *
- * De-duplication is inherent: research_groups.group_number is unique and the
- * latest assignment per group is joined via a correlated sub-query, so there is
- * exactly one registry row per group.
+ * Returns generated research groups for the official registry.
+ * A group qualifies as soon as CRAD has generated a Research Group Number.
+ * Placeholder STU-* assignment rows are excluded.
  *
  * @return array<int, array<string, mixed>>
  */
@@ -86,6 +61,7 @@ function cgsrRegistryRows(PDO $pdo): array
                 g.group_name,
                 g.research_title,
                 g.college_dept,
+                g.adviser          AS group_adviser,
                 g.academic_year,
                 g.leader_name,
                 g.leader_id,
@@ -106,14 +82,15 @@ function cgsrRegistryRows(PDO $pdo): array
                 aa.adviser_email,
                 aa.assigned_at     AS adviser_assigned_at
             FROM research_groups g
-            JOIN title_approvals t ON t.id = g.title_approval_id
+            LEFT JOIN title_approvals t ON t.id = g.title_approval_id
             LEFT JOIN research_coordinator_assignments ca ON ca.id = (
                 SELECT ca2.id
                 FROM research_coordinator_assignments ca2
                 WHERE ca2.status = 'Active'
                   AND (
                         ca2.research_group_id = g.id
-                     OR (ca2.research_group_id IS NULL AND ca2.group_number = g.group_number)
+                     OR (ca2.group_number IS NOT NULL AND ca2.group_number <> '' AND ca2.group_number = g.group_number)
+                     OR (g.leader_id IS NOT NULL AND g.leader_id <> '' AND ca2.student_id = g.leader_id)
                   )
                 ORDER BY ca2.updated_at DESC, ca2.id DESC
                 LIMIT 1
@@ -121,21 +98,19 @@ function cgsrRegistryRows(PDO $pdo): array
             LEFT JOIN research_adviser_assignments aa ON aa.id = (
                 SELECT aa2.id
                 FROM research_adviser_assignments aa2
-                WHERE (
+                WHERE aa2.assignment_status IN ('Assigned', 'Confirmed')
+                  AND (
                         aa2.research_group_id = g.id
-                     OR (aa2.research_group_id IS NULL AND aa2.group_number = g.group_number)
+                     OR (aa2.group_number IS NOT NULL AND aa2.group_number <> '' AND aa2.group_number = g.group_number)
+                     OR (g.leader_id IS NOT NULL AND g.leader_id <> '' AND aa2.student_id = g.leader_id)
                   )
-                ORDER BY (aa2.assignment_status = 'Assigned') DESC, aa2.updated_at DESC, aa2.id DESC
+                ORDER BY (aa2.assignment_status = 'Confirmed') DESC, (aa2.assignment_status = 'Assigned') DESC, aa2.updated_at DESC, aa2.id DESC
                 LIMIT 1
             )
-            WHERE g.title_approval_id IS NOT NULL
-              AND " . cgsrFullyApprovedClause('t') . "
-              AND ca.id IS NOT NULL
-              AND aa.id IS NOT NULL
-              AND TRIM(COALESCE(g.research_title, '')) <> ''
-              AND TRIM(COALESCE(g.academic_year, '')) <> ''
-              AND (TRIM(COALESCE(g.college_dept, '')) <> '' OR TRIM(COALESCE(t.department, '')) <> '')
-            ORDER BY g.group_number ASC";
+            WHERE g.group_number IS NOT NULL
+              AND TRIM(g.group_number) <> ''
+              AND g.group_number NOT LIKE 'STU-%'
+            ORDER BY g.date_assigned DESC, g.id DESC";
 
     try {
         return $pdo->query($sql)->fetchAll() ?: [];
@@ -245,9 +220,14 @@ function cgsrDisplayRow(PDO $pdo, array $g): array
         $program = trim((string) ($g['approval_department'] ?? ''));
     }
 
+    $title = trim((string) ($g['research_title'] ?? ''));
+    if ($title === '') {
+        $title = trim((string) ($g['proposed_title'] ?? ''));
+    }
+
     $adviser = trim((string) ($g['adviser_name'] ?? ''));
     if ($adviser === '') {
-        $adviser = (string) ($g['adviser'] ?? '');
+        $adviser = trim((string) ($g['group_adviser'] ?? ($g['adviser'] ?? '')));
     }
 
     $coordinator = trim((string) ($g['coordinator_name'] ?? ''));
