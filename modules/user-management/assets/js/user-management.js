@@ -194,14 +194,15 @@
             }
 
             if (action === 'edit' && form) {
-                form.querySelector('[name="full_name"]').value  = trigger.dataset.name   || '';
-                form.querySelector('[name="username"]').value   = trigger.dataset.username || '';
-                form.querySelector('[name="email"]').value      = trigger.dataset.email  || '';
-                form.querySelector('[name="role"]').value       = trigger.dataset.role   || '';
-                form.querySelector('[name="status"]').value     = trigger.dataset.status || 'active';
-                form.querySelector('[name="user_id"]').value    = trigger.dataset.uid    || '';
+                var row = trigger.closest ? trigger.closest('.um-user-row') : null;
+                form.querySelector('[name="full_name"]').value  = (row && row.dataset.name) || trigger.dataset.name || '';
+                form.querySelector('[name="username"]').value   = (row && row.dataset.username) || trigger.dataset.username || '';
+                form.querySelector('[name="email"]').value      = (row && row.dataset.email) || trigger.dataset.email || '';
+                form.querySelector('[name="role"]').value       = (row && row.dataset.role) || trigger.dataset.role || '';
+                form.querySelector('[name="status"]').value     = (row && row.dataset.status) || trigger.dataset.status || 'active';
+                form.querySelector('[name="user_id"]').value    = (row && row.dataset.uid) || trigger.dataset.uid || '';
                 var notesField = form.querySelector('[name="notes"]');
-                if (notesField) notesField.value = trigger.dataset.notes || '';
+                if (notesField) notesField.value = (row && row.dataset.notes) || trigger.dataset.notes || '';
 
                 var pwRow = form.querySelector('.um-pw-row');
                 var pwLabel = pwRow && pwRow.querySelector('.um-pw-label');

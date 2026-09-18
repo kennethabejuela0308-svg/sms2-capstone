@@ -94,9 +94,9 @@ if ($pdo) {
         )->execute();
         $pdo->prepare(
             "UPDATE users
-             SET full_name = 'Dean', username = 'dean', email = 'dean@bestlink.edu.ph'
+             SET username = 'dean'
              WHERE role_key = 'hr'
-               AND username IN ('hr', 'faculty', 'dean')"
+               AND username IN ('hr', 'faculty')"
         )->execute();
         $adminHash = password_hash('@admin123', PASSWORD_DEFAULT);
         $pdo->prepare(
@@ -180,11 +180,6 @@ if ($pdo) {
              VALUES
                 ('depthead', 'depthead@bestlink.edu.ph', ?, 'Department Head', 'department_head', NULL, 'active', NOW(), 0, 0, NULL)"
         )->execute([$deptHeadHash]);
-        $pdo->prepare(
-            "UPDATE users
-             SET role_key = 'department_head', full_name = 'Department Head', email = 'depthead@bestlink.edu.ph', status = 'active'
-             WHERE username = 'depthead'"
-        )->execute();
     } catch (Throwable $e) {
         error_log('Default user account ensure failed: ' . $e->getMessage());
     }
@@ -701,7 +696,7 @@ renderBreadcrumbs($breadcrumbs);
 </div>
 <?php endif; ?>
 
-<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js?v=20260919-live-edit"></script>
+<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js?v=20260919-live-edit-2"></script>
 <script>
 (function () {
     var ENDPOINT = '<?= BASE_URL ?>/modules/user-management/includes/save-user.php';
