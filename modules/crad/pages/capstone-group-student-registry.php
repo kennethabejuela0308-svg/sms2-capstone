@@ -649,18 +649,22 @@ document.addEventListener('DOMContentLoaded', function () {
             tbody.innerHTML = filtered.map(function (r) {
                 const leader = (r.leader && r.leader.name) || '\u2014';
                 const leaderId = (r.leader && r.leader.id) || '';
+                const title = r.research_title || 'Untitled research';
+                const adviser = r.adviser || '\u2014';
+                const coordinator = r.coordinator || '\u2014';
+                const year = r.academic_year || '\u2014';
                 return '<tr data-cgsr-row data-group-number="' + esc(r.group_number) + '">' +
                     '<td><div class="cgsr-code">' + esc(r.group_number) + '</div>' +
                         (r.group_name ? '<span class="cgsr-meta-block">' + esc(r.group_name) + '</span>' : '') + '</td>' +
-                    '<td><div class="cgsr-title">' + esc(r.research_title) + '</div>' +
+                    '<td><div class="cgsr-title">' + esc(title) + '</div>' +
                         '<span class="cgsr-meta-block">' + esc(r.program) + '</span></td>' +
                     '<td><div class="cgsr-title">' + esc(leader) + '</div>' +
                         (leaderId ? '<span class="cgsr-meta-block">' + esc(leaderId) + '</span>' : '') + '</td>' +
-                    '<td><div class="cgsr-title">' + esc(r.adviser) + '</div>' +
+                    '<td><div class="cgsr-title">' + esc(adviser) + '</div>' +
                         (r.adviser_email ? '<span class="cgsr-meta-block">' + esc(r.adviser_email) + '</span>' : '') + '</td>' +
-                    '<td><div class="cgsr-title">' + esc(r.coordinator) + '</div>' +
+                    '<td><div class="cgsr-title">' + esc(coordinator) + '</div>' +
                         (r.coordinator_email ? '<span class="cgsr-meta-block">' + esc(r.coordinator_email) + '</span>' : '') + '</td>' +
-                    '<td><div class="cgsr-title">' + esc(r.academic_year) + '</div></td>' +
+                    '<td><div class="cgsr-title">' + esc(year) + '</div></td>' +
                     '<td><span class="cgsr-badge cgsr-badge-registered"><?= smsIcon('check') ?> Registered</span></td>' +
                     '<td><button type="button" class="cgsr-btn cgsr-btn-primary" data-cgsr-view="' + esc(r.group_number) + '"><?= smsIcon('eye') ?> View</button></td>' +
                 '</tr>';
@@ -741,6 +745,23 @@ document.addEventListener('DOMContentLoaded', function () {
         modal.hidden = true;
         document.body.style.overflow = '';
     };
+    const fillFilter = function (select, values, allLabel) {
+        if (!select) return;
+        const current = select.value;
+        const unique = [];
+        values.forEach(function (v) {
+            const s = String(v || '').trim();
+            if (s !== '' && unique.indexOf(s) === -1) unique.push(s);
+        });
+        unique.sort();
+        select.innerHTML = '<option value="">' + esc(allLabel) + '</option>' + unique.map(function (v) {
+            return '<option value="' + esc(v) + '"' + (v === current ? ' selected' : '') + '>' + esc(v) + '</option>';
+        }).join('');
+        if (current && unique.indexOf(current) !== -1) {
+            select.value = current;
+        }
+    };
+
     const refresh = async function () {
         if (refreshing) return;
         refreshing = true;
@@ -753,7 +774,9 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await res.json();
             if (!data.ok) throw new Error('Sync failed');
             rows = Array.isArray(data.rows) ? data.rows : [];
-            renderStats(data.stats || {});
+            renderStats(data);
+            fillFilter(ayFilter, rows.map(function (r) { return r.academic_year; }), 'All Academic Years');
+            fillFilter(pgFilter, rows.map(function (r) { return r.program; }), 'All Programs');
             renderTable();
             if (sync) {
                 const d = new Date();
@@ -776,12 +799,12 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     renderTable();
 
-    let timer = window.setInterval(refresh, 10000);
+    let timer = window.setInterval(refresh, 2000);
     document.addEventListener('visibilitychange', function () {
         if (timer) window.clearInterval(timer);
         if (document.hidden) { timer = null; return; }
         refresh();
-        timer = window.setInterval(refresh, 10000);
+        timer = window.setInterval(refresh, 2000);
     });
 });
 </script>
