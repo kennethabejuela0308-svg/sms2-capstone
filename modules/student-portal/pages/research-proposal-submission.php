@@ -1980,14 +1980,24 @@ require_once ROOT_PATH . '/includes/layout-start.php';
 
     function applyNames(data) {
         if (!data || !data.ok) return;
-        var adviserName = String(data.adviser_name || '');
-        var adviserEmail = String(data.adviser_email || '');
-        var coordName = String(data.coordinator_name || '');
-        if (adviserEl && adviserEl.textContent !== adviserName) {
-            adviserEl.textContent = adviserName;
+        var adviserName = String(data.adviser_name || '').trim();
+        var adviserEmail = String(data.adviser_email || '').trim();
+        var coordName = String(data.coordinator_name || '').trim();
+        if (adviserEl) {
+            if (adviserEl.textContent !== adviserName) {
+                adviserEl.textContent = adviserName;
+                adviserEl.classList.remove('is-live-flash');
+                void adviserEl.offsetWidth;
+                adviserEl.classList.add('is-live-flash');
+            }
         }
-        if (coordEl && coordEl.textContent !== coordName) {
-            coordEl.textContent = coordName;
+        if (coordEl) {
+            if (coordEl.textContent !== coordName) {
+                coordEl.textContent = coordName;
+                coordEl.classList.remove('is-live-flash');
+                void coordEl.offsetWidth;
+                coordEl.classList.add('is-live-flash');
+            }
         }
         if (sendBtn) {
             sendBtn.dataset.adviser = adviserName;
@@ -2011,7 +2021,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
     }
 
     poll();
-    setInterval(poll, 3000);
+    setInterval(poll, 2000);
 })();
 </script>
 

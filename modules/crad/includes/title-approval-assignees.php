@@ -274,8 +274,8 @@ function cradStudentOfficialAssignees(PDO $pdo, string $studentId): array
     try {
         $gStmt = $pdo->prepare(
             "SELECT id, group_number FROM research_groups
-             WHERE leader_id = :sid
-                OR group_number = :stu
+             WHERE LOWER(TRIM(leader_id)) = LOWER(:sid)
+                OR LOWER(TRIM(group_number)) = LOWER(:stu)
              ORDER BY id DESC"
         );
         $gStmt->execute([':sid' => $studentId, ':stu' => $stuGroup]);
@@ -299,8 +299,8 @@ function cradStudentOfficialAssignees(PDO $pdo, string $studentId): array
                 FROM research_coordinator_assignments
                 WHERE status = 'Active'
                   AND (
-                        student_id = :sid
-                     OR group_number = :stu";
+                        LOWER(TRIM(COALESCE(student_id, ''))) = LOWER(:sid)
+                     OR LOWER(TRIM(COALESCE(group_number, ''))) = LOWER(:stu)";
         $params = [':sid' => $studentId, ':stu' => $stuGroup];
         if ($groupNumbers !== []) {
             $in = [];
@@ -335,8 +335,8 @@ function cradStudentOfficialAssignees(PDO $pdo, string $studentId): array
                 WHERE assignment_status IN ('Assigned', 'Confirmed')
                   AND TRIM(adviser_name) <> ''
                   AND (
-                        student_id = :sid
-                     OR group_number = :stu";
+                        LOWER(TRIM(COALESCE(student_id, ''))) = LOWER(:sid)
+                     OR LOWER(TRIM(COALESCE(group_number, ''))) = LOWER(:stu)";
         $params = [':sid' => $studentId, ':stu' => $stuGroup];
         if ($groupNumbers !== []) {
             $in = [];
