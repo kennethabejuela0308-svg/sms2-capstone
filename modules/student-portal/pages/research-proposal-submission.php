@@ -444,11 +444,12 @@ require_once ROOT_PATH . '/includes/layout-start.php';
             </article>
 
             <div class="crad-below-sheet">
+                <?php $approvalNamesReady = trim($assignedAdviserName) !== '' && trim($assignedCoordName) !== ''; ?>
                 <button
                     type="button"
                     id="sendToAdviserBtn"
-                    class="crad-btn-send-adviser<?= $alreadySentToAdviser ? ' is-sent' : '' ?>"
-                    <?= $alreadySentToAdviser ? 'disabled' : '' ?>
+                    class="crad-btn-send-adviser<?= $alreadySentToAdviser ? ' is-sent' : ($approvalNamesReady ? '' : ' is-waiting-names') ?>"
+                    <?= ($alreadySentToAdviser || !$approvalNamesReady) ? 'disabled' : '' ?>
                     data-already-sent="<?= $alreadySentToAdviser ? '1' : '0' ?>"
                     data-submission-id="<?= (int) (($resubmitSubmission['id'] ?? null) ?: ($existingSubmission['id'] ?? 0)) ?>"
                     data-resubmit="<?= $isResubmitMode ? '1' : '0' ?>"
@@ -470,6 +471,12 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                     <span class="crad-btn-send-icon"><?= smsIcon($alreadySentToAdviser ? 'check' : 'paper-plane') ?></span>
                     <span class="crad-btn-send-text"><?= $alreadySentToAdviser ? 'Document Packet Sent' : ($isResubmitMode ? 'Resubmit to Adviser' : 'Send to Adviser') ?></span>
                 </button>
+                <?php if (!$alreadySentToAdviser): ?>
+                    <div class="crad-waiting-names-note" id="tafWaitingNamesNote"<?= $approvalNamesReady ? ' hidden' : '' ?> role="status">
+                        <?= smsIcon('lock') ?>
+                        <span>Hindi pa maaaring i-send. Maghintay hanggang maglagay si Admin ng Research Adviser at Research Coordinator sa Section IX.</span>
+                    </div>
+                <?php endif; ?>
             </div>
             <?php if ($alreadySentToAdviser): ?>
                 <div class="crad-document-packet-note" role="status">
@@ -991,6 +998,19 @@ require_once ROOT_PATH . '/includes/layout-start.php';
     opacity: 0.6; cursor: not-allowed; transform: none;
     box-shadow: none;
 }
+.crad-btn-send-adviser.is-waiting-names {
+    background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+    box-shadow: none;
+    pointer-events: none;
+}
+.crad-waiting-names-note {
+    width: 210mm; max-width: 100%; margin: .65rem auto 0;
+    display: flex; align-items: flex-start; gap: .55rem;
+    padding: .7rem 1rem; border-radius: 10px;
+    background: #fff7ed; color: #9a3412; border: 1px solid #fdba74;
+    font-size: .86rem; font-weight: 700; line-height: 1.4;
+}
+.crad-waiting-names-note[hidden] { display: none; }
 .crad-btn-send-adviser.is-sent {
     background: linear-gradient(135deg, #0e7490 0%, #0c6380 100%);
     box-shadow: 0 4px 18px rgba(14,116,144,0.4);
@@ -1847,8 +1867,32 @@ require_once ROOT_PATH . '/includes/layout-start.php';
         notice.style.display = 'block';
     }
 
+    function hasApprovalNames() {
+        var adviser = String(btn.dataset.adviser || '').trim();
+        var coordinator = String(btn.dataset.coordinator || '').trim();
+        return adviser !== '' && coordinator !== '';
+    }
+
+    function syncSendButton() {
+        if (btn.classList.contains('is-sent') || btn.dataset.alreadySent === '1') {
+            return;
+        }
+        var ready = hasApprovalNames();
+        btn.disabled = !ready;
+        btn.classList.toggle('is-waiting-names', !ready);
+        var waitNote = document.getElementById('tafWaitingNamesNote');
+        if (waitNote) waitNote.hidden = ready;
+    }
+    window.tafSyncSendButton = syncSendButton;
+    syncSendButton();
+
     btn.addEventListener('click', function () {
-        if (btn.disabled || btn.classList.contains('is-sent')) return;
+        if (btn.disabled || btn.classList.contains('is-sent') || btn.classList.contains('is-waiting-names')) return;
+        if (!hasApprovalNames()) {
+            showNotice('Hindi pa maaaring i-send. Wala pang name sa Research Adviser at Research Coordinator sa Section IX.', 'error');
+            syncSendButton();
+            return;
+        }
 
         btn.disabled = true;
         notice.style.display = 'none';
@@ -1916,10 +1960,10 @@ require_once ROOT_PATH . '/includes/layout-start.php';
             } catch (e) { /* ignore */ }
         })
         .catch(function (err) {
-            btn.disabled = false;
             if (icon) icon.className = 'fas fa-paper-plane';
             if (text) text.textContent = 'Send to Adviser';
             showNotice('Could not send: ' + err.message, 'error');
+            syncSendButton();
         });
     });
 })();
@@ -1949,6 +1993,9 @@ require_once ROOT_PATH . '/includes/layout-start.php';
             sendBtn.dataset.adviser = adviserName;
             sendBtn.dataset.adviserEmail = adviserEmail;
             sendBtn.dataset.coordinator = coordName;
+            if (typeof window.tafSyncSendButton === 'function') {
+                window.tafSyncSendButton();
+            }
         }
     }
 
