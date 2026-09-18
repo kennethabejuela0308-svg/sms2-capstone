@@ -7,7 +7,7 @@ require_once ROOT_PATH . '/modules/crad/includes/research-progress-helpers.php';
 require_once ROOT_PATH . '/modules/faculty/includes/research-director-panel-assignment.php';
 
 requireAuth();
-if (getCurrentUserRoleKey() !== 'research_director') {
+if (!smsCanManageDefenseScheduling()) {
     http_response_code(403);
     exit('Forbidden');
 }
@@ -1593,6 +1593,14 @@ if (($_GET['ajax'] ?? '') === 'director-schedules') {
         'synced_at' => date('M j, Y h:i:s A'),
     ]);
     exit;
+}
+
+if (smsIsGrantedAdminRole(getCurrentUserRoleKey())) {
+    $activeModule = 'crad';
+    $breadcrumbs = [
+        ['label' => 'CRAD', 'url' => BASE_URL . '/modules/faculty/pages/research-director.php?view=defense-scheduling-queue'],
+        ['label' => $pageTitle, 'url' => null],
+    ];
 }
 
 require_once ROOT_PATH . '/includes/layout-start.php';

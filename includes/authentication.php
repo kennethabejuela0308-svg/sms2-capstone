@@ -410,6 +410,64 @@ function smsAdminCoordinatorAssignmentNav(): array
     ];
 }
 
+function smsAdminDefenseSchedulingNav(): array
+{
+    return [
+        'groups' => [
+            'PRE-ORAL DEFENSE' => [
+                'defense-scheduling-queue',
+                'manual-scheduling-optimizer',
+                'proposed-schedules',
+                'alternative-time-slots',
+                'calendar',
+                'venues',
+                'finalize-defense-schedule',
+            ],
+            'FINAL DEFENSE SCHEDULING' => [
+                'final-defense-scheduling-queue',
+                'final-defense-manual-scheduling',
+                'final-defense-proposed-schedules',
+                'final-defense-finalize-schedule',
+            ],
+        ],
+        'pages' => [
+            ['slug' => 'defense-scheduling-queue', 'title' => 'Ready for Scheduling'],
+            ['slug' => 'manual-scheduling-optimizer', 'title' => 'Manual Scheduling Optimizer'],
+            ['slug' => 'proposed-schedules', 'title' => 'Proposed Schedules'],
+            ['slug' => 'alternative-time-slots', 'title' => 'Alternative Time Slots'],
+            ['slug' => 'calendar', 'title' => 'Calendar'],
+            ['slug' => 'venues', 'title' => 'Venues'],
+            ['slug' => 'finalize-defense-schedule', 'title' => 'Finalize Schedule'],
+            ['slug' => 'final-defense-scheduling-queue', 'title' => 'Ready for Scheduling'],
+            ['slug' => 'final-defense-manual-scheduling', 'title' => 'Manual Scheduling Optimizer'],
+            ['slug' => 'final-defense-proposed-schedules', 'title' => 'Proposed Schedules'],
+            ['slug' => 'final-defense-finalize-schedule', 'title' => 'Finalize Schedule'],
+        ],
+    ];
+}
+
+function smsAdminDefenseSchedulingHref(string $slug): ?string
+{
+    $map = [
+        'defense-scheduling-queue' => ['view' => 'defense-scheduling-queue'],
+        'manual-scheduling-optimizer' => ['view' => 'manual-scheduling-optimizer'],
+        'proposed-schedules' => ['view' => 'proposed-schedules'],
+        'alternative-time-slots' => ['view' => 'alternative-time-slots'],
+        'calendar' => ['view' => 'calendar'],
+        'venues' => ['view' => 'venues'],
+        'finalize-defense-schedule' => ['view' => 'finalize-defense-schedule'],
+        'final-defense-scheduling-queue' => ['view' => 'defense-scheduling-queue', 'defense_type' => 'Final Defense'],
+        'final-defense-manual-scheduling' => ['view' => 'manual-scheduling-optimizer', 'defense_type' => 'Final Defense'],
+        'final-defense-proposed-schedules' => ['view' => 'proposed-schedules', 'defense_type' => 'Final Defense'],
+        'final-defense-finalize-schedule' => ['view' => 'finalize-defense-schedule', 'defense_type' => 'Final Defense'],
+    ];
+    if (!isset($map[$slug])) {
+        return null;
+    }
+
+    return BASE_URL . '/modules/faculty/pages/research-director.php?' . http_build_query($map[$slug]);
+}
+
 function smsAdminCoordinatorWorkflowPaths(): array
 {
     return [
@@ -423,6 +481,7 @@ function smsAdminCoordinatorWorkflowPaths(): array
         '/modules/crad/pages/check-panel-availability.php',
         '/modules/crad/pages/assign-panel-members.php',
         '/modules/crad/pages/manage-assignments.php',
+        '/modules/faculty/pages/research-director.php',
     ];
 }
 
@@ -431,6 +490,13 @@ function smsCanManageCoordinatorAssignments(?string $roleKey = null): bool
     $roleKey = $roleKey ?? getCurrentUserRoleKey();
 
     return smsIsGrantedAdminRole($roleKey) || $roleKey === 'research_coordinator';
+}
+
+function smsCanManageDefenseScheduling(?string $roleKey = null): bool
+{
+    $roleKey = $roleKey ?? getCurrentUserRoleKey();
+
+    return smsIsGrantedAdminRole($roleKey) || $roleKey === 'research_director';
 }
 
 function getVisibleModules(array $modules): array
@@ -463,7 +529,10 @@ function getVisibleModules(array $modules): array
     }
 
     if (smsIsGrantedAdminRole(getCurrentUserRoleKey())) {
-        $assignmentNav = smsAdminCoordinatorAssignmentNav();
+        $assignmentNav = smsMergeModuleNav(
+            smsAdminCoordinatorAssignmentNav(),
+            smsAdminDefenseSchedulingNav()
+        );
         if (!isset($visible['crad'])) {
             $visible['crad'] = smsMergeModuleNav([
                 'label' => 'CRAD',

@@ -359,23 +359,7 @@ $panelNavGroups = [
     ],
 ];
 
-$researchDirectorBaseUrl = BASE_URL . '/modules/faculty/pages/research-director.php?view=';
 $researchDirectorNavGroups = [
-    'PRE-ORAL DEFENSE' => [
-        ['slug' => 'defense-scheduling-queue', 'href' => $researchDirectorBaseUrl . 'defense-scheduling-queue', 'icon' => 'fa-list-alt', 'label' => 'Ready for Scheduling'],
-        ['slug' => 'manual-scheduling-optimizer', 'href' => $researchDirectorBaseUrl . 'manual-scheduling-optimizer', 'icon' => 'fa-calendar-check', 'label' => 'Manual Scheduling Optimizer'],
-        ['slug' => 'proposed-schedules', 'href' => $researchDirectorBaseUrl . 'proposed-schedules', 'icon' => 'fa-calendar-plus', 'label' => 'Proposed Schedules'],
-        ['slug' => 'alternative-time-slots', 'href' => $researchDirectorBaseUrl . 'alternative-time-slots', 'icon' => 'fa-clock', 'label' => 'Alternative Time Slots'],
-        ['slug' => 'calendar', 'href' => $researchDirectorBaseUrl . 'calendar', 'icon' => 'fa-calendar-alt', 'label' => 'Calendar'],
-        ['slug' => 'venues', 'href' => $researchDirectorBaseUrl . 'venues', 'icon' => 'fa-map-marker-alt', 'label' => 'Venues'],
-        ['slug' => 'finalize-defense-schedule', 'href' => $researchDirectorBaseUrl . 'finalize-defense-schedule', 'icon' => 'fa-clipboard-check', 'label' => 'Finalize Schedule'],
-    ],
-    'FINAL DEFENSE SCHEDULING' => [
-        ['slug' => 'final-defense-scheduling-queue', 'href' => $researchDirectorBaseUrl . 'defense-scheduling-queue&defense_type=Final%20Defense', 'icon' => 'fa-list-alt', 'label' => 'Ready for Scheduling'],
-        ['slug' => 'final-defense-manual-scheduling', 'href' => $researchDirectorBaseUrl . 'manual-scheduling-optimizer&defense_type=Final%20Defense', 'icon' => 'fa-calendar-check', 'label' => 'Manual Scheduling Optimizer'],
-        ['slug' => 'final-defense-proposed-schedules', 'href' => $researchDirectorBaseUrl . 'proposed-schedules&defense_type=Final%20Defense', 'icon' => 'fa-calendar-plus', 'label' => 'Proposed Schedules'],
-        ['slug' => 'final-defense-finalize-schedule', 'href' => $researchDirectorBaseUrl . 'finalize-defense-schedule&defense_type=Final%20Defense', 'icon' => 'fa-clipboard-check', 'label' => 'Finalize Schedule'],
-    ],
     'SYSTEM' => [
         ['slug' => 'security-settings', 'href' => BASE_URL . '/account/module-security.php?module=faculty', 'icon' => 'fa-shield-alt', 'label' => 'Security Settings'],
     ],
@@ -714,6 +698,10 @@ $researchDirectorNavGroups = [
                                                             $pageHref = BASE_URL . '/modules/' . $moduleFolder . '/pages/' . $slug . '.php';
                                                             $sidebarPageTitle = $pageTitles[$slug];
                                                             $pageIcon = smsNavPageIcon($slug);
+                                                            $defenseHref = smsAdminDefenseSchedulingHref($slug);
+                                                            if ($defenseHref !== null) {
+                                                                $pageHref = $defenseHref;
+                                                            }
                                                             if ($slug === 'security-settings') {
                                                                 $pageHref = BASE_URL . '/account/module-security.php?module=' . urlencode((string) $navModuleKey);
                                                             }
