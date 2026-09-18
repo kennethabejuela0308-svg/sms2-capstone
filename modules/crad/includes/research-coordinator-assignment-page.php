@@ -74,6 +74,7 @@ function rcAssignmentEnsureSchema(PDO $pdo): void
     ");
 
     smsAssignmentNotificationEnsureSentSchema($pdo);
+    cradEnsureAssigneeSchema($pdo);
     cradEnsureTitleApprovalAdviserAssignmentConsistency($pdo);
 
     try {
@@ -232,7 +233,7 @@ function rcAssignmentSyncApprovedTitleGroups(PDO $pdo): void
             $ins->execute([
                 ':title_approval_id' => (int) $approval['id'],
                 ':proposal_number' => $proposalNumber,
-                ':group_number' => rcAssignmentBuildGroupNumber($seq),
+                ':group_number' => $newGroupNumber,
                 ':group_name' => rcAssignmentBuildGroupName($seq),
                 ':research_title' => (string) $approval['proposed_title'],
                 ':college_dept' => (string) $approval['department'],
@@ -242,6 +243,12 @@ function rcAssignmentSyncApprovedTitleGroups(PDO $pdo): void
                 ':leader_id' => (string) $approval['student_id'],
                 ':date_assigned' => date('Y-m-d'),
                 ':created_by' => (int) ($_SESSION['user_id'] ?? 0) ?: null,
+            ]);
+            $newGroupId = (int) $pdo->lastInsertId();
+            cradMigrateStudentAssignmentsToOfficialGroup($pdo, (string) $approval['student_id'], [
+                'id' => $newGroupId,
+                'group_number' => $newGroupNumber,
+                'title_approval_id' => (int) $approval['id'],
             ]);
         }
     } catch (Throwable $e) {
