@@ -106,14 +106,13 @@ function smsAnnouncementPublicRows(array $rows): array
     return $out;
 }
 
-function smsAnnouncementImageUrl(?string $storedName): string
+function smsAnnouncementImageUrl(int $id, ?string $storedName): string
 {
-    $storedName = basename(trim((string) $storedName));
-    if ($storedName === '') {
+    if ($id < 1 || basename(trim((string) $storedName)) === '') {
         return '';
     }
 
-    return BASE_URL . '/account/announcement-image.php?f=' . rawurlencode($storedName);
+    return BASE_URL . '/account/announcement-image.php?id=' . $id;
 }
 
 function smsAnnouncementImagePath(?string $storedName): ?string
