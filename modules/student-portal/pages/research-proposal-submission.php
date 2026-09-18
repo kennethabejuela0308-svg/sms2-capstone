@@ -1209,6 +1209,13 @@ require_once ROOT_PATH . '/includes/layout-start.php';
 .print-approver-name {
     color: #111 !important; font-size: 8pt !important; font-weight: 800 !important;
 }
+.print-approver-name.is-live-flash {
+    animation: tafNameFlash 1.2s ease;
+}
+@keyframes tafNameFlash {
+    0% { background: #fef3c7; }
+    100% { background: transparent; }
+}
 .print-approver-role {
     display: block; color: #334155; font-size: 7pt;
 }
