@@ -806,11 +806,6 @@ function cradEnsureTitleApprovalAdviserAssignmentConsistency(PDO $pdo, bool $rec
              WHERE (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND student_id = OLD.student_id)
                 OR (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND group_number = CONCAT('STU-', OLD.student_id))
                 OR (OLD.proposal_number IS NOT NULL AND OLD.proposal_number <> '' AND proposal_number = OLD.proposal_number);
-
-            DELETE FROM research_groups
-             WHERE (title_approval_id IS NOT NULL AND title_approval_id = OLD.id)
-                OR (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND group_number = CONCAT('STU-', OLD.student_id))
-                OR (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND leader_id = OLD.student_id AND group_number LIKE 'STU-%');
         END
     ");
     $result['changed'] = true;
@@ -924,14 +919,10 @@ function cradPruneDeletedTitleApprovalDependents(PDO $pdo): void
                         OR group_number = :stu
                 ");
                 $stmt->execute([':sid' => $sid, ':stu' => $stu]);
-                $stmt = $pdo->prepare("
-                    DELETE FROM research_groups
-                     WHERE leader_id = :sid
-                       AND group_number LIKE 'STU-%'
-                ");
-                $stmt->execute([':sid' => $sid]);
             }
         }
+
+        cradReleaseAssignmentsWithoutTitleApproval($pdo);
     } catch (Throwable $e) {
         error_log('Title approval dependent prune failed: ' . $e->getMessage());
     }
