@@ -723,6 +723,8 @@ function rcAssignmentLiveAdviserDisplayRows(PDO $pdo, array $groups): array
              OR (:gn_b <> '' AND (
                     group_number = :gn_c
                  OR (:gid_a > 0 AND research_group_id = :gid_b)
+                 OR (:sid_a <> '' AND student_id = :sid_b)
+                 OR (:stu_a <> '' AND group_number = :stu_b)
              ))
           )
         ORDER BY
@@ -754,6 +756,8 @@ function rcAssignmentLiveAdviserDisplayRows(PDO $pdo, array $groups): array
             $name = trim((string) ($account['assignee_name'] ?? ''));
             $userId = (int) ($account['assignee_user_id'] ?? 0);
             $groupId = (int) ($group['research_group_id'] ?? $group['id'] ?? 0);
+            $leaderId = trim((string) ($group['leader_id'] ?? $group['student_id'] ?? ''));
+            $stuNumber = $leaderId !== '' ? cradStudentAssignmentGroupNumber($leaderId) : '';
             $find->execute([
                 ':uid_a' => $userId,
                 ':uid_b' => $userId,
@@ -766,6 +770,10 @@ function rcAssignmentLiveAdviserDisplayRows(PDO $pdo, array $groups): array
                 ':gn_c' => $groupNumber,
                 ':gid_a' => $groupId,
                 ':gid_b' => $groupId,
+                ':sid_a' => $leaderId,
+                ':sid_b' => $leaderId,
+                ':stu_a' => $stuNumber,
+                ':stu_b' => $stuNumber,
             ]);
             $db = $find->fetch(PDO::FETCH_ASSOC) ?: null;
             if (!$db) {
@@ -810,6 +818,8 @@ function rcAssignmentLiveAdviserDisplayRows(PDO $pdo, array $groups): array
                 'research_title' => (string) ($group['research_title'] ?? ''),
                 'college_dept' => (string) ($group['college_dept'] ?? ''),
                 'proposal_number' => (string) ($group['proposal_number'] ?? ''),
+                'leader_id' => $leaderId,
+                'student_id' => $leaderId,
                 'source' => 'user_account',
             ];
         }
@@ -935,6 +945,8 @@ function rcAssignmentEnsureGroupCandidateRows(PDO $pdo, array $groups): void
           AND (
                 (:group_number_gate <> '' AND group_number = :group_number_match)
              OR (:research_group_id_gate > 0 AND research_group_id = :research_group_id_match)
+             OR (:student_id_gate <> '' AND student_id = :student_id_match)
+             OR (:stu_gate <> '' AND group_number = :stu_match)
           )
         ORDER BY
             (assignment_status = 'Assigned') DESC,
@@ -997,6 +1009,8 @@ function rcAssignmentEnsureGroupCandidateRows(PDO $pdo, array $groups): void
         foreach ($groupAdvisers as $adviser) {
             $email = strtolower(trim((string) ($adviser['assignee_email'] ?? '')));
             $name = strtolower(trim((string) ($adviser['assignee_name'] ?? '')));
+            $leaderId = trim((string) ($group['leader_id'] ?? $group['student_id'] ?? ''));
+            $stuNumber = $leaderId !== '' ? cradStudentAssignmentGroupNumber($leaderId) : '';
             $adviserExists->execute([
                 ':email_gate' => $email,
                 ':email_match' => $email,
@@ -1006,6 +1020,10 @@ function rcAssignmentEnsureGroupCandidateRows(PDO $pdo, array $groups): void
                 ':group_number_match' => (string) ($group['group_number'] ?? ''),
                 ':research_group_id_gate' => (int) ($group['research_group_id'] ?? 0),
                 ':research_group_id_match' => (int) ($group['research_group_id'] ?? 0),
+                ':student_id_gate' => $leaderId,
+                ':student_id_match' => $leaderId,
+                ':stu_gate' => $stuNumber,
+                ':stu_match' => $stuNumber,
             ]);
             $existing = $adviserExists->fetch();
             $adviserUserId = rcAssignmentNullableInt($adviser['assignee_user_id'] ?? null)
