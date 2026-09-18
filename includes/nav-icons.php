@@ -12,6 +12,7 @@ if (!function_exists('smsNavPageIcon')) {
             'activity-logs' => 'fa-history',
             'system-settings' => 'fa-sliders-h',
             'security-settings' => 'fa-shield-alt',
+            'announcements' => 'fa-bullhorn',
             'online-pre-registration' => 'fa-globe',
             'document-upload-portal' => 'fa-cloud-upload-alt',
             'enrollment-validation' => 'fa-check-double',

@@ -758,27 +758,43 @@ $researchDirectorNavGroups = [
                     </li>
                 <?php endforeach; ?>
                 <?php if ($securitySettingsModule !== '' && !$moduleHasSecuritySettingsPage): ?>
+                    <?php
+                    $systemActive = in_array(($activePage ?? ''), ['security-settings', 'announcements'], true);
+                    $announcementsHref = BASE_URL . '/account/announcements.php';
+                    $announcementsActive = ($activePage === 'announcements');
+                    ?>
                     <?php $secSettingsActive = ($activePage === 'security-settings'); ?>
                     <?php $secSettingsHref = $securitySettingsHrefOverride !== ''
                         ? $securitySettingsHrefOverride
                         : BASE_URL . '/account/module-security.php?module=' . urlencode($securitySettingsModule); ?>
                     <li class="nav-item admin-module-item">
                         <button type="button"
-                                class="nav-link sidebar-parent admin-module-toggle <?= $secSettingsActive ? 'active' : '' ?>"
+                                class="nav-link sidebar-parent admin-module-toggle <?= $systemActive ? 'active' : '' ?>"
                                 data-bs-toggle="collapse"
                                 data-bs-target="#navGrp_system"
-                                aria-expanded="<?= $secSettingsActive ? 'true' : 'false' ?>"
+                                aria-expanded="<?= $systemActive ? 'true' : 'false' ?>"
                                 aria-controls="navGrp_system"
-                                data-overview-url="<?= htmlspecialchars($secSettingsHref) ?>"
+                                data-overview-url="<?= htmlspecialchars(smsIsGrantedAdminRole($roleKey) ? $announcementsHref : $secSettingsHref) ?>"
                                 data-title="System"
                                 title="System">
                             <?= smsIcon('shield', ['aria-hidden' => 'true']) ?>
                             <span>System</span>
                             <?= smsIcon('chevron-down', ['class' => 'sidebar-chevron ms-auto', 'aria-hidden' => 'true']) ?>
                         </button>
-                        <div class="collapse admin-module-body sidebar-submenu <?= $secSettingsActive ? 'show' : '' ?>"
+                        <div class="collapse admin-module-body sidebar-submenu <?= $systemActive ? 'show' : '' ?>"
                              id="navGrp_system">
                             <ul class="nav flex-column">
+                                <?php if (smsIsGrantedAdminRole($roleKey)): ?>
+                                <li class="nav-item">
+                                    <a class="nav-link sidebar-sub <?= $announcementsActive ? 'active' : '' ?>"
+                                       href="<?= htmlspecialchars($announcementsHref) ?>"
+                                       data-title="Announcements"
+                                       title="Announcements">
+                                        <?= smsIcon('bullhorn', ['aria-hidden' => 'true']) ?>
+                                        <span>Announcements</span>
+                                    </a>
+                                </li>
+                                <?php endif; ?>
                                 <li class="nav-item">
                                     <a class="nav-link sidebar-sub <?= $secSettingsActive ? 'active' : '' ?>"
                                        href="<?= htmlspecialchars($secSettingsHref) ?>"
