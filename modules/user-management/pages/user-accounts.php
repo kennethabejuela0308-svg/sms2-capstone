@@ -630,7 +630,6 @@ renderBreadcrumbs($breadcrumbs);
             <option value="department_chair">Department Chair</option>
             <option value="research_office">Research Office</option>
             <option value="vpaa">VPAA</option>
-                                <option value="research_grant">Research Grant (CRAD Officer)</option>
                                 <option value="review_committee">Review Committee</option>
                                 <option value="student">Student</option>
                             </select>

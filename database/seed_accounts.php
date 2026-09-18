@@ -168,14 +168,6 @@ $accounts = [
         'student_id' => null,
     ],
     [
-        'username' => 'researchgrant',
-        'email' => 'researchgrant@bestlink.edu.ph',
-        'password' => '@Grant123',
-        'full_name' => 'Research Grant',
-        'role_key' => 'research_grant',
-        'student_id' => null,
-    ],
-    [
         'username' => 'rsantos',
         'email' => 'rsantos@bestlink.edu.ph',
         'password' => '@Adviser123',

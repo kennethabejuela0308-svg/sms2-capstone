@@ -65,15 +65,6 @@ function smsOfficialAccounts(): array
             'lookup' => [],
         ],
         [
-            'username' => 'researchgrant',
-            'email' => 'researchgrant@bestlink.edu.ph',
-            'password' => '@Grant123',
-            'full_name' => 'Research Grant',
-            'role_key' => 'research_grant',
-            'student_id' => null,
-            'lookup' => [],
-        ],
-        [
             'username' => 'cradofficer',
             'email' => 'cradofficer@bestlink.ph',
             'password' => '@Cradofficer123',
