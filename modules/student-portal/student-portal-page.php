@@ -7,6 +7,7 @@ $studentPortalPage = $studentPortalPage ?? 'my-profile';
 require_once __DIR__ . '/../../config/config.php';
 require_once ROOT_PATH . '/includes/authentication.php';
 require_once ROOT_PATH . '/modules/crad/config/config.php';
+require_once ROOT_PATH . '/includes/announcements.php';
 require_once __DIR__ . '/../../includes/breadcrumbs.php';
 
 $studentId = $_SESSION['student_id'] ?? 'S230000001';
@@ -231,6 +232,42 @@ require_once __DIR__ . '/../../includes/layout-start.php';
     <?php endif; ?>
 
     <?php if ($studentPortalPage === 'dashboard'): ?>
+        <?php
+        $studentAnnouncements = smsAnnouncementPublicRows(smsAnnouncementFetch(true, 20));
+        $studentAnnStamp = smsAnnouncementStamp($studentAnnouncements);
+        ?>
+        <section class="academic-notices-panel student-announcements-panel mb-3"
+                 id="studentAnnouncements"
+                 aria-labelledby="studentAnnouncementsTitle"
+                 data-live-url="<?= htmlspecialchars(BASE_URL . '/account/announcements-data.php') ?>"
+                 data-stamp="<?= htmlspecialchars($studentAnnStamp) ?>">
+            <div class="academic-notices-icon" aria-hidden="true"><?= smsIcon('bullhorn') ?></div>
+            <div class="student-announcements-body">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <div>
+                        <span class="ai-insight-kicker">Admin announcements</span>
+                        <h2 class="ai-insight-title" id="studentAnnouncementsTitle">From the administration</h2>
+                    </div>
+                    <span class="um-live-badge" id="studentAnnLiveBadge">
+                        <span class="um-live-dot" aria-hidden="true"></span>
+                        <span data-live-label>Live</span>
+                    </span>
+                </div>
+                <div id="studentAnnouncementsList">
+                    <?php foreach ($studentAnnouncements as $announcement): ?>
+                        <article class="student-ann-item">
+                            <h3><?= htmlspecialchars((string) $announcement['title']) ?></h3>
+                            <p><?= nl2br(htmlspecialchars((string) $announcement['body'])) ?></p>
+                            <small><?= htmlspecialchars((string) $announcement['posted_by']) ?> · <?= htmlspecialchars((string) $announcement['posted_at']) ?></small>
+                        </article>
+                    <?php endforeach; ?>
+                </div>
+                <p class="ai-insight-copy mb-0" id="studentAnnouncementsEmpty" <?= $studentAnnouncements ? 'hidden' : '' ?>>
+                    No announcements right now.
+                </p>
+            </div>
+        </section>
+
         <div class="row g-3 mb-3 dashboard-stats">
             <div class="col-md-3">
                 <section class="card stat-card primary">
@@ -689,4 +726,7 @@ require_once __DIR__ . '/../../includes/layout-start.php';
     <?php endif; ?>
 </div>
 
+<?php if ($studentPortalPage === 'dashboard'): ?>
+<script src="<?= BASE_URL ?>/assets/js/student-announcements-live.js?v=1"></script>
+<?php endif; ?>
 <?php require_once __DIR__ . '/../../includes/layout-end.php'; ?>
