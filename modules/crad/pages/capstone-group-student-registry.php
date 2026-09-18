@@ -640,7 +640,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         if (rows.length === 0) {
-            // Keep the friendly server-rendered empty state.
+            tbody.innerHTML = '<tr><td colspan="8"><div class="cgsr-empty" data-cgsr-empty>' +
+                '<strong>No Registered Groups Yet</strong><small>Groups appear here in real time as soon as a Research Group Number is generated.</small></div></td></tr>';
         } else if (filtered.length === 0) {
             tbody.innerHTML = '<tr><td colspan="8"><div class="cgsr-empty" data-cgsr-empty>' +
                 '<strong>No Match</strong><small>No registered groups match your search or filters.</small></div></td></tr>';
