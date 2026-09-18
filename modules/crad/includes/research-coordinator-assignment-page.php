@@ -416,6 +416,8 @@ function rcAssignmentRows(PDO $pdo, string $kind): array
                 a.notes,
                 a.assigned_at,
                 a.updated_at,
+                a.student_id,
+                g.leader_id,
                 g.group_number,
                 g.group_name,
                 COALESCE(NULLIF(g.research_title, ''), p.research_title, t.proposed_title) AS research_title,
