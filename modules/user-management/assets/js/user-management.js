@@ -463,6 +463,13 @@
             if (data.synced_at && syncedEl) {
                 syncedEl.textContent = data.synced_at;
             }
+
+            var incomingId = parseInt(data.latest_id || 0, 10) || 0;
+            var logs = Array.isArray(data.logs) ? data.logs : [];
+            if (incomingId === latestId && tableBody.querySelectorAll('tr.log-row').length === logs.length) {
+                return;
+            }
+
             if (data.stats) {
                 Object.keys(data.stats).forEach(function (key) {
                     var el = document.querySelector('[data-um-log-stat="' + key + '"]');
@@ -471,13 +478,6 @@
             }
             umFillSelect(refs.actionFilter, data.actions, 'All actions', true);
             umFillSelect(refs.moduleFilter, data.modules, 'All modules', false);
-
-            var incomingId = parseInt(data.latest_id || 0, 10) || 0;
-            var logs = Array.isArray(data.logs) ? data.logs : [];
-            if (incomingId === latestId && tableBody.querySelectorAll('tr.log-row').length === logs.length) {
-                applyLog();
-                return;
-            }
 
             var html = '';
             logs.forEach(function (log) {
