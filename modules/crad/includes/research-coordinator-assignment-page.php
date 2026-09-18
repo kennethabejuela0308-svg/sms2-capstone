@@ -2243,11 +2243,52 @@ renderBreadcrumbs($breadcrumbs);
         return Math.round((hits / requiredParts.length) * 100);
     };
 
-    const selectedGroupRows = () => rows.filter((row) => {
-        const groupNo = String(row.group_number || '');
-        const proposalNo = String(row.proposal_number || '');
-        return selectedGroup && (groupNo === selectedGroup || proposalNo === selectedGroup);
-    });
+    const selectedGroupMeta = () => groups.find((item) => {
+        const value = item.group_number || item.proposal_number || String(item.research_group_id || '');
+        return value === selectedGroup;
+    }) || null;
+    const studentGroupKeys = (group) => {
+        const keys = [];
+        const gn = String(group?.group_number || '');
+        const pn = String(group?.proposal_number || '');
+        const leader = String(group?.leader_id || group?.student_id || '').trim();
+        if (gn) keys.push(gn);
+        if (pn) keys.push(pn);
+        if (leader) {
+            keys.push(leader);
+            keys.push('STU-' + leader.toUpperCase().replace(/[^A-Z0-9_-]/g, ''));
+        }
+        return keys;
+    };
+    const selectedGroupRows = () => {
+        const group = selectedGroupMeta();
+        const keys = new Set(studentGroupKeys(group).map((v) => v.toLowerCase()));
+        if (!selectedGroup) return [];
+        keys.add(String(selectedGroup).toLowerCase());
+        return rows.filter((row) => {
+            const values = [
+                String(row.group_number || ''),
+                String(row.proposal_number || ''),
+                String(row.leader_id || ''),
+                String(row.student_id || '')
+            ].map((v) => v.toLowerCase());
+            return values.some((v) => v !== '' && keys.has(v));
+        });
+    };
+    const isRowAssigned = (row, group) => {
+        const statusAssigned = ['assigned', 'confirmed'].includes(String(row.assignment_status || '').toLowerCase());
+        if (!statusAssigned) return false;
+        if (!selectedGroup) return true;
+        const keys = new Set(studentGroupKeys(group).map((v) => v.toLowerCase()));
+        keys.add(String(selectedGroup).toLowerCase());
+        const values = [
+            String(row.group_number || ''),
+            String(row.proposal_number || ''),
+            String(row.leader_id || ''),
+            String(row.student_id || '')
+        ].map((v) => v.toLowerCase());
+        return values.some((v) => v !== '' && keys.has(v));
+    };
     const assigneeLoadCount = (row) => rows.filter((item) => (
         String(item.assignment_kind || '').toLowerCase() === String(row.assignment_kind || '').toLowerCase() &&
         String(item.assignee_name || '').toLowerCase() === String(row.assignee_name || '').toLowerCase() &&
@@ -2334,17 +2375,14 @@ renderBreadcrumbs($breadcrumbs);
 
         renderGroups();
 
-        const group = groups.find((item) => {
-            const value = item.group_number || item.proposal_number || String(item.research_group_id || '');
-            return value === selectedGroup;
-        });
+        const group = selectedGroupMeta();
         const directMatches = selectedGroupRows();
         const processTerm = (search?.value || '').trim().toLowerCase();
         const processStatus = (statusFilter?.value || '').trim().toLowerCase();
         const sourceRows = (mode === 'contact' ? rows : (directMatches.length ? directMatches : rows))
             .filter((row) => matches(row, processTerm) && statusMatches(row, processStatus));
         const usingSelectedGroupRows = mode !== 'contact' && directMatches.length > 0;
-        const seenAssignees = new Set();
+        const seenAssignees = {};
         const matchesForGroup = sourceRows
             .map((row) => ({
                 ...row,
@@ -2352,13 +2390,25 @@ renderBreadcrumbs($breadcrumbs);
                 match_score: scoreForGroup(row, group),
                 selected_group_match: usingSelectedGroupRows
             }))
+            .sort((a, b) => {
+                const aAssigned = isRowAssigned(a, group) ? 1 : 0;
+                const bAssigned = isRowAssigned(b, group) ? 1 : 0;
+                if (bAssigned !== aAssigned) return bAssigned - aAssigned;
+                return Number(b.match_score || 0) - Number(a.match_score || 0);
+            })
             .filter((row) => {
                 const key = `${row.assignment_kind || ''}|${row.assignee_name || ''}|${row.assignee_email || ''}`.toLowerCase();
-                if (seenAssignees.has(key)) return false;
-                seenAssignees.add(key);
-                return true;
-            })
-            .sort((a, b) => Number(b.match_score || 0) - Number(a.match_score || 0));
+                const current = seenAssignees[key];
+                if (!current) {
+                    seenAssignees[key] = row;
+                    return true;
+                }
+                if (isRowAssigned(row, group) && !isRowAssigned(current, group)) {
+                    seenAssignees[key] = row;
+                    return true;
+                }
+                return false;
+            });
 
         if (!group) {
             topic.textContent = 'Adviser accounts from User Management';
@@ -2376,12 +2426,7 @@ renderBreadcrumbs($breadcrumbs);
             const encoded = attr(JSON.stringify(row));
             const loadCount = assigneeLoadCount(row);
             if (mode === 'assign') {
-                const statusAssigned = ['assigned', 'confirmed'].includes(String(row.assignment_status || '').toLowerCase());
-                const groupMatches = !selectedGroup
-                    || String(row.group_number || '') === selectedGroup
-                    || String(row.proposal_number || '') === selectedGroup
-                    || Boolean(row.selected_group_match);
-                const isAssigned = statusAssigned && groupMatches;
+                const isAssigned = isRowAssigned(row, group);
                 const isAvailable = String(row.availability_status || '').toLowerCase() === 'available';
                 const disabled = isAssigned || !isAvailable;
                 const actionLabel = isAssigned ? 'Assigned' : (isAvailable ? 'Assign' : 'Not Available');
@@ -2587,9 +2632,15 @@ renderBreadcrumbs($breadcrumbs);
                 const sameAdviser = Number(item.assignment_id || 0) === Number(row.assignment_id || 0)
                     || (String(item.assignee_email || '').toLowerCase() !== '' && String(item.assignee_email || '').toLowerCase() === String(row.assignee_email || '').toLowerCase())
                     || String(item.assignee_name || '').toLowerCase() === String(row.assignee_name || '').toLowerCase();
-                const sameGroup = String(item.group_number || '') === String(group.group_number || '')
-                    || String(item.proposal_number || '') === String(group.group_number || '')
-                    || String(item.group_number || '') === selectedGroup;
+                const keys = new Set(studentGroupKeys(group).map((v) => String(v).toLowerCase()));
+                keys.add(String(selectedGroup || '').toLowerCase());
+                const itemKeys = [
+                    String(item.group_number || ''),
+                    String(item.proposal_number || ''),
+                    String(item.leader_id || ''),
+                    String(item.student_id || '')
+                ].map((v) => v.toLowerCase());
+                const sameGroup = itemKeys.some((v) => v !== '' && keys.has(v));
                 if (sameAdviser && sameGroup) {
                     return { ...item, assignment_status: 'Assigned' };
                 }
