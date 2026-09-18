@@ -90,17 +90,95 @@ function smsAnnouncementPublicRows(array $rows): array
 {
     $out = [];
     foreach ($rows as $row) {
+        $imageName = (string) ($row['image_path'] ?? '');
+        $id = (int) ($row['id'] ?? 0);
         $out[] = [
-            'id' => (int) ($row['id'] ?? 0),
+            'id' => $id,
             'title' => (string) ($row['title'] ?? ''),
             'body' => (string) ($row['body'] ?? ''),
             'status' => (string) ($row['status'] ?? ''),
+            'image_url' => smsAnnouncementImageUrl($id, $imageName),
             'posted_by' => (string) ($row['created_by_name'] ?? 'Admin'),
             'posted_at' => (string) ($row['published_label'] ?: ($row['updated_label'] ?? '')),
         ];
     }
 
     return $out;
+}
+
+function smsAnnouncementImageUrl(?string $storedName): string
+{
+    $storedName = basename(trim((string) $storedName));
+    if ($storedName === '') {
+        return '';
+    }
+
+    return BASE_URL . '/account/announcement-image.php?f=' . rawurlencode($storedName);
+}
+
+function smsAnnouncementImagePath(?string $storedName): ?string
+{
+    require_once ROOT_PATH . '/includes/uploads.php';
+    $storedName = basename(trim((string) $storedName));
+    if ($storedName === '' || !preg_match('/^[a-f0-9]{32}\.png$/i', $storedName)) {
+        return null;
+    }
+
+    $uploadsDir = realpath(smsUploadRoot());
+    $realPath = realpath(smsUploadRoot() . '/announcements/' . $storedName);
+    if (
+        $uploadsDir === false
+        || $realPath === false
+        || !is_file($realPath)
+        || strncmp($realPath, $uploadsDir, strlen($uploadsDir)) !== 0
+    ) {
+        return null;
+    }
+
+    return $realPath;
+}
+
+/**
+ * @param array<string, mixed>|null $file
+ * @return array{ok:bool,error:string,stored_name:?string}
+ */
+function smsAnnouncementStorePng(?array $file): array
+{
+    if ($file === null || (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+        return ['ok' => true, 'error' => '', 'stored_name' => null];
+    }
+
+    require_once ROOT_PATH . '/includes/uploads.php';
+    $upload = smsSecureUpload($file, [
+        'subdir' => 'announcements',
+        'max_bytes' => 5 * 1024 * 1024,
+        'allowed' => ['png' => ['image/png']],
+        'required' => false,
+    ]);
+    if (empty($upload['ok'])) {
+        return ['ok' => false, 'error' => (string) ($upload['error'] ?: 'PNG upload failed.'), 'stored_name' => null];
+    }
+
+    $stored = (string) ($upload['stored_name'] ?? '');
+    if ($stored === '') {
+        return ['ok' => true, 'error' => '', 'stored_name' => null];
+    }
+
+    $info = @getimagesize((string) $upload['path']);
+    if ($info === false || (int) ($info[2] ?? 0) !== IMAGETYPE_PNG) {
+        @unlink((string) $upload['path']);
+        return ['ok' => false, 'error' => 'Please upload a valid PNG image.', 'stored_name' => null];
+    }
+
+    return ['ok' => true, 'error' => '', 'stored_name' => $stored];
+}
+
+function smsAnnouncementDeleteFile(?string $storedName): void
+{
+    $path = smsAnnouncementImagePath($storedName);
+    if ($path !== null) {
+        @unlink($path);
+    }
 }
 
 function smsAnnouncementStamp(array $rows): string
@@ -115,7 +193,7 @@ function smsAnnouncementStamp(array $rows): string
     return $maxId . ':' . $maxStamp . ':' . count($rows);
 }
 
-function smsAnnouncementPublish(string $title, string $body): array
+function smsAnnouncementPublish(string $title, string $body, ?array $imageFile = null): array
 {
     smsEnsureAnnouncementTables();
     $pdo = db();
@@ -138,15 +216,21 @@ function smsAnnouncementPublish(string $title, string $body): array
         return ['ok' => false, 'error' => 'Database is unavailable.'];
     }
 
+    $image = smsAnnouncementStorePng($imageFile);
+    if (empty($image['ok'])) {
+        return ['ok' => false, 'error' => (string) ($image['error'] ?: 'PNG upload failed.')];
+    }
+
     try {
         $stmt = $pdo->prepare(
             'INSERT INTO admin_announcements
-                (title, body, status, audience, created_by, created_by_name, published_at)
-             VALUES (?, ?, \'published\', \'student\', ?, ?, NOW())'
+                (title, body, image_path, status, audience, created_by, created_by_name, published_at)
+             VALUES (?, ?, ?, \'published\', \'student\', ?, ?, NOW())'
         );
         $stmt->execute([
             $title,
             $body,
+            $image['stored_name'],
             getCurrentUserId(),
             substr((string) getCurrentUserName(), 0, 150),
         ]);
@@ -156,6 +240,7 @@ function smsAnnouncementPublish(string $title, string $body): array
 
         return ['ok' => true, 'id' => (int) $pdo->lastInsertId()];
     } catch (Throwable $e) {
+        smsAnnouncementDeleteFile($image['stored_name'] ?? null);
         error_log('smsAnnouncementPublish: ' . $e->getMessage());
         return ['ok' => false, 'error' => 'Could not publish the announcement.'];
     }
@@ -198,8 +283,12 @@ function smsAnnouncementDelete(int $id): array
     }
 
     try {
+        $lookup = $pdo->prepare('SELECT image_path FROM admin_announcements WHERE id = ? LIMIT 1');
+        $lookup->execute([$id]);
+        $imagePath = (string) ($lookup->fetchColumn() ?: '');
         $stmt = $pdo->prepare('DELETE FROM admin_announcements WHERE id = ?');
         $stmt->execute([$id]);
+        smsAnnouncementDeleteFile($imagePath);
         if (function_exists('logActivity')) {
             logActivity('delete', 'Deleted student announcement #' . $id, 'dashboard');
         }
