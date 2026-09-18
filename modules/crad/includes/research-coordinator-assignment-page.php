@@ -960,6 +960,7 @@ function rcAssignmentEnsureGroupCandidateRows(PDO $pdo, array $groups): void
                proposal_id = COALESCE(:proposal_id, proposal_id),
                proposal_number = COALESCE(NULLIF(:proposal_number, ''), proposal_number),
                group_number = COALESCE(NULLIF(:group_number, ''), group_number),
+               student_id = COALESCE(NULLIF(:student_id, ''), student_id),
                adviser_user_id = COALESCE(:adviser_user_id, adviser_user_id),
                adviser_name = COALESCE(NULLIF(:adviser_name, ''), adviser_name),
                adviser_email = COALESCE(NULLIF(:adviser_email, ''), adviser_email),
