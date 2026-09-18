@@ -497,7 +497,8 @@ renderBreadcrumbs($breadcrumbs);
                             data-username="<?= htmlspecialchars($u['username']) ?>"
                             data-email="<?= htmlspecialchars($u['email']) ?>"
                             data-role="<?= htmlspecialchars($u['role']) ?>"
-                            data-status="<?= htmlspecialchars($u['status']) ?>">
+                            data-status="<?= htmlspecialchars($u['status']) ?>"
+                            data-notes="<?= htmlspecialchars((string) ($u['notes'] ?? '')) ?>">
                             <td style="padding-left:1.2rem;">
                                 <div class="um-user-cell">
                                     <span class="um-avatar <?= $col ?>"><?= strtoupper(substr((string) ($u['name'] ?? '?'), 0, 1) ?: '?') ?></span>
