@@ -404,7 +404,20 @@ try {
     }
 
     logActivity('create', 'Created user ' . $username, 'user-management');
-    echo json_encode(['ok' => true, 'created' => true, 'id' => $newUserId]);
+    echo json_encode([
+        'ok' => true,
+        'created' => true,
+        'id' => $newUserId,
+        'user' => [
+            'id' => $newUserId,
+            'full_name' => $fullName,
+            'username' => $username,
+            'email' => $email,
+            'role' => $role,
+            'status' => $status,
+            'notes' => $notes,
+        ],
+    ]);
 } catch (PDOException $e) {
     error_log('save-user PDO: ' . $e->getMessage());
     http_response_code(400);

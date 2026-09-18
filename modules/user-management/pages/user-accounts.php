@@ -910,8 +910,45 @@ renderBreadcrumbs($breadcrumbs);
     function applySavedUserRow(form, user) {
         if (!user || !user.id) return;
         var row = findUserRow(user.id);
-        if (!row) return;
+        if (!row) {
+            insertNewUserRow(user, form);
+            return;
+        }
         paintUserRow(row, user, form);
+    }
+
+    function formatCreatedToday() {
+        var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        var d = new Date();
+        return months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+    }
+
+    function insertNewUserRow(user, form) {
+        var tbody = document.getElementById('umTableBody');
+        var template = document.querySelector('.um-user-row');
+        if (!tbody || !template || !user || !user.id) {
+            location.href = ACCOUNTS + '?created=1';
+            return;
+        }
+        var empty = tbody.querySelector('td.text-center');
+        if (empty && empty.parentElement) empty.parentElement.remove();
+
+        var row = template.cloneNode(true);
+        row.hidden = false;
+        row.setAttribute('data-uid', String(user.id));
+        row.querySelectorAll('[data-uid]').forEach(function (el) {
+            el.setAttribute('data-uid', String(user.id));
+            el.dataset.uid = String(user.id);
+        });
+        var lastLogin = row.children[4];
+        var created = row.children[5];
+        if (lastLogin) lastLogin.textContent = '—';
+        if (created) created.textContent = formatCreatedToday();
+        tbody.appendChild(row);
+        paintUserRow(row, user, form);
+        var totalEl = document.querySelector('.um-toolbar .ms-auto, .d-flex .ms-auto.text-muted');
+        var rows = document.querySelectorAll('.um-user-row');
+        if (totalEl) totalEl.textContent = rows.length + ' users';
     }
 
     function closeUserModal() {
@@ -968,19 +1005,16 @@ renderBreadcrumbs($breadcrumbs);
                 if (submitBtn) submitBtn.disabled = true;
                 postJson(payload).then(function (data) {
                     if (data && data.ok) {
-                        if (data.created) {
-                            location.href = ACCOUNTS + '?created=1';
-                            return;
-                        }
-                        applySavedUserRow(form, data.user || {
-                            id: payload.user_id,
+                        var savedUser = data.user || {
+                            id: data.id || payload.user_id,
                             full_name: payload.full_name,
                             username: payload.username,
                             email: payload.email,
                             role: payload.role,
                             status: payload.status,
                             notes: payload.notes || ''
-                        });
+                        };
+                        applySavedUserRow(form, savedUser);
                         form.dataset.umSaved = '1';
                         closeUserModal();
                         if (typeof umShowToast === 'function') {
