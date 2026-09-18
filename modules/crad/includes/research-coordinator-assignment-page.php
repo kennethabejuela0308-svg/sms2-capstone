@@ -1094,6 +1094,12 @@ function rcAssignmentPayload(string $kind): array
         rcAssignmentEnsureGroupCandidateRows($pdo, $groups);
         $rows = rcAssignmentEnrichRows(rcAssignmentRows($pdo, $kind));
         global $rcPageSlug;
+        if (($rcPageSlug ?? '') === 'assign-research-adviser') {
+            $groups = array_values(array_filter(
+                $groups,
+                static fn(array $group): bool => cradGroupHasActiveCoordinator($pdo, $group)
+            ));
+        }
         if (in_array(($rcPageSlug ?? ''), ['retrieve-approved-research', 'find-contact-adviser'], true)) {
             $groups = array_values(array_filter($groups, static fn(array $group): bool => (int) ($group['title_approval_id'] ?? 0) > 0));
         }
@@ -1160,32 +1166,27 @@ function rcAssignmentSave(PDO $pdo, string $kind, int $assignmentId, string $gro
     }
 
     $groupStmt = $pdo->prepare("
-        SELECT g.id, g.proposal_id, COALESCE(p.proposal_number, t.proposal_number, g.proposal_number) AS proposal_number, g.group_number
+        SELECT g.id, g.proposal_id, COALESCE(p.proposal_number, t.proposal_number, g.proposal_number) AS proposal_number,
+               g.group_number, g.leader_id, g.title_approval_id
         FROM research_groups g
         LEFT JOIN research_proposals p ON p.id = g.proposal_id
         LEFT JOIN title_approvals t ON t.id = g.title_approval_id
         WHERE g.group_number = :group_number
-          AND (
-                (p.id IS NOT NULL AND p.status = 'Approved' AND p.registration_status = 'Registered')
-             OR (
-                t.id IS NOT NULL
-                AND t.status = 'Approved'
-                AND t.coordinator_status = 'Approved'
-                AND t.crad_status = 'Approved'
-                AND t.adviser_signature_data IS NOT NULL
-                AND t.adviser_signature_data <> ''
-                AND t.coordinator_signature_data IS NOT NULL
-                AND t.coordinator_signature_data <> ''
-                AND t.crad_signature_data IS NOT NULL
-                AND t.crad_signature_data <> ''
-             )
-          )
         LIMIT 1
     ");
     $groupStmt->execute([':group_number' => $groupNumber]);
     $selectedGroup = $groupStmt->fetch();
     if (!$selectedGroup) {
         throw new RuntimeException('Selected research group is not available for assignment.');
+    }
+    if (!cradGroupHasActiveCoordinator($pdo, [
+        'id' => (int) ($selectedGroup['id'] ?? 0),
+        'research_group_id' => (int) ($selectedGroup['id'] ?? 0),
+        'group_number' => (string) ($selectedGroup['group_number'] ?? ''),
+        'leader_id' => (string) ($selectedGroup['leader_id'] ?? ''),
+        'student_id' => (string) ($selectedGroup['leader_id'] ?? ''),
+    ])) {
+        throw new RuntimeException('Assign a Research Coordinator from the Coordinator Roster first.');
     }
     rcAssignmentEnsureGroupCandidateRows($pdo, [[
         'research_group_id' => rcAssignmentNullableInt($selectedGroup['id'] ?? null),
@@ -1276,6 +1277,22 @@ function rcAssignmentSave(PDO $pdo, string $kind, int $assignmentId, string $gro
 
         if ($startedTransaction) {
             $pdo->commit();
+        }
+        $studentId = cradStudentIdFromAssignmentGroup(
+            (string) ($selectedGroup['group_number'] ?? ''),
+            [
+                'leader_id' => (string) ($selectedGroup['leader_id'] ?? ''),
+                'student_id' => (string) ($selectedGroup['leader_id'] ?? ''),
+            ]
+        );
+        if ($studentId !== '') {
+            try {
+                $pdo->prepare("UPDATE research_adviser_assignments SET student_id = :sid, updated_at = NOW() WHERE id = :id LIMIT 1")
+                    ->execute([':sid' => $studentId, ':id' => $assignmentId]);
+            } catch (Throwable $e) {
+                error_log('Adviser student_id stamp skipped: ' . $e->getMessage());
+            }
+            cradSyncTitleApprovalAssigneeNames($pdo, $studentId);
         }
     } catch (Throwable $e) {
         if ($startedTransaction && $pdo->inTransaction()) {
