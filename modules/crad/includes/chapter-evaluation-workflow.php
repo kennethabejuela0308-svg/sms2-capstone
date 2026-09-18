@@ -909,13 +909,13 @@ function chapterSubmitEvaluation(PDO $crad, array $submission, array $data): arr
         $stmt = $crad->prepare(
             "INSERT INTO chapter_evaluations
                 (submission_id, research_group_id, evaluator_user_id, evaluator_name,
-                 content_score, methodology_score, references_score, format_score,
-                 content_remarks, methodology_remarks, references_remarks, format_remarks,
+                 content_score, methodology_score, references_score, format_score, grammar_score,
+                 content_remarks, methodology_remarks, references_remarks, format_remarks, grammar_remarks,
                  overall_feedback, result, overall_score)
              VALUES
                 (:submission_id, :group_id, :evaluator_user_id, :evaluator_name,
-                 :content_score, :methodology_score, :references_score, :format_score,
-                 :content_remarks, :methodology_remarks, :references_remarks, :format_remarks,
+                 :content_score, :methodology_score, :references_score, :format_score, :grammar_score,
+                 :content_remarks, :methodology_remarks, :references_remarks, :format_remarks, :grammar_remarks,
                  :overall_feedback, :result, :overall_score)"
         );
         $stmt->execute([
@@ -927,10 +927,12 @@ function chapterSubmitEvaluation(PDO $crad, array $submission, array $data): arr
             ':methodology_score' => $scores['methodology_score'],
             ':references_score' => $scores['references_score'],
             ':format_score' => $scores['format_score'],
+            ':grammar_score' => $scores['grammar_score'],
             ':content_remarks' => trim((string) ($data['content_remarks'] ?? '')),
             ':methodology_remarks' => trim((string) ($data['methodology_remarks'] ?? '')),
             ':references_remarks' => trim((string) ($data['references_remarks'] ?? '')),
             ':format_remarks' => trim((string) ($data['format_remarks'] ?? '')),
+            ':grammar_remarks' => trim((string) ($data['grammar_remarks'] ?? '')),
             ':overall_feedback' => trim((string) ($data['overall_feedback'] ?? '')),
             ':result' => $result,
             ':overall_score' => $overall,
