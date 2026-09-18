@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Sep 18, 2026 at 07:16 PM
+-- Generation Time: Sep 18, 2026 at 07:27 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -2484,7 +2484,16 @@ INSERT INTO `activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`,
 (2447, 1420, 'Jonathan Kuminga', 'department_head', 'logout', 'crad', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36', '2026-09-19 01:09:54'),
 (2448, 758, 'Admin', 'sms_admin', 'login', 'enrollment', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36', '2026-09-19 01:10:10'),
 (2449, 758, 'Admin', 'sms_admin', 'logout', 'enrollment', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36', '2026-09-19 01:12:59'),
-(2450, 1420, 'Department Head', 'department_head', 'login', 'crad', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36', '2026-09-19 01:13:12');
+(2450, 1420, 'Department Head', 'department_head', 'login', 'crad', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36', '2026-09-19 01:13:12'),
+(2451, 1420, 'Department Head', 'department_head', 'logout', 'crad', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36', '2026-09-19 01:16:49'),
+(2452, 3, 'CRAD Officer', 'crad_officer', 'login', 'crad', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36', '2026-09-19 01:16:56'),
+(2453, 3, 'CRAD Officer', 'crad_officer', 'logout', 'crad', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36', '2026-09-19 01:20:17'),
+(2454, 758, 'Admin', 'sms_admin', 'login', 'enrollment', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36', '2026-09-19 01:20:24'),
+(2455, 1, 'Super Admin', 'superadmin', 'password_reset', 'user-management', 'Updated user and password for depthead', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36', '2026-09-19 01:22:50'),
+(2456, 758, 'Admin', 'sms_admin', 'logout', 'enrollment', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36', '2026-09-19 01:22:59'),
+(2457, 1420, 'Department Head', 'department_head', 'login', 'crad', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36', '2026-09-19 01:23:04'),
+(2458, 1, 'Super Admin', 'superadmin', 'password_reset', 'user-management', 'Updated user and password for reviewcommittee', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36', '2026-09-19 01:26:53'),
+(2459, 1, 'Super Admin', 'superadmin', 'password_reset', 'user-management', 'Updated user and password for depthead', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36', '2026-09-19 01:27:09');
 
 -- --------------------------------------------------------
 
@@ -2824,9 +2833,9 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `username`, `email`, `password_hash`, `full_name`, `role_key`, `student_id`, `status`, `must_change_password`, `failed_login_attempts`, `locked_until`, `password_changed_at`, `last_login_at`, `last_seen_at`, `last_login_ip`, `notes`, `created_at`, `updated_at`) VALUES
-(1, 'superadmin', 'superadmin@bestlink.edu.ph', '$2y$10$a4NaRWDw7.1Jt2ps9MNI.uodIEoJfOZGqRflwoapW9OtP8e7SKAoC', 'Super Admin', 'superadmin', NULL, 'active', 0, 0, NULL, '2026-08-31 10:56:14', '2026-09-19 00:51:17', '2026-09-19 01:16:06', '::1', NULL, '2026-07-22 22:53:59', '2026-09-19 01:16:06'),
+(1, 'superadmin', 'superadmin@bestlink.edu.ph', '$2y$10$a4NaRWDw7.1Jt2ps9MNI.uodIEoJfOZGqRflwoapW9OtP8e7SKAoC', 'Super Admin', 'superadmin', NULL, 'active', 0, 0, NULL, '2026-08-31 10:56:14', '2026-09-19 00:51:17', '2026-09-19 01:27:09', '::1', NULL, '2026-07-22 22:53:59', '2026-09-19 01:27:09'),
 (2, 'registrar', 'registrar@bestlink.edu.ph', '$2y$10$/HmOuAP54dAuUkNOyNJo/e2GwrAszJqpF0sQmGvjofAtM/.6tcp.m', 'Registrar', 'registrar', NULL, 'active', 0, 0, NULL, '2026-08-31 07:50:19', '2026-08-08 22:06:54', NULL, '::1', NULL, '2026-07-22 22:53:59', '2026-08-31 10:23:26'),
-(3, 'cradofficer', 'cradofficer@bestlink.ph', '$2y$10$IpnqwpL9JnMUhHbSOgfxJ.4ra3ccLSYj/jBiRdE5ZcdxVliR2HA3K', 'CRAD Officer', 'crad_officer', NULL, 'active', 0, 0, NULL, '2026-08-31 10:56:14', '2026-09-19 00:50:16', NULL, '::1', 'sdada', '2026-07-22 22:53:59', '2026-09-19 00:51:10'),
+(3, 'cradofficer', 'cradofficer@bestlink.ph', '$2y$10$IpnqwpL9JnMUhHbSOgfxJ.4ra3ccLSYj/jBiRdE5ZcdxVliR2HA3K', 'CRAD Officer', 'crad_officer', NULL, 'active', 0, 0, NULL, '2026-08-31 10:56:14', '2026-09-19 01:16:56', NULL, '::1', 'sdada', '2026-07-22 22:53:59', '2026-09-19 01:20:17'),
 (4, 'finance', 'finance@bestlink.edu.ph', '$2y$10$DRoqe4euabvGssHKV0nAoeRBxT4pkP1yVa2NIiND4LYfUJq7VKVRe', 'Finance', 'finance', NULL, 'active', 0, 0, NULL, '2026-08-31 12:10:16', '2026-09-18 03:30:16', NULL, '::1', NULL, '2026-07-22 22:54:00', '2026-09-18 03:31:00'),
 (5, 'studentaffairs', 'studentaffairs@bestlink.edu.ph', '$2y$10$ykS9zsSeg8ESbJDrnyaixuRg.OYKWUljfEzgDhwBWsn4MYjdRR9O2', 'Student Affairs', 'osa', NULL, 'active', 0, 0, NULL, '2026-08-31 07:50:19', NULL, NULL, NULL, NULL, '2026-07-22 22:54:00', '2026-08-31 10:23:26'),
 (6, 'itofficer', 'itofficer@bestlink.edu.ph', '$2y$10$h1GQBrr0K5SM8whZCT2QxOmvpIN2aPKslctCSX3VMflxoiHVIdWGC', 'IT Officer', 'it_office', NULL, 'active', 0, 0, NULL, '2026-08-31 07:50:19', NULL, NULL, NULL, NULL, '2026-07-22 22:54:00', '2026-08-31 10:23:26'),
@@ -2840,13 +2849,13 @@ INSERT INTO `users` (`id`, `username`, `email`, `password_hash`, `full_name`, `r
 (491, 'jobertvalentino', 'jobertvalentino@bestlink.edu.ph', '$2y$10$ouhKTKDlt29J1UyCrPm9r.I31sv6i4DE/r.mKPbhwK7TVtuxqS0Fm', 'Dr. Jobert Valentino', 'panel', NULL, 'active', 0, 0, NULL, '2026-08-31 10:56:13', '2026-08-31 10:56:56', NULL, '::1', NULL, '2026-08-15 17:07:16', '2026-08-31 10:57:01'),
 (492, 'jonathanestrada', 'jonathanestrada@bestlink.edu.ph', '$2y$10$dQsnxqrSSWWl2gr3YgFqOuFgS4Z18E1MHOqAh51hhhL3mLFgbnAbS', 'Dr. Jonathan Estrada', 'panel', NULL, 'active', 0, 0, NULL, '2026-08-31 10:56:13', '2026-08-31 06:28:19', NULL, '::1', NULL, '2026-08-15 17:07:16', '2026-08-31 10:56:13'),
 (493, 'michelleguevarra', 'michelleguevarra@bestlink.edu.ph', '$2y$10$YGhw2uzbxt6ENl46DQ8LkekrJ7Rd5o.mUy/TbNBg/bUUqFD5rfRym', 'Dr. Michelle Guevarra', 'panel', NULL, 'active', 0, 0, NULL, '2026-08-31 10:56:13', '2026-08-31 06:31:20', NULL, '::1', NULL, '2026-08-15 17:07:16', '2026-08-31 10:56:13'),
-(758, 'admin', 'admin@bestlink.edu.ph', '$2y$10$tp4erfR2R.kVZpYvgBbp4OVBp9IGhXkTYRloEU4IWGYG7QbNeMD4q', 'Admin', 'sms_admin', NULL, 'active', 0, 0, NULL, '2026-09-18 22:08:20', '2026-09-19 01:10:09', NULL, '::1', NULL, '2026-08-18 00:38:50', '2026-09-19 01:12:59'),
-(766, 'reviewcommittee', 'reviewcommittee@bestlink.edu.ph', '$2y$10$quv4LRJQBStoG8LB1nJnruGxrxLv5B/.Xk5AFOKpp1mfWUKGGbR4e', 'Review Committee Member', 'review_committee', NULL, 'active', 0, 0, NULL, '2026-09-17 04:54:19', '2026-09-18 03:26:36', NULL, '::1', NULL, '2026-08-31 07:04:36', '2026-09-18 03:26:50'),
+(758, 'admin', 'admin@bestlink.edu.ph', '$2y$10$tp4erfR2R.kVZpYvgBbp4OVBp9IGhXkTYRloEU4IWGYG7QbNeMD4q', 'Admin', 'sms_admin', NULL, 'active', 0, 0, NULL, '2026-09-18 22:08:20', '2026-09-19 01:20:24', NULL, '::1', NULL, '2026-08-18 00:38:50', '2026-09-19 01:22:59'),
+(766, 'reviewcommittee', 'reviewcommittee@bestlink.edu.ph', '$2y$10$6iOIYjb89i9ErroqSX/u9ur7qyw2u8zausvK16nSPHkRotXFek8Ne', 'Review Committee', 'review_committee', NULL, 'active', 0, 0, NULL, '2026-09-19 01:26:53', '2026-09-18 03:26:36', NULL, '::1', NULL, '2026-08-31 07:04:36', '2026-09-19 01:26:53'),
 (990, 'deptchair', 'deptchair@bestlink.edu.ph', '$2y$10$..8x.zJiNd8J7Nt.ayYpSO4n0okueUM9YcV0KErvmqbS6LcfHi4h6', 'Dr. Joseph Alcantara', 'department_chair', NULL, 'active', 0, 0, NULL, '2026-08-31 10:56:14', '2026-09-18 03:28:07', NULL, '::1', NULL, '2026-08-31 10:19:39', '2026-09-19 00:44:18'),
 (991, 'researchoffice', 'researchoffice@bestlink.edu.ph', '$2y$10$Yjc6RQ6xI9hfWhDi5L6X..mXC3B3DE2r1H0xwSvqeyaQlw.tkuzVu', 'Research Office', 'research_office', NULL, 'active', 0, 0, NULL, '2026-08-31 10:56:14', '2026-09-18 03:29:13', NULL, '::1', NULL, '2026-08-31 10:19:39', '2026-09-18 03:29:38'),
 (992, 'vpaa', 'vpaa@bestlink.edu.ph', '$2y$10$aBDCU/R1ICzX.oy1SOwT6.pnhhRxRKI4fXGBMM0Wm1mUOPgc/Ae5W', 'VPAA', 'vpaa', NULL, 'active', 0, 0, NULL, '2026-08-31 10:56:14', '2026-09-18 03:29:44', NULL, '::1', NULL, '2026-08-31 10:19:39', '2026-09-18 03:30:09'),
 (1354, 's230106713', 'kennethabejuela@yahoo.com', '$2y$10$hlVtDsX6ruX3NjLwkUeRA.Fel8OfC3MQ3p0Nvz93.tAu3COgbW.Cm', 'John Kenneth Abejuela', 'student', 'S230106713', 'active', 0, 0, NULL, '2026-09-18 21:37:23', '2026-09-18 22:53:56', NULL, '::1', NULL, '2026-09-18 21:37:23', '2026-09-19 00:51:36'),
-(1420, 'depthead', 'depthead@bestlink.edu.ph', '$2y$10$Au3gqUnGLrVvPba5KCO80uqsE7BOBIR74LyTLxc0Lhv9uaKP3oOzu', 'Department Head', 'department_head', NULL, 'active', 0, 0, NULL, '2026-09-19 01:08:19', '2026-09-19 01:13:12', '2026-09-19 01:15:54', '::1', NULL, '2026-09-19 01:01:39', '2026-09-19 01:15:54');
+(1420, 'depthead', 'depthead@bestlink.edu.ph', '$2y$10$YzKfWRJjdgH7RWtPzle5cest5VbF9VizUzo8O4wGGgbg.OFMvJxSu', 'Jonathan Kuminga', 'department_head', NULL, 'active', 0, 0, NULL, '2026-09-19 01:27:09', '2026-09-19 01:23:04', '2026-09-19 01:26:50', '::1', NULL, '2026-09-19 01:01:39', '2026-09-19 01:27:09');
 
 -- --------------------------------------------------------
 
@@ -2995,7 +3004,7 @@ ALTER TABLE `user_passkeys`
 -- AUTO_INCREMENT for table `activity_logs`
 --
 ALTER TABLE `activity_logs`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2451;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2460;
 
 --
 -- AUTO_INCREMENT for table `admin_announcements`
@@ -3019,13 +3028,13 @@ ALTER TABLE `password_reset_requests`
 -- AUTO_INCREMENT for table `roles`
 --
 ALTER TABLE `roles`
-  MODIFY `id` smallint(5) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1744;
+  MODIFY `id` smallint(5) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1842;
 
 --
 -- AUTO_INCREMENT for table `role_permissions`
 --
 ALTER TABLE `role_permissions`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2023;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2156;
 
 --
 -- AUTO_INCREMENT for table `security_otps`
@@ -3043,7 +3052,7 @@ ALTER TABLE `student_profiles`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1454;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1510;
 
 --
 -- AUTO_INCREMENT for table `user_authenticators`
