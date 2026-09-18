@@ -45,6 +45,14 @@ $pageBannerDescription = 'Official registry of research groups and their members
 require_once __DIR__ . '/../../../includes/breadcrumbs.php';
 
 $pdo = getCradDatabaseConnection();
+if (!function_exists('cradEnsureAssigneeSchema')) {
+    require_once __DIR__ . '/../includes/title-approval-assignees.php';
+}
+try {
+    cradEnsureAssigneeSchema($pdo);
+} catch (Throwable $e) {
+    error_log('Capstone registry schema ensure skipped: ' . $e->getMessage());
+}
 
 /**
  * Returns generated research groups for the official registry.
