@@ -24,7 +24,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'publish') {
             $result = smsAnnouncementPublish(
                 (string) ($_POST['title'] ?? ''),
-                (string) ($_POST['body'] ?? '')
+                (string) ($_POST['body'] ?? ''),
+                isset($_FILES['image']) && is_array($_FILES['image']) ? $_FILES['image'] : null
             );
             if (!empty($result['ok'])) {
                 $_SESSION['flash_admin_success'] = 'Announcement published. Students will see it on their dashboard.';
@@ -101,7 +102,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                         </div>
                     </div>
                 </div>
-                <form method="post" autocomplete="off">
+                <form method="post" autocomplete="off" enctype="multipart/form-data">
                     <?= csrfField() ?>
                     <input type="hidden" name="action" value="publish">
                     <div class="mb-3">
@@ -111,6 +112,12 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                     <div class="mb-3">
                         <label class="form-label fw-semibold" for="annBody">Message</label>
                         <textarea class="form-control" id="annBody" name="body" rows="6" maxlength="4000" required placeholder="Write the announcement students should read."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="annImage">PNG image</label>
+                        <input type="file" class="form-control" id="annImage" name="image" accept="image/png,.png">
+                        <div class="form-text">Optional. Students will see this picture with the announcement.</div>
+                        <img id="annImagePreview" class="sms-ann-image mt-2" alt="PNG preview" hidden>
                     </div>
                     <button type="submit" class="btn btn-sms-primary">
                         <?= smsIcon('send', ['class' => 'me-1']) ?>Publish to students
@@ -137,8 +144,12 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                         <p class="text-muted small mb-0">No published announcements yet.</p>
                     <?php else: ?>
                         <?php foreach ($published as $row): ?>
+                            <?php $imageUrl = smsAnnouncementImageUrl((int) $row['id'], (string) ($row['image_path'] ?? '')); ?>
                             <article class="sms-ann-item">
                                 <h3><?= e((string) $row['title']) ?></h3>
+                                <?php if ($imageUrl !== ''): ?>
+                                    <img class="sms-ann-image" src="<?= e($imageUrl) ?>" alt="">
+                                <?php endif; ?>
                                 <p><?= nl2br(e((string) $row['body'])) ?></p>
                                 <small><?= e((string) ($row['created_by_name'] ?: 'Admin')) ?> · <?= e((string) ($row['published_label'] ?: $row['updated_label'])) ?></small>
                             </article>
@@ -208,6 +219,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
 .sms-ann-item h3 { font-size: .92rem; font-weight: 750; margin: 0; color: var(--sms-heading); }
 .sms-ann-item p { margin: .35rem 0 .4rem; font-size: .82rem; color: var(--sms-text); white-space: pre-wrap; }
 .sms-ann-item small { color: var(--sms-text-muted); font-size: .72rem; }
+.sms-ann-image { display: block; width: 100%; max-height: 320px; object-fit: contain; border-radius: 10px; margin: .55rem 0; background: var(--sms-surface-muted, #f8fafc); }
 .um-live-badge { display: inline-flex; align-items: center; gap: .4rem; padding: .22rem .65rem; border-radius: 999px; background: rgba(16,185,129,.12); border: 1px solid rgba(16,185,129,.3); font-size: .72rem; font-weight: 700; color: #10b981; }
 .um-live-badge.is-stale { background: rgba(245,158,11,.12); border-color: rgba(245,158,11,.3); color: #d97706; }
 .um-live-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; position: relative; }
@@ -239,7 +251,10 @@ require_once ROOT_PATH . '/includes/layout-start.php';
             return;
         }
         publishedBox.innerHTML = rows.map(function (row) {
-            return '<article class="sms-ann-item"><h3>' + esc(row.title) + '</h3><p>' + esc(row.body).replace(/\n/g, '<br>') + '</p><small>' + esc(row.posted_by) + ' · ' + esc(row.posted_at) + '</small></article>';
+            var image = row.image_url
+                ? '<img class="sms-ann-image" src="' + esc(row.image_url) + '" alt="">'
+                : '';
+            return '<article class="sms-ann-item"><h3>' + esc(row.title) + '</h3>' + image + '<p>' + esc(row.body).replace(/\n/g, '<br>') + '</p><small>' + esc(row.posted_by) + ' · ' + esc(row.posted_at) + '</small></article>';
         }).join('');
     }
     function poll() {
@@ -260,6 +275,31 @@ require_once ROOT_PATH . '/includes/layout-start.php';
     poll();
     setInterval(poll, 3000);
     document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
+
+    var imageInput = document.getElementById('annImage');
+    var imagePreview = document.getElementById('annImagePreview');
+    if (imageInput && imagePreview) {
+        imageInput.addEventListener('change', function () {
+            var file = imageInput.files && imageInput.files[0];
+            if (!file) {
+                imagePreview.hidden = true;
+                imagePreview.removeAttribute('src');
+                return;
+            }
+            if (file.type !== 'image/png') {
+                imagePreview.hidden = true;
+                imageInput.value = '';
+                alert('Please choose a PNG image.');
+                return;
+            }
+            var reader = new FileReader();
+            reader.onload = function () {
+                imagePreview.src = String(reader.result || '');
+                imagePreview.hidden = false;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
 })();
 </script>
 
