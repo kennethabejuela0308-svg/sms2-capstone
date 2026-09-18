@@ -2199,18 +2199,15 @@ renderBreadcrumbs($breadcrumbs);
             .sort((a, b) => Number(b.match_score || 0) - Number(a.match_score || 0));
 
         if (!group) {
-            topic.textContent = 'No approved research group yet';
-            required.textContent = 'Approved and registered proposals will appear here automatically.';
-            matchList.innerHTML = '';
-            if (matchCount) matchCount.textContent = '0';
-            matchEmpty.hidden = false;
-            return;
+            topic.textContent = 'Adviser accounts from User Management';
+            required.textContent = 'Users with the Adviser role appear here in real time.';
+        } else {
+            topic.textContent = group.research_title || 'Untitled research';
+            required.textContent = mode === 'availability'
+                ? `Availability check: ${group.group_number || group.proposal_number || 'Approved group'}`
+                : `Required Expertise: ${group.required_expertise || 'General Research Methods'}`;
         }
 
-        topic.textContent = group.research_title || 'Untitled research';
-        required.textContent = mode === 'availability'
-            ? `Availability check: ${group.group_number || group.proposal_number || 'Approved group'}`
-            : `Required Expertise: ${group.required_expertise || 'General Research Methods'}`;
         matchList.innerHTML = matchesForGroup.map((row) => {
             const email = String(row.assignee_email || '').trim();
             const sourceNote = directMatches.length ? '' : '<div class="rcas-muted">Recommended from assignment database</div>';
