@@ -319,6 +319,31 @@ function requireAdminAccountSettings(): void
     }
 }
 
+function smsRemoveModuleNavSlug(array $module, string $slug): array
+{
+    if (!empty($module['groups']) && is_array($module['groups'])) {
+        foreach ($module['groups'] as $groupLabel => $slugs) {
+            $filtered = array_values(array_filter(
+                (array) $slugs,
+                static fn($item): bool => (string) $item !== $slug
+            ));
+            if ($filtered === []) {
+                unset($module['groups'][$groupLabel]);
+            } else {
+                $module['groups'][$groupLabel] = $filtered;
+            }
+        }
+    }
+    if (!empty($module['pages']) && is_array($module['pages'])) {
+        $module['pages'] = array_values(array_filter(
+            $module['pages'],
+            static fn(array $page): bool => ($page['slug'] ?? '') !== $slug
+        ));
+    }
+
+    return $module;
+}
+
 function getVisibleModules(array $modules): array
 {
     $allowedModules = getAllowedModuleKeys();
