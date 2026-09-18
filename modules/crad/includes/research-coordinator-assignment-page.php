@@ -2383,7 +2383,7 @@ renderBreadcrumbs($breadcrumbs);
             .filter((row) => matches(row, processTerm) && statusMatches(row, processStatus));
         const usingSelectedGroupRows = mode !== 'contact' && directMatches.length > 0;
         const seenAssignees = {};
-        const matchesForGroup = sourceRows
+        sourceRows
             .map((row) => ({
                 ...row,
                 expertise_fit_score: expertiseFitScore(row, group),
@@ -2396,19 +2396,14 @@ renderBreadcrumbs($breadcrumbs);
                 if (bAssigned !== aAssigned) return bAssigned - aAssigned;
                 return Number(b.match_score || 0) - Number(a.match_score || 0);
             })
-            .filter((row) => {
+            .forEach((row) => {
                 const key = `${row.assignment_kind || ''}|${row.assignee_name || ''}|${row.assignee_email || ''}`.toLowerCase();
                 const current = seenAssignees[key];
-                if (!current) {
+                if (!current || (isRowAssigned(row, group) && !isRowAssigned(current, group))) {
                     seenAssignees[key] = row;
-                    return true;
                 }
-                if (isRowAssigned(row, group) && !isRowAssigned(current, group)) {
-                    seenAssignees[key] = row;
-                    return true;
-                }
-                return false;
             });
+        const matchesForGroup = Object.values(seenAssignees);
 
         if (!group) {
             topic.textContent = 'Adviser accounts from User Management';
