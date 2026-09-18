@@ -369,8 +369,7 @@
         initActivityLogsLive(applyLog, {
             actionFilter: actionFilter,
             moduleFilter: moduleFilter,
-            tableBody: tableBody,
-            emptyFilter: emptyFilter
+            tableBody: tableBody
         });
     }
 
@@ -490,7 +489,6 @@
                 html = '<tr class="admin-log-empty"><td colspan="7" class="text-center text-muted py-4">No activity logs yet.</td></tr>' + html;
             }
             tableBody.innerHTML = html;
-            refs.emptyFilter = tableBody.querySelector('.admin-log-empty-filter');
             latestId = incomingId;
             table.setAttribute('data-latest-id', String(latestId));
             applyLog();
