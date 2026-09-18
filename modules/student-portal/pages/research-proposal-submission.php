@@ -966,7 +966,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
 /* Below-sheet button row */
 .crad-below-sheet {
     width: 210mm; max-width: 100%; margin: 0 auto;
-    display: flex; justify-content: flex-end;
+    display: flex; flex-direction: column; align-items: flex-end;
     padding: 0.85rem 0 0;
 }
 .crad-returned-note {
