@@ -181,6 +181,7 @@ function smsDefaultModulesForRole(string $roleKey): array
         'registrar'    => ['registrar', 'curriculum', 'scheduling'],
         'crad_officer' => ['crad'],
         'research_coordinator' => ['crad'],
+        'department_head' => ['crad'],
         'department_chair' => ['crad'],
         'research_office' => ['crad'],
         'research_grant' => ['crad_grant'],
@@ -489,7 +490,62 @@ function smsCanManageCoordinatorAssignments(?string $roleKey = null): bool
 {
     $roleKey = $roleKey ?? getCurrentUserRoleKey();
 
-    return smsIsGrantedAdminRole($roleKey) || $roleKey === 'research_coordinator';
+    return smsIsGrantedAdminRole($roleKey)
+        || $roleKey === 'research_coordinator'
+        || $roleKey === 'department_head';
+}
+
+function smsDepartmentHeadWorkflowPaths(): array
+{
+    return [
+        '/account/module-security.php',
+        '/account/security.php',
+        '/modules/crad/pages/retrieve-approved-research.php',
+        '/modules/crad/pages/find-contact-adviser.php',
+        '/modules/crad/pages/adviser-availability.php',
+        '/modules/crad/pages/assign-research-adviser.php',
+        '/modules/crad/pages/retrieve-defense-ready-research.php',
+        '/modules/crad/pages/select-panel-members.php',
+        '/modules/crad/pages/check-panel-availability.php',
+        '/modules/crad/pages/assign-panel-members.php',
+        '/modules/crad/pages/manage-assignments.php',
+        '/modules/crad/pages/send-notifications.php',
+    ];
+}
+
+function smsDepartmentHeadCradModule(): array
+{
+    return [
+        'label' => 'Research Management',
+        'icon'  => 'fa-flask',
+        'hide_overview' => true,
+        'groups' => [
+            'A. Adviser Assignment' => [
+                'retrieve-approved-research',
+                'find-contact-adviser',
+                'adviser-availability',
+                'assign-research-adviser',
+                'manage-assignments',
+            ],
+            'B. Panel Assignment' => [
+                'retrieve-defense-ready-research',
+                'select-panel-members',
+                'check-panel-availability',
+                'assign-panel-members',
+            ],
+        ],
+        'pages' => [
+            ['slug' => 'retrieve-approved-research', 'title' => 'Retrieve Approved Research'],
+            ['slug' => 'find-contact-adviser', 'title' => 'Find/Contact Adviser'],
+            ['slug' => 'adviser-availability', 'title' => 'Check Adviser Availability'],
+            ['slug' => 'assign-research-adviser', 'title' => 'Assign Research Adviser'],
+            ['slug' => 'manage-assignments', 'title' => 'View/Manage Adviser Assignments'],
+            ['slug' => 'retrieve-defense-ready-research', 'title' => 'Retrieve Defense-Ready Research'],
+            ['slug' => 'select-panel-members', 'title' => 'Select Panel Members'],
+            ['slug' => 'check-panel-availability', 'title' => 'Check Panel Availability'],
+            ['slug' => 'assign-panel-members', 'title' => 'Assign Panel Members'],
+        ],
+    ];
 }
 
 function smsCanManageDefenseScheduling(?string $roleKey = null): bool
@@ -512,6 +568,10 @@ function getVisibleModules(array $modules): array
         $visible['crad'] = smsResearchCoordinatorCradModule();
     }
 
+    if (getCurrentUserRoleKey() === 'department_head') {
+        $visible['crad'] = smsDepartmentHeadCradModule();
+    }
+
     if (getCurrentUserRoleKey() === 'department_chair' && isset($visible['crad'])) {
         unset($visible['crad']);
     }
@@ -529,10 +589,7 @@ function getVisibleModules(array $modules): array
     }
 
     if (smsIsGrantedAdminRole(getCurrentUserRoleKey())) {
-        $assignmentNav = smsMergeModuleNav(
-            smsAdminCoordinatorAssignmentNav(),
-            smsAdminDefenseSchedulingNav()
-        );
+        $assignmentNav = smsAdminDefenseSchedulingNav();
         if (!isset($visible['crad'])) {
             $visible['crad'] = smsMergeModuleNav([
                 'label' => 'CRAD',
@@ -666,6 +723,20 @@ function requireModuleAccess(string $moduleKey): void
     ) {
         header('Location: ' . BASE_URL . '/account/module-unavailable.php?module=' . rawurlencode($key));
         exit;
+    }
+
+    if ($key === 'crad' && getCurrentUserRoleKey() === 'department_head') {
+        $isAllowedDepartmentHeadPage = false;
+        foreach (smsDepartmentHeadWorkflowPaths() as $allowedPath) {
+            if (str_ends_with($scriptPath, $allowedPath)) {
+                $isAllowedDepartmentHeadPage = true;
+                break;
+            }
+        }
+        if (!$isAllowedDepartmentHeadPage) {
+            header('Location: ' . BASE_URL . '/modules/crad/pages/retrieve-approved-research.php');
+            exit;
+        }
     }
 
     if ($key === 'crad' && getCurrentUserRoleKey() === 'research_coordinator') {
