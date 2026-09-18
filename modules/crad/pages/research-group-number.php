@@ -274,6 +274,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['process'] ?? '') === 'gen
 
             $cradPdo->commit();
 
+            try {
+                cradEnsureAssigneeSchema($cradPdo);
+                $officialId = (int) ($cradPdo->query(
+                    'SELECT id FROM research_groups WHERE title_approval_id = ' . (int) $approval['id'] . ' LIMIT 1'
+                )->fetchColumn() ?: 0);
+                cradMigrateStudentAssignmentsToOfficialGroup($cradPdo, (string) ($approval['student_id'] ?? ''), [
+                    'id' => $officialId,
+                    'group_number' => $groupNumber,
+                    'title_approval_id' => (int) $approval['id'],
+                ]);
+            } catch (Throwable $e) {
+                error_log('Title approval group assignment migrate skipped: ' . $e->getMessage());
+            }
+
             if (function_exists('logActivity')) {
                 logActivity('create', 'Generated title approval research group number: ' . $groupNumber, 'crad');
             }
