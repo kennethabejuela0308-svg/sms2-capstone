@@ -17,7 +17,7 @@ $directorPages = [
     'defense-scheduling-queue' => ['title' => 'Defense Scheduling Queue', 'group' => 'Defense Management', 'icon' => 'fa-list-alt'],
     'verify-research-defense' => ['title' => 'Verify Research for Defense', 'group' => 'Defense Management', 'icon' => 'fa-check-double'],
     'defense-schedule' => ['title' => 'Defense Schedule', 'group' => 'Defense Management', 'icon' => 'fa-calendar-check'],
-    'manual-scheduling-optimizer' => ['title' => 'Manual Scheduling Optimizer', 'group' => 'Manual Scheduling', 'icon' => 'fa-calendar-check'],
+    'manual-scheduling-optimizer' => ['title' => 'AI Scheduling Optimizer', 'group' => 'Manual Scheduling', 'icon' => 'fa-calendar-check'],
     'proposed-schedules' => ['title' => 'Proposed Schedules', 'group' => 'Manual Scheduling', 'icon' => 'fa-calendar-plus'],
     'alternative-time-slots' => ['title' => 'Alternative Time Slots', 'group' => 'Manual Scheduling', 'icon' => 'fa-clock'],
     'calendar' => ['title' => 'Calendar', 'group' => 'Schedule Management', 'icon' => 'fa-calendar-alt'],
@@ -2386,7 +2386,7 @@ renderBreadcrumbs($breadcrumbs);
 <?php if ($isSchedulerView): ?>
     <section class="director-scheduler">
         <div class="director-scheduler__head">
-            <h2><?= $view === 'alternative-time-slots' ? 'Add Alternative Time Slot' : ($requestedDefenseType === CRAD_DEFENSE_TYPE_FINAL ? 'Final Defense Manual Scheduling Optimizer' : 'Manual Scheduling Optimizer') ?></h2>
+            <h2><?= $view === 'alternative-time-slots' ? 'Add Alternative Time Slot' : ($requestedDefenseType === CRAD_DEFENSE_TYPE_FINAL ? 'Final Defense AI Scheduling Optimizer' : 'AI Scheduling Optimizer') ?></h2>
             <p><?= $selectedReadyGroup ? 'Create proposed ' . htmlspecialchars($defenseTypeLabel) . ' slots from current database records.' : 'Select a defense-ready research before creating a ' . htmlspecialchars($defenseTypeLabel) . ' schedule.' ?></p>
         </div>
         <?php if (!$hasExplicitGroupSelection): ?>
