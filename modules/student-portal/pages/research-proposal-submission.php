@@ -1693,7 +1693,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
         card.innerHTML =
             '<h3><span>' + n + '</span> Group Member Profile</h3>' +
             '<div class="crad-field-row crad-field-row-3">' +
-            '  <div class="crad-field"><label>Full Name (Last, First, M.I.) <span>*</span></label><input type="text" name="member_name[]" required></div>' +
+            '  <div class="crad-field"><label>Full Name (Last, First, M.I.) <span>*</span></label><input type="text" name="member_name[]" placeholder="Abejuela, John Kenneth C." required></div>' +
             '  <div class="crad-field"><label>Section <span>*</span></label><input type="text" name="member_section[]" required></div>' +
             '  <div class="crad-field"><label>Research Forum Receipt OR</label><input type="text" name="member_or[]" value="' + generateOrNumber() + '" readonly class="crad-or-field" data-auto-or></div>' +
             '</div>';
