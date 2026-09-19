@@ -538,6 +538,20 @@ function rscEnsureForReadyGroup(PDO $crad, int $groupId): ?array
     ];
 
     $or = rscResolveGroupOrNumber($groupId, (string) ($ctx['group_number'] ?? ''), $members);
+    $payment = rscApprovedPayment($crad, $groupId);
+    if ($payment) {
+        $payOr = trim((string) ($payment['or_number'] ?? ''));
+        if ($payOr !== '') {
+            $or = $payOr;
+            foreach ($members as &$member) {
+                if (is_array($member)) {
+                    $member['or_number'] = $payOr;
+                }
+            }
+            unset($member);
+            $payload['members_json'] = json_encode($members, JSON_UNESCAPED_UNICODE);
+        }
+    }
     $payload['or_number'] = $or;
 
     if (!$existing) {

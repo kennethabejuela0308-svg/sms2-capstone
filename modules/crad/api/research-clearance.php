@@ -130,7 +130,9 @@ try {
 
     if ($role === 'student') {
         $group = chapterRegisteredStudentGroup($crad);
-        if ($group && rscIsChapterReady($crad, (int) $group['id'])) {
+        $paymentOk = $group ? rscPaymentUnlocksClearance($crad, (int) $group['id']) : false;
+        $payload['payment_approved'] = $paymentOk;
+        if ($group && rscIsChapterReady($crad, (int) $group['id']) && $paymentOk) {
             $row = rscEnsureForReadyGroup($crad, (int) $group['id']);
             $payload['ready'] = true;
             $payload['clearance'] = $row ? rscPublicRow($row) : null;
