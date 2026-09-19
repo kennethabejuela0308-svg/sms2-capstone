@@ -1183,7 +1183,7 @@ function rscRenderFormHtml(array $row, bool $duplicate = true): string
             . 'Grammarian: <strong>' . $e($row['grammarian_name'] ?? '') . '</strong><br>'
             . 'Statistician / Technical Adviser: <strong>' . $e(trim((string) ($row['adviser_name'] ?? $row['statistician_name'] ?? ''))) . '</strong></td>'
             . '<td>CRAD: ' . $e($row['crad_name'] ?? '') . $cradImg . '</td>'
-            . '<td>' . $e($cradDate) . '</td></tr>'
+            . '<td>' . $cradDate . '</td></tr>'
             . '</tbody></table></div>';
     };
 
