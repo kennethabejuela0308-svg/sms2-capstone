@@ -31,7 +31,7 @@ $public = $row ? rscPublicRow($row) : null;
 require_once ROOT_PATH . '/includes/layout-start.php';
 renderBreadcrumbs($breadcrumbs);
 ?>
-<link rel="stylesheet" href="<?= BASE_URL ?>/modules/crad/assets/css/research-clearance.css?v=rsc-print-2">
+<link rel="stylesheet" href="<?= BASE_URL ?>/modules/crad/assets/css/research-clearance.css?v=rsc-inbox-1">
 
 <div class="glass-dashboard rsc-print-root"
      data-rsc-live
@@ -60,5 +60,5 @@ renderBreadcrumbs($breadcrumbs);
     <div class="rsc-wrap" data-rsc-form><?= $public['form_html'] ?? '' ?></div>
 </div>
 
-<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-or-1"></script>
+<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-inbox-1"></script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>

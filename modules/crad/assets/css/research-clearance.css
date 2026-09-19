@@ -65,7 +65,11 @@
     .sms-page-header,
     .module-page-banner,
     .rsc-toolbar,
+    .rsc-inbox,
+    .rsc-pick,
     [data-rsc-empty],
+    [data-rsc-close],
+    [data-rsc-check-wrap],
     .alert,
     .sms-page-loader {
         display: none !important;
