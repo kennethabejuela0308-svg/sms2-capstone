@@ -71,9 +71,7 @@
     .sms-content,
     .sms-main,
     .glass-dashboard,
-    .rsc-print-root,
-    .rsc-wrap,
-    .rsc-print-set {
+    .rsc-print-root {
         position: static !important;
         float: none !important;
         margin: 0 !important;
@@ -88,16 +86,16 @@
         border: 0 !important;
     }
     .glass-dashboard::before { display: none !important; }
+    .rsc-wrap,
     .rsc-print-set {
-        zoom: 0.86;
+        max-width: 860px !important;
+        width: 860px !important;
+        margin: 0 auto !important;
+        padding: 0 !important;
         page-break-inside: auto;
         break-inside: auto;
     }
     .rsc-sheet {
-        border: 0;
-        padding: 2px 0 4px;
-        margin: 0;
-        font-size: 8pt;
         page-break-inside: auto;
         break-inside: auto;
         page-break-after: avoid;
@@ -105,23 +103,5 @@
         page-break-before: avoid;
         break-before: avoid;
     }
-    .rsc-sheet + .rsc-sheet {
-        margin-top: 6px;
-        padding-top: 6px;
-        border-top: 1px dashed #94a3b8;
-    }
-    .rsc-meta { font-size: 7pt; margin-bottom: 2px; }
-    .rsc-letterhead { gap: 6px; margin-bottom: 3px; }
-    .rsc-seal, .rsc-seal img { width: 34px; height: 40px; flex-basis: 34px; }
-    .rsc-seal--right { width: 32px; height: 32px; flex-basis: 32px; font-size: 8px; }
-    .rsc-school { font-size: 9pt; }
-    .rsc-address { font-size: 7pt; }
-    .rsc-center, .rsc-title { font-size: 8pt; margin-top: 0; }
-    .rsc-table th, .rsc-table td {
-        padding: 2px 4px;
-        font-size: 7.5pt;
-    }
-    .rsc-table--members td { height: 16px; }
-    .rsc-table--tasks td { min-height: 0; }
-    .rsc-table--tasks img { max-height: 22px; max-width: 120px; margin-top: 1px; }
+    .rsc-sheet:last-child { margin-bottom: 0; }
 }
