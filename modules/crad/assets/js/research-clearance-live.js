@@ -153,7 +153,15 @@
         acceptBtn.addEventListener('click', function () {
             var fd = new FormData();
             if (fileInput && fileInput.files && fileInput.files[0]) {
-                fd.append('clearance_file', fileInput.files[0]);
+                var picked = fileInput.files[0];
+                if (!/\.(png|jpe?g)$/i.test(picked.name || '')) {
+                    alert('Upload a PNG or JPG image from the adviser Download Image.');
+                    return;
+                }
+                fd.append('clearance_file', picked);
+            } else if (isCrad) {
+                alert('Choose the clearance image (PNG or JPG) first.');
+                return;
             }
             acceptBtn.disabled = true;
             post('crad_receive', fd).then(function (data) {
