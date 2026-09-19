@@ -825,10 +825,10 @@ function rscCradReceive(PDO $crad, array $clearance, array $file = []): array
              form_verified = 1,
              mis_signature = :mis_sig,
              aa_signature = :aa_sig,
-             mis_verified = 1,
-             aa_verified = 1,
-             mis_verified_at = COALESCE(mis_verified_at, NOW()),
-             aa_verified_at = COALESCE(aa_verified_at, NOW())
+             mis_verified = :mis_ok,
+             aa_verified = :aa_ok,
+             mis_verified_at = :mis_at,
+             aa_verified_at = :aa_at
          WHERE id = :id"
     )->execute([
         ':status' => $nextStatus,
@@ -836,6 +836,10 @@ function rscCradReceive(PDO $crad, array $clearance, array $file = []): array
         ':original' => (string) $saved['original'],
         ':mis_sig' => $hasMis ? (string) $extracted['mis'] : '',
         ':aa_sig' => $hasAa ? (string) $extracted['aa'] : '',
+        ':mis_ok' => $hasMis ? 1 : 0,
+        ':aa_ok' => $hasAa ? 1 : 0,
+        ':mis_at' => $hasMis ? date('Y-m-d H:i:s') : null,
+        ':aa_at' => $hasAa ? date('Y-m-d H:i:s') : null,
         ':id' => (int) $clearance['id'],
     ]);
     $fresh = rscFindById($crad, (int) $clearance['id']);
@@ -1174,12 +1178,18 @@ function rscPersistUploadedSignatures(PDO $crad, array $row): array
         "UPDATE research_services_clearances
          SET mis_signature = :mis,
              aa_signature = :aa,
-             mis_verified = 1,
-             aa_verified = 1
+             mis_verified = CASE WHEN TRIM(:mis_ok) <> '' THEN 1 ELSE 0 END,
+             aa_verified = CASE WHEN TRIM(:aa_ok) <> '' THEN 1 ELSE 0 END,
+             mis_verified_at = CASE WHEN TRIM(:mis_at) <> '' THEN COALESCE(mis_verified_at, NOW()) ELSE NULL END,
+             aa_verified_at = CASE WHEN TRIM(:aa_at) <> '' THEN COALESCE(aa_verified_at, NOW()) ELSE NULL END
          WHERE id = :id"
     )->execute([
         ':mis' => $mis !== '' ? $mis : (string) ($row['mis_signature'] ?? ''),
         ':aa' => $aa !== '' ? $aa : (string) ($row['aa_signature'] ?? ''),
+        ':mis_ok' => $mis,
+        ':aa_ok' => $aa,
+        ':mis_at' => $mis,
+        ':aa_at' => $aa,
         ':id' => (int) ($row['id'] ?? 0),
     ]);
     return rscFindById($crad, (int) ($row['id'] ?? 0)) ?: $hydrated;
