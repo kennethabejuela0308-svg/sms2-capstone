@@ -47,7 +47,7 @@ renderBreadcrumbs($breadcrumbs);
                 <tr>
                     <th>Group</th>
                     <th>Research Title</th>
-                    <th>O.R. No.</th>
+                    <th>Reference / O.R. No.</th>
                     <th>Status</th>
                 </tr>
             </thead>
