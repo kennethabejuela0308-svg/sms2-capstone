@@ -58,7 +58,16 @@
 .rsc-physical { display:inline-block; font-size:8.5pt; font-weight:700; color:#047857; }
 .rsc-upload-file { margin-bottom: 1rem; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; padding: .65rem .85rem; }
 .rsc-upload-file summary { cursor: pointer; font-weight: 700; }
-.rsc-upload-img { display:block; max-width:100%; height:auto; border:1px solid #cbd5e1; background:#fff; margin-top:.65rem; }
+.rsc-upload-img {
+    display: block;
+    width: 860px;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+    border: 1px solid #cbd5e1;
+    background: #fff;
+    object-fit: contain;
+}
 .rsc-upload-frame { width:100%; min-height:420px; border:1px solid #cbd5e1; background:#fff; margin-top:.65rem; }
 @media print {
     @page { size: letter portrait; margin: 7mm; }
