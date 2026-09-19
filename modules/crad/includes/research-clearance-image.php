@@ -162,8 +162,8 @@ function rscDrawFormCopy($im, array $row, int $left, int $top, int $width): int
     $y += $rh;
 
     $adviserDate = rscFormatDate($row['adviser_signed_at'] ?? null);
-    $misDate = rscFormatDate($row['mis_verified_at'] ?? null);
-    $aaDate = rscFormatDate($row['aa_verified_at'] ?? null);
+    $misDate = rscFormatDate($row['mis_verified_at'] ?? $row['uploaded_at'] ?? null);
+    $aaDate = rscFormatDate($row['aa_verified_at'] ?? $row['uploaded_at'] ?? null);
     $cradDate = rscFormatDate($row['crad_signed_at'] ?? null);
     $tasks = [
         ['1. Submitted OR Copy to Research Adviser', 'Adviser: ' . trim((string) ($row['adviser_name'] ?? '')), $adviserDate, (string) ($row['adviser_signature'] ?? ''), 56],
