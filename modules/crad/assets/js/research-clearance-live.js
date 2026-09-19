@@ -171,8 +171,8 @@
             var fd = new FormData();
             if (fileInput && fileInput.files && fileInput.files[0]) {
                 var picked = fileInput.files[0];
-                if (!/\.png$/i.test(picked.name || '')) {
-                    alert('Upload the official PNG from Adviser → Download Image. Other files are not allowed.');
+                if (!/\.(png|jpe?g)$/i.test(picked.name || '')) {
+                    alert('Upload a PNG or JPG picture of the Research Services Clearance form.');
                     return;
                 }
                 fd.append('clearance_file', picked);
