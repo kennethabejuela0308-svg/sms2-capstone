@@ -11,7 +11,7 @@
     var listBody = root.querySelector('[data-rsc-rows]');
     var sendBtn = root.querySelector('[data-rsc-send]');
     var acceptBtn = root.querySelector('[data-rsc-accept]');
-    var acceptAgainBtn = root.querySelector('[data-rsc-accept-again]');
+    var uploadOk = root.querySelector('[data-rsc-upload-ok]');
     var signBtn = root.querySelector('[data-rsc-sign]');
     var printBtn = root.querySelector('[data-rsc-print]');
     var downloadBtn = root.querySelector('[data-rsc-download]');
@@ -33,6 +33,7 @@
     var current = null;
     var selectedId = root.getAttribute('data-rsc-id') || '';
     var shouldScroll = false;
+    var uploading = false;
     var isCrad = role === 'crad_officer' || role === 'admin' || role === 'sms_admin' || role === 'superadmin';
     var isInboxRole = role === 'adviser';
 
@@ -64,7 +65,7 @@
     function applyClearance(row) {
         current = row;
         var showForm = !!(row && row.form_html) && (!isCrad || !!(row && row.form_verified && row.has_upload));
-        if (formBox) {
+        if (formBox && (showForm || !(formBox.innerHTML || '').trim())) {
             formBox.hidden = !showForm;
             formBox.innerHTML = showForm ? row.form_html : '';
         }
@@ -130,6 +131,7 @@
     }
 
     function refresh() {
+        if (uploading) return;
         var url = endpoint + (selectedId ? ((endpoint.indexOf('?') >= 0 ? '&' : '?') + 'id=' + encodeURIComponent(selectedId)) : '');
         fetch(url, { credentials: 'same-origin', cache: 'no-store', headers: { 'Accept': 'application/json' } })
             .then(function (r) {
@@ -198,7 +200,7 @@
     }
 
     function uploadPickedFile() {
-        if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+        if (uploading || !fileInput || !fileInput.files || !fileInput.files[0]) {
             return;
         }
         var picked = fileInput.files[0];
@@ -209,11 +211,15 @@
         }
         var fd = new FormData();
         fd.append('clearance_file', picked);
-        if (acceptBtn) acceptBtn.disabled = true;
+        uploading = true;
         post('crad_receive', fd).then(function (data) {
+            var name = picked.name;
             fileInput.value = '';
             if (data && data.ok) {
-                if (data.clearance) applyClearance(data.clearance);
+                if (uploadOk) {
+                    uploadOk.hidden = false;
+                    uploadOk.textContent = 'Re-uploaded: ' + name;
+                }
                 refresh();
                 return;
             }
@@ -221,20 +227,13 @@
         }).catch(function () {
             alert('Could not re-upload the clearance form. Please try again.');
         }).finally(function () {
-            if (acceptBtn) acceptBtn.disabled = false;
+            uploading = false;
         });
     }
 
-    function openFilePicker() {
-        if (!fileInput) return;
-        fileInput.value = '';
-        fileInput.click();
-    }
-    if (acceptBtn) acceptBtn.addEventListener('click', openFilePicker);
-    if (acceptAgainBtn) acceptAgainBtn.addEventListener('click', openFilePicker);
     if (fileInput) {
         fileInput.addEventListener('change', function () {
-            if (isCrad && fileInput.files && fileInput.files[0]) {
+            if (fileInput.files && fileInput.files[0]) {
                 uploadPickedFile();
             }
         });
