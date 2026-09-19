@@ -1146,8 +1146,8 @@ function rscRenderFormHtml(array $row, bool $duplicate = true): string
         $aaImg = $aaSig !== '' ? '<img src="' . $e($aaSig) . '" alt="AA signature">' : '';
         $cradImg = $cradSig !== '' ? '<img src="' . $e($cradSig) . '" alt="CRAD signature">' : '';
         $adviserDate = rscFormatDateCell($row['adviser_signed_at'] ?? null);
-        $misDate = rscFormatDateCell($row['mis_verified_at'] ?? $row['uploaded_at'] ?? null);
-        $aaDate = rscFormatDateCell($row['aa_verified_at'] ?? $row['uploaded_at'] ?? null);
+        $misDate = '';
+        $aaDate = '';
         $cradDate = rscFormatDateCell($row['crad_signed_at'] ?? null);
 
         return '<div class="rsc-sheet">'
