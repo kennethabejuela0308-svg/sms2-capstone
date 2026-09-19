@@ -571,6 +571,9 @@ function rscEnsureForReadyGroup(PDO $crad, int $groupId, string $stage = 'resear
         if (!$existing && !rscIsChapterReady($crad, $groupId)) {
             return null;
         }
+        if (!$existing && !rscPaymentUnlocksClearance($crad, $groupId, null, 'research_1')) {
+            return null;
+        }
     } else {
         if (!rscClearanceDoneExists($crad, $groupId, 'research_1')) {
             return $existing;
