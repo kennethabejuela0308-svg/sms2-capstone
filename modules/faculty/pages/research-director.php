@@ -302,6 +302,9 @@ function rdScheduleAutoDefenseType(PDO $pdo, int $groupId, string $requestedType
 
 function rdScheduleReadyRows(PDO $pdo, bool $includeScheduled = false, string $defenseType = CRAD_DEFENSE_TYPE_PRE_ORAL): array
 {
+        if ($defenseType === CRAD_DEFENSE_TYPE_FINAL && function_exists('rscEnsureSchema')) {
+            rscEnsureSchema($pdo);
+        }
         $finalDefenseJoins = '';
         $finalDefenseWhere = '';
         if ($defenseType === CRAD_DEFENSE_TYPE_FINAL) {
