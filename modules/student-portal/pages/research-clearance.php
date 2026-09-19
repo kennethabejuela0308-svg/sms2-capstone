@@ -24,7 +24,9 @@ $breadcrumbs = [
 $crad = rscDb();
 rscEnsureSchema($crad);
 $group = chapterRegisteredStudentGroup($crad);
-$ready = $group && rscIsChapterReady($crad, (int) $group['id']);
+$chapterReady = $group && rscIsChapterReady($crad, (int) $group['id']);
+$paymentReady = $group ? rscPaymentUnlocksClearance($crad, (int) $group['id']) : false;
+$ready = $chapterReady && $paymentReady;
 $row = $ready ? rscEnsureForReadyGroup($crad, (int) $group['id']) : null;
 $public = $row ? rscPublicRow($row) : null;
 
@@ -53,7 +55,12 @@ renderBreadcrumbs($breadcrumbs);
     <?php if (!$ready): ?>
         <div class="alert alert-info" data-rsc-empty>
             <?= smsIcon('info-circle', ['class' => 'me-2']) ?>
-            Research Services Clearance opens after the Grammarian scores and accepts Chapter 1, Chapter 2, and Chapter 3.
+            <?php if (!$chapterReady): ?>
+                Research Services Clearance opens after the Grammarian scores and accepts Chapter 1, Chapter 2, and Chapter 3.
+            <?php else: ?>
+                Upload your college payment first. After Admin approves it, this clearance form opens and the O.R. number plus remarks appear here.
+                <a href="<?= e(BASE_URL . '/modules/student-portal/pages/college-payment.php') ?>">Upload College Payment</a>
+            <?php endif; ?>
         </div>
     <?php endif; ?>
 
