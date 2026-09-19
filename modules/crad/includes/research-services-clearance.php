@@ -748,6 +748,9 @@ function rscCradVerifyMarks(PDO $crad, array $clearance, bool $mis, bool $aa): a
     if (!in_array($status, ['adviser_signed', 'crad_received'], true)) {
         return ['ok' => false, 'error' => 'Upload the adviser-signed clearance first.'];
     }
+    if (trim((string) ($clearance['uploaded_file'] ?? '')) === '') {
+        return ['ok' => false, 'error' => 'Upload the adviser-signed clearance form first.'];
+    }
     if (trim((string) ($clearance['adviser_signature'] ?? '')) === '') {
         return ['ok' => false, 'error' => 'The adviser signature is missing.'];
     }
@@ -903,6 +906,7 @@ function rscPublicRow(array $row): array
         'crad_signature' => (string) ($row['crad_signature'] ?? ''),
         'crad_signed_at' => (string) ($row['crad_signed_at'] ?? ''),
         'uploaded_original' => (string) ($row['uploaded_original'] ?? ''),
+        'uploaded_url' => rscUploadPublicUrl($row),
         'has_upload' => trim((string) ($row['uploaded_file'] ?? '')) !== '',
         'has_adviser_signature' => trim((string) ($row['adviser_signature'] ?? '')) !== '',
         'mis_verified' => (int) ($row['mis_verified'] ?? 0) === 1,
