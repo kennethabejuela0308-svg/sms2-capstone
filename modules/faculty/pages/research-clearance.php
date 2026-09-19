@@ -81,5 +81,5 @@ renderBreadcrumbs($breadcrumbs);
     <div class="rsc-wrap" data-rsc-form><?= $public['form_html'] ?? '' ?></div>
 </div>
 <?php require __DIR__ . '/../../crad/includes/research-clearance-sig-modal.php'; ?>
-<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-2"></script>
+<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-or-1"></script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>

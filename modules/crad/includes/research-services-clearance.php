@@ -375,11 +375,15 @@ function rscNeedsOrRefresh(string $orNumber): bool
 function rscEnsureForReadyGroup(PDO $crad, int $groupId): ?array
 {
     rscEnsureSchema($crad);
-    if ($groupId <= 0 || !rscIsChapterReady($crad, $groupId)) {
-        return rscFindByGroup($crad, $groupId);
+    if ($groupId <= 0) {
+        return null;
     }
 
     $existing = rscFindByGroup($crad, $groupId);
+    if (!$existing && !rscIsChapterReady($crad, $groupId)) {
+        return null;
+    }
+
     $ctx = rscLoadGroupContext($crad, $groupId);
     if (!$ctx) {
         return $existing;
