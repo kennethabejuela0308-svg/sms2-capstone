@@ -507,6 +507,7 @@ function rscEnsureForReadyGroup(PDO $crad, int $groupId): ?array
         'members_json' => json_encode($members, JSON_UNESCAPED_UNICODE),
         'grammarian_name' => (string) ($ctx['resolved_grammarian'] ?? ''),
         'adviser_name' => trim((string) ($ctx['resolved_adviser_name'] ?? $ctx['adviser_name'] ?? $ctx['adviser'] ?? '')),
+        'statistician_name' => trim((string) ($ctx['resolved_adviser_name'] ?? $ctx['adviser_name'] ?? $ctx['adviser'] ?? '')),
         'adviser_user_id' => (int) ($ctx['adviser_user_id'] ?? 0) ?: null,
         'adviser_email' => strtolower(trim((string) ($ctx['adviser_email'] ?? ''))),
     ];
@@ -518,11 +519,11 @@ function rscEnsureForReadyGroup(PDO $crad, int $groupId): ?array
         $stmt = $crad->prepare(
             "INSERT INTO research_services_clearances
                 (research_group_id, title_approval_id, status, or_number, leader_student_no, leader_group_no,
-                 program, section, research_title, members_json, grammarian_name, adviser_name,
+                 program, section, research_title, members_json, grammarian_name, statistician_name, adviser_name,
                  adviser_user_id, adviser_email)
              VALUES
                 (:gid, :tid, 'draft', :or_number, :leader_student_no, :leader_group_no,
-                 :program, :section, :research_title, :members_json, :grammarian_name, :adviser_name,
+                 :program, :section, :research_title, :members_json, :grammarian_name, :statistician_name, :adviser_name,
                  :adviser_user_id, :adviser_email)"
         );
         $stmt->execute([
@@ -536,6 +537,7 @@ function rscEnsureForReadyGroup(PDO $crad, int $groupId): ?array
             ':research_title' => $payload['research_title'],
             ':members_json' => $payload['members_json'],
             ':grammarian_name' => $payload['grammarian_name'],
+            ':statistician_name' => $payload['statistician_name'],
             ':adviser_name' => $payload['adviser_name'],
             ':adviser_user_id' => $payload['adviser_user_id'],
             ':adviser_email' => $payload['adviser_email'],
@@ -554,6 +556,7 @@ function rscEnsureForReadyGroup(PDO $crad, int $groupId): ?array
              research_title = :research_title,
              members_json = :members_json,
              grammarian_name = :grammarian_name,
+             statistician_name = :statistician_name,
              adviser_name = :adviser_name,
              adviser_user_id = :adviser_user_id,
              adviser_email = :adviser_email
@@ -568,6 +571,7 @@ function rscEnsureForReadyGroup(PDO $crad, int $groupId): ?array
         ':research_title' => $payload['research_title'],
         ':members_json' => $payload['members_json'],
         ':grammarian_name' => $payload['grammarian_name'],
+        ':statistician_name' => $payload['statistician_name'],
         ':adviser_name' => $payload['adviser_name'],
         ':adviser_user_id' => $payload['adviser_user_id'],
         ':adviser_email' => $payload['adviser_email'],
@@ -969,8 +973,8 @@ function rscRenderFormHtml(array $row, bool $duplicate = true): string
             . '<tr><td>2. OR no. Verified by Accounting / MIS</td><td>MIS: ' . ((int) ($row['mis_verified'] ?? 0) === 1 ? '<span class="rsc-physical">Physical signature verified</span>' : '') . '</td><td>' . $e(rscFormatDate($row['mis_verified_at'] ?? null)) . '</td></tr>'
             . '<tr><td>3. Turnitin username and Password Released by AAI / AA</td><td>AA: ' . ((int) ($row['aa_verified'] ?? 0) === 1 ? '<span class="rsc-physical">Physical signature verified</span>' : '') . '</td><td>' . $e(rscFormatDate($row['aa_verified_at'] ?? null)) . '</td></tr>'
             . '<tr><td>4. Research Services Personnel Assignment<br>'
-            . 'Grammarian: ' . $e($row['grammarian_name'] ?? '') . '<br>'
-            . 'Statistician / Technical Adviser: ' . $e($row['statistician_name'] ?? '') . '</td>'
+            . 'Grammarian: <strong>' . $e($row['grammarian_name'] ?? '') . '</strong><br>'
+            . 'Statistician / Technical Adviser: <strong>' . $e(trim((string) ($row['adviser_name'] ?? $row['statistician_name'] ?? ''))) . '</strong></td>'
             . '<td>CRAD: ' . $e($row['crad_name'] ?? '') . $cradImg . '</td>'
             . '<td>' . $e($cradDate) . '</td></tr>'
             . '</tbody></table></div>';
