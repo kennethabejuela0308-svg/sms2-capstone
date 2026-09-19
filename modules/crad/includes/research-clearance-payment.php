@@ -93,6 +93,45 @@ function rcpPublicRow(array $row): array
     ];
 }
 
+function rcpParseReferenceNumber(string $text): string
+{
+    $text = strtoupper(trim(preg_replace('/\s+/', ' ', $text) ?? ''));
+    if ($text === '') {
+        return '';
+    }
+    if (preg_match('/\b(HMBP[0-9]{8,})\b/', $text, $m)) {
+        return $m[1];
+    }
+    if (preg_match('/REFERENCE\s*(NO\.?|NUMBER)\s*[:#]?\s*([A-Z0-9]{8,})/', $text, $m)) {
+        return $m[2];
+    }
+    if (preg_match('/\b(OR-[0-9]{4,})\b/', $text, $m)) {
+        return $m[1];
+    }
+    return '';
+}
+
+function rcpOcrImageText(string $path): string
+{
+    $script = ROOT_PATH . '/modules/crad/includes/win-ocr.ps1';
+    if ($path === '' || !is_file($path) || !is_file($script)) {
+        return '';
+    }
+    $cmd = 'powershell -NoProfile -ExecutionPolicy Bypass -File '
+        . escapeshellarg($script)
+        . ' -ImagePath '
+        . escapeshellarg($path);
+    $out = [];
+    $code = 0;
+    @exec($cmd, $out, $code);
+    return $code === 0 ? trim(implode(' ', $out)) : '';
+}
+
+function rcpExtractReferenceFromImage(string $path): string
+{
+    return rcpParseReferenceNumber(rcpOcrImageText($path));
+}
+
 function rcpStoreUpload(int $groupId, array $file): array
 {
     $code = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
@@ -133,7 +172,11 @@ function rcpStudentUpload(PDO $crad, int $groupId, array $file, string $orNumber
         return $saved;
     }
     $existing = rcpFindByGroup($crad, $groupId);
-    $or = trim($orNumber);
+    $or = rcpExtractReferenceFromImage((string) ($saved['path'] ?? ''));
+    if ($or === '') {
+        $typed = strtoupper(trim($orNumber));
+        $or = rcpParseReferenceNumber($typed) ?: $typed;
+    }
     if ($existing && (string) ($existing['status'] ?? '') === 'approved') {
         return ['ok' => false, 'error' => 'College payment is already approved.'];
     }
