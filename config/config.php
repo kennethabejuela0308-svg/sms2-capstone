@@ -563,7 +563,6 @@ $MODULES = [
                 'document-repository',
             ],
             'Research Documents' => [
-                'research-clearance',
                 'documentation-publication-management',
                 'final-manuscript-review',
                 'revision-compliance',

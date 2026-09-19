@@ -234,9 +234,6 @@ if ($studentHasResearchGroup && !isset($studentNavGroups['Research Development']
 }
 
 $facultyAccountNavGroups = [
-    'Research Clearance' => [
-        ['slug' => 'research-clearance', 'href' => BASE_URL . '/modules/faculty/pages/research-clearance.php', 'icon' => 'fa-stamp', 'label' => 'Research Services Clearance'],
-    ],
     'Approved Research' => [
         ['slug' => 'approved-research', 'href' => BASE_URL . '/modules/faculty/pages/approved-research.php', 'icon' => 'fa-check-square', 'label' => 'View Approved Research'],
     ],
@@ -288,6 +285,13 @@ $facultyAccountNavGroups += [
 //    deleted; their navigation entries are suppressed for the Adviser role only.
 if ($roleKey === 'adviser' && isset($facultyAccountNavGroups['My Research'])) {
     unset($facultyAccountNavGroups['My Research']);
+}
+if ($roleKey === 'adviser' && !isset($facultyAccountNavGroups['Research Clearance'])) {
+    $facultyAccountNavGroups = [
+        'Research Clearance' => [
+            ['slug' => 'research-clearance', 'href' => BASE_URL . '/modules/faculty/pages/research-clearance.php', 'icon' => 'fa-stamp', 'label' => 'Research Services Clearance'],
+        ],
+    ] + $facultyAccountNavGroups;
 }
 
 // ── Adviser: Core System grant pages (researchers apply to published calls) ──
