@@ -186,6 +186,14 @@
     if (printBtn) {
         printBtn.addEventListener('click', function () { window.print(); });
     }
+    if (downloadBtn) {
+        downloadBtn.addEventListener('click', function () {
+            var id = current && current.id ? String(current.id) : selectedId;
+            if (!id) return;
+            var url = endpoint + (endpoint.indexOf('?') >= 0 ? '&' : '?') + 'action=download_image&id=' + encodeURIComponent(id);
+            window.location.href = url;
+        });
+    }
 
     root.addEventListener('click', function (e) {
         var btn = e.target.closest('[data-rsc-open]');
