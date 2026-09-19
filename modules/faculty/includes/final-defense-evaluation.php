@@ -18,6 +18,7 @@ function finalDefenseEnsureSchema(PDO $crad): void
             methodology_score DECIMAL(5,2) NOT NULL,
             references_score DECIMAL(5,2) NOT NULL,
             format_score DECIMAL(5,2) NOT NULL,
+            defense_score DECIMAL(5,2) NOT NULL DEFAULT 0,
             remarks TEXT DEFAULT NULL,
             result ENUM('APPROVED','APPROVED WITH REVISION','FAILED') NOT NULL,
             overall_score DECIMAL(5,2) NOT NULL,
@@ -34,6 +35,16 @@ function finalDefenseEnsureSchema(PDO $crad): void
     $idColumn = $crad->query("SHOW COLUMNS FROM final_defense_evaluations LIKE 'id'")->fetch(PDO::FETCH_ASSOC);
     if ($idColumn && stripos((string) ($idColumn['Extra'] ?? ''), 'auto_increment') === false) {
         $crad->exec("ALTER TABLE final_defense_evaluations MODIFY id INT UNSIGNED NOT NULL AUTO_INCREMENT");
+    }
+    try {
+        if (!$crad->query("SHOW COLUMNS FROM final_defense_evaluations LIKE 'defense_score'")->fetch()) {
+            $crad->exec(
+                "ALTER TABLE final_defense_evaluations
+                 ADD COLUMN defense_score DECIMAL(5,2) NOT NULL DEFAULT 0 AFTER format_score"
+            );
+        }
+    } catch (Throwable $e) {
+        // column may already exist
     }
 }
 
