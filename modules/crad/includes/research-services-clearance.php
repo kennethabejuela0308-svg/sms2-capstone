@@ -1054,7 +1054,11 @@ function rscPublicRow(array $row): array
         'has_upload' => trim((string) ($row['uploaded_file'] ?? '')) !== '',
         'form_verified' => (int) ($row['form_verified'] ?? 0) === 1,
         'has_adviser_signature' => trim((string) ($row['adviser_signature'] ?? '')) !== '',
+        'has_mis_signature' => trim((string) ($row['mis_signature'] ?? '')) !== '',
+        'has_aa_signature' => trim((string) ($row['aa_signature'] ?? '')) !== '',
         'has_crad_signature' => trim((string) ($row['crad_signature'] ?? '')) !== '',
+        'mis_signature' => (string) ($row['mis_signature'] ?? ''),
+        'aa_signature' => (string) ($row['aa_signature'] ?? ''),
         'mis_verified' => (int) ($row['mis_verified'] ?? 0) === 1,
         'aa_verified' => (int) ($row['aa_verified'] ?? 0) === 1,
         'can_crad_sign' => rscCanCradSign($row),
@@ -1124,8 +1128,8 @@ function rscRenderFormHtml(array $row, bool $duplicate = true): string
             . '<tr><td>1. Submitted OR Copy to Research Adviser</td>'
             . '<td>Adviser: ' . $e($row['adviser_name'] ?? '') . $adviserImg . '</td>'
             . '<td>' . $e($adviserDate) . '</td></tr>'
-            . '<tr><td>2. OR no. Verified by Accounting / MIS</td><td>MIS: ' . ((int) ($row['mis_verified'] ?? 0) === 1 ? '<span class="rsc-physical">Physical signature verified</span>' : '') . '</td><td>' . $e(rscFormatDate($row['mis_verified_at'] ?? null)) . '</td></tr>'
-            . '<tr><td>3. Turnitin username and Password Released by AAI / AA</td><td>AA: ' . ((int) ($row['aa_verified'] ?? 0) === 1 ? '<span class="rsc-physical">Physical signature verified</span>' : '') . '</td><td>' . $e(rscFormatDate($row['aa_verified_at'] ?? null)) . '</td></tr>'
+            . '<tr><td>2. OR no. Verified by Accounting / MIS</td><td>MIS: ' . $misImg . '</td><td>' . $e(rscFormatDate($row['mis_verified_at'] ?? null)) . '</td></tr>'
+            . '<tr><td>3. Turnitin username and Password Released by AAI / AA</td><td>AA: ' . $aaImg . '</td><td>' . $e(rscFormatDate($row['aa_verified_at'] ?? null)) . '</td></tr>'
             . '<tr><td>4. Research Services Personnel Assignment<br>'
             . 'Grammarian: <strong>' . $e($row['grammarian_name'] ?? '') . '</strong><br>'
             . 'Statistician / Technical Adviser: <strong>' . $e(trim((string) ($row['adviser_name'] ?? $row['statistician_name'] ?? ''))) . '</strong></td>'
