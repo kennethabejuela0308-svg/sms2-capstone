@@ -322,8 +322,8 @@
     }
 
     function openSig() {
-        if (isCrad && (!current || !current.has_adviser_signature || !current.has_mis_signature || !current.has_aa_signature)) {
-            alert('CRAD cannot sign until the Adviser, MIS, and AA signatures are on the clearance form.');
+        if (isCrad && (!current || !(current.can_crad_sign || (current.form_verified && current.has_upload && current.has_adviser_signature)))) {
+            alert('Upload the printed clearance form with the Adviser, MIS, and AA signatures first.');
             return;
         }
         if (!modal) return;

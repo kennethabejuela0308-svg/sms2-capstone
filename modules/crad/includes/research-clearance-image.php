@@ -140,7 +140,7 @@ function rscDrawFormCopy($im, array $row, int $left, int $top, int $width): int
     foreach ($members as $member) {
         $split = rscSplitName((string) ($member['name'] ?? ''));
         $or = rscExtractOrNumber((string) ($member['or_number'] ?? '')) ?: $fallbackOr;
-        $vals = [$split['last'], $split['first'], $or, ''];
+        $vals = [$split['last'], $split['first'], $or, 'HMA'];
         $cx = $x;
         foreach ([$m1, $m2, $m3, $m4] as $i => $w) {
             rscImageCell($im, $cx, $y, $w, $rh, $black);
