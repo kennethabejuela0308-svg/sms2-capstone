@@ -4,6 +4,7 @@
     var role = root.getAttribute('data-rcp-role') || '';
     var endpoint = root.getAttribute('data-rcp-endpoint') || '';
     var csrf = root.getAttribute('data-rcp-csrf') || '';
+    var selectedStage = root.getAttribute('data-rcp-stage') || 'research_1';
     var statusEl = root.querySelector('[data-rcp-status]');
     var syncEl = root.querySelector('[data-rcp-sync]');
     var preview = root.querySelector('[data-rcp-preview]');
@@ -13,17 +14,20 @@
     var fileInput = document.getElementById('rcpFile');
     var orInput = document.getElementById('rcpOr');
     var listBody = root.querySelector('[data-rcp-list]');
+    var studentList = root.querySelector('[data-rcp-student-list]');
     var detail = root.querySelector('[data-rcp-detail]');
     var adminOr = root.querySelector('[data-rcp-or]');
     var adminRemarks = root.querySelector('[data-rcp-remarks]');
     var approveBtn = root.querySelector('[data-rcp-approve]');
     var rejectBtn = root.querySelector('[data-rcp-reject]');
+    var gateEl = root.querySelector('[data-rcp-gate]');
+    var lockedEl = root.querySelector('[data-rcp-locked]');
     var current = null;
     var uploading = false;
     var lastStamp = '';
 
     function rowStamp(row) {
-        return row ? [row.id, row.status, row.uploaded_url, row.or_number, row.remarks, row.updated_at].join('|') : '';
+        return row ? [row.id, row.research_stage, row.status, row.uploaded_url, row.or_number, row.remarks, row.updated_at, row.can_upload].join('|') : '';
     }
 
     function newestPending(rows) {
@@ -46,11 +50,32 @@
 
     function applyStudent(row) {
         current = row;
-        if (statusEl) statusEl.textContent = row ? (row.status_label || row.status) : 'No college payment uploaded yet';
+        selectedStage = row && row.research_stage ? row.research_stage : selectedStage;
+        root.setAttribute('data-rcp-stage', selectedStage);
+        if (statusEl) {
+            statusEl.textContent = row
+                ? ((row.stage_label || 'Research') + ' — ' + (row.status_label || row.status || 'No college payment uploaded yet'))
+                : 'No college payment uploaded yet';
+        }
         if (fileNameEl) fileNameEl.textContent = row && row.uploaded_original ? row.uploaded_original : '';
         if (uploadLabel) uploadLabel.textContent = row && row.has_upload ? 'Re-upload' : 'Upload';
-        if (uploadBtn) uploadBtn.disabled = !!(row && row.status === 'approved');
+        if (uploadBtn) uploadBtn.disabled = !(row && row.can_upload);
         if (orInput) orInput.value = row && row.or_number ? row.or_number : '';
+        if (gateEl) {
+            gateEl.textContent = 'Upload the ' + ((row && row.stage_label) || 'Research') +
+                ' college payment picture. After Admin approves it, that O.R. number and remarks appear on the matching clearance form.';
+        }
+        if (lockedEl) {
+            if (row && row.locked_reason) {
+                lockedEl.hidden = false;
+                lockedEl.classList.remove('d-none');
+                lockedEl.textContent = row.locked_reason;
+            } else {
+                lockedEl.hidden = true;
+                lockedEl.classList.add('d-none');
+                lockedEl.textContent = '';
+            }
+        }
         if (preview) {
             if (row && row.uploaded_url) {
                 preview.hidden = false;
@@ -62,6 +87,23 @@
         }
     }
 
+    function renderStudentList(rows) {
+        if (!studentList) return;
+        if (!rows || !rows.length) {
+            studentList.innerHTML = '<tr><td colspan="4" class="text-muted">No payment stages yet.</td></tr>';
+            return;
+        }
+        studentList.innerHTML = rows.map(function (row) {
+            var active = selectedStage === row.research_stage ? ' class="table-active"' : '';
+            return '<tr' + active + ' data-rcp-open-stage="' + row.research_stage + '">'
+                + '<td><strong>' + (row.stage_label || '') + '</strong></td>'
+                + '<td>' + (row.or_number || '—') + '</td>'
+                + '<td>' + (row.status_label || 'Not uploaded') + '</td>'
+                + '<td><button type="button" class="btn btn-sm btn-outline-primary" data-rcp-open-stage="' + row.research_stage + '">Open</button></td>'
+                + '</tr>';
+        }).join('');
+    }
+
     function applyAdmin(row, forceFields) {
         current = row;
         if (!detail) return;
@@ -71,7 +113,9 @@
             return;
         }
         detail.hidden = false;
-        if (statusEl) statusEl.textContent = row.status_label || row.status;
+        if (statusEl) {
+            statusEl.textContent = (row.stage_label ? row.stage_label + ' — ' : '') + (row.status_label || row.status);
+        }
         var typing = document.activeElement === adminOr || document.activeElement === adminRemarks;
         if (adminOr) adminOr.value = row.or_number || '';
         if (forceFields || !typing) {
@@ -92,13 +136,14 @@
     function renderList(rows) {
         if (!listBody) return;
         if (!rows || !rows.length) {
-            listBody.innerHTML = '<tr><td colspan="4" class="text-muted">No clearance payment has been sent to admin yet.</td></tr>';
+            listBody.innerHTML = '<tr><td colspan="5" class="text-muted">No clearance payment has been sent to admin yet.</td></tr>';
             return;
         }
         listBody.innerHTML = rows.map(function (row) {
             var active = current && String(current.id) === String(row.id) ? ' class="table-active"' : '';
-            return '<tr' + active + '>'
+            return '<tr' + active + ' data-rcp-open-id="' + row.id + '">'
                 + '<td>' + (row.group_number || '') + '</td>'
+                + '<td>' + (row.stage_label || '') + '</td>'
                 + '<td>' + (row.research_title || '') + '</td>'
                 + '<td>' + (row.or_number || '') + '</td>'
                 + '<td>' + (row.status_label || row.status) + '</td>'
@@ -108,16 +153,25 @@
 
     function refresh() {
         if (uploading) return;
-        fetch(endpoint, { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } })
+        var url = endpoint;
+        if (role === 'student') {
+            url += (endpoint.indexOf('?') >= 0 ? '&' : '?') + 'stage=' + encodeURIComponent(selectedStage);
+        }
+        fetch(url, { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } })
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 if (!data || !data.ok) return;
                 if (syncEl) syncEl.textContent = data.last_sync || '';
                 if (role === 'student') {
+                    renderStudentList(data.rows || []);
                     applyStudent(data.payment);
                 } else {
                     var rows = data.rows || [];
                     var incoming = newestPending(rows);
+                    if (current) {
+                        var match = rows.filter(function (row) { return String(row.id) === String(current.id); })[0];
+                        if (match) incoming = match;
+                    }
                     var changed = !current || (incoming && String(incoming.id) !== String(current.id)) || rowStamp(incoming) !== lastStamp;
                     renderList(rows);
                     if (changed) applyAdmin(incoming, !!(incoming && (!current || String(incoming.id) !== String(current.id))));
@@ -125,6 +179,29 @@
             })
             .catch(function () {});
     }
+
+    root.addEventListener('click', function (event) {
+        var openStage = event.target.closest('[data-rcp-open-stage]');
+        if (openStage) {
+            selectedStage = openStage.getAttribute('data-rcp-open-stage') || 'research_1';
+            root.setAttribute('data-rcp-stage', selectedStage);
+            refresh();
+            return;
+        }
+        var openId = event.target.closest('[data-rcp-open-id]');
+        if (openId && role !== 'student') {
+            var id = openId.getAttribute('data-rcp-open-id');
+            fetch(endpoint, { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (!data || !data.ok) return;
+                    var rows = data.rows || [];
+                    renderList(rows);
+                    var match = rows.filter(function (row) { return String(row.id) === String(id); })[0];
+                    if (match) applyAdmin(match, true);
+                });
+        }
+    });
 
     if (uploadBtn && fileInput) {
         uploadBtn.addEventListener('click', function () {
@@ -134,10 +211,17 @@
             }
             uploading = true;
             uploadBtn.disabled = true;
-            post('student_upload', { or_number: orInput ? orInput.value : '' }, fileInput.files[0])
+            post('student_upload', {
+                or_number: orInput ? orInput.value : '',
+                research_stage: selectedStage
+            }, fileInput.files[0])
                 .then(function (data) {
-                    if (data && data.ok && data.payment) applyStudent(data.payment);
-                    else if (data && data.error) alert(data.error);
+                    if (data && data.ok) {
+                        if (data.rows) renderStudentList(data.rows);
+                        if (data.payment) applyStudent(data.payment);
+                    } else if (data && data.error) {
+                        alert(data.error);
+                    }
                 })
                 .finally(function () {
                     uploading = false;

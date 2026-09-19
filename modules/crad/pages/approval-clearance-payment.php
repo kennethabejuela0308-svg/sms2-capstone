@@ -46,6 +46,7 @@ renderBreadcrumbs($breadcrumbs);
             <thead>
                 <tr>
                     <th>Group</th>
+                    <th>Clearance</th>
                     <th>Research Title</th>
                     <th>Reference / O.R. No.</th>
                     <th>Status</th>
@@ -53,7 +54,7 @@ renderBreadcrumbs($breadcrumbs);
             </thead>
             <tbody data-rcp-list>
                 <?php if (!$rows): ?>
-                    <tr><td colspan="4" class="text-muted">No clearance payment has been sent to admin yet.</td></tr>
+                    <tr><td colspan="5" class="text-muted">No clearance payment has been sent to admin yet.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
@@ -82,5 +83,5 @@ renderBreadcrumbs($breadcrumbs);
         </div>
     </div>
 </div>
-<script src="<?= BASE_URL ?>/modules/crad/assets/js/clearance-payment-live.js?v=rcp-or-2"></script>
+<script src="<?= BASE_URL ?>/modules/crad/assets/js/clearance-payment-live.js?v=rcp-stage-1"></script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>
