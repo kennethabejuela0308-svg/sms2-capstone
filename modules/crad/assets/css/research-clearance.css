@@ -89,8 +89,9 @@
     }
     .glass-dashboard::before { display: none !important; }
     .rsc-print-set {
-        page-break-inside: avoid;
-        break-inside: avoid-page;
+        zoom: 0.86;
+        page-break-inside: auto;
+        break-inside: auto;
     }
     .rsc-sheet {
         border: 0;
