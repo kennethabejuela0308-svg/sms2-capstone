@@ -719,6 +719,6 @@ function renderPanelDefensePage(string $mode, string $message = '', string $erro
             </section>
         <?php endif; ?>
     </div>
-    <script src="<?= BASE_URL ?>/assets/js/panel-defense-live.js"></script>
+    <script src="<?= BASE_URL ?>/assets/js/panel-defense-live.js?v=panel-defense-20-1"></script>
     <?php
 }
