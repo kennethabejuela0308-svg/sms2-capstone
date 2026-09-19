@@ -117,14 +117,29 @@ function finalDefenseCurrentPanelId(PDO $crad): int
     return (int) (getCurrentUserId() ?? 0);
 }
 
+/**
+ * Final Defense panel scoring: five criteria at 20% each = 100%.
+ *
+ * @return list<array{key:string,label:string,min:float,max:float}>
+ */
 function finalDefenseRubric(): array
 {
     return [
-        ['key' => 'content', 'label' => 'Content', 'min' => 0, 'max' => 100],
-        ['key' => 'methodology', 'label' => 'Methodology', 'min' => 0, 'max' => 100],
-        ['key' => 'references', 'label' => 'References', 'min' => 0, 'max' => 100],
-        ['key' => 'format', 'label' => 'Format', 'min' => 0, 'max' => 100],
+        ['key' => 'content', 'label' => 'Content', 'min' => 0, 'max' => 20],
+        ['key' => 'methodology', 'label' => 'Methodology', 'min' => 0, 'max' => 20],
+        ['key' => 'references', 'label' => 'References', 'min' => 0, 'max' => 20],
+        ['key' => 'format', 'label' => 'Format', 'min' => 0, 'max' => 20],
+        ['key' => 'defense', 'label' => 'Defense', 'min' => 0, 'max' => 20],
     ];
+}
+
+function finalDefenseEvaluationTotalMax(): float
+{
+    $total = 0.0;
+    foreach (finalDefenseRubric() as $criterion) {
+        $total += (float) $criterion['max'];
+    }
+    return $total;
 }
 
 function finalDefenseAssignedSchedule(PDO $crad, int $scheduleId): ?array
