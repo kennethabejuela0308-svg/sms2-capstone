@@ -1,12 +1,31 @@
 <?php
 declare(strict_types=1);
 
+function rcpNormalizeStage(string $stage): string
+{
+    return strtolower(trim($stage)) === 'research_2' ? 'research_2' : 'research_1';
+}
+
+function rcpStageLabel(string $stage): string
+{
+    return rcpNormalizeStage($stage) === 'research_2' ? 'Research 2' : 'Research 1';
+}
+
+function rcpStageList(): array
+{
+    return [
+        ['key' => 'research_1', 'label' => 'Research 1'],
+        ['key' => 'research_2', 'label' => 'Research 2'],
+    ];
+}
+
 function rcpEnsureSchema(PDO $crad): void
 {
     $crad->exec(
         "CREATE TABLE IF NOT EXISTS research_clearance_payments (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             research_group_id INT UNSIGNED NOT NULL,
+            research_stage VARCHAR(20) NOT NULL DEFAULT 'research_1',
             student_user_id INT UNSIGNED DEFAULT NULL,
             uploaded_file VARCHAR(255) NOT NULL DEFAULT '',
             uploaded_original VARCHAR(255) NOT NULL DEFAULT '',
@@ -19,21 +38,56 @@ function rcpEnsureSchema(PDO $crad): void
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
+            UNIQUE KEY uniq_rcp_group_stage (research_group_id, research_stage),
             KEY idx_rcp_group (research_group_id),
             KEY idx_rcp_status (status)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
+
+    try {
+        if (!$crad->query("SHOW COLUMNS FROM research_clearance_payments LIKE 'research_stage'")->fetch()) {
+            $crad->exec(
+                "ALTER TABLE research_clearance_payments
+                 ADD COLUMN research_stage VARCHAR(20) NOT NULL DEFAULT 'research_1' AFTER research_group_id"
+            );
+        }
+        $crad->exec("UPDATE research_clearance_payments SET research_stage = 'research_1' WHERE TRIM(COALESCE(research_stage, '')) = ''");
+        $indexes = $crad->query("SHOW INDEX FROM research_clearance_payments")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $hasStageUnique = false;
+        foreach ($indexes as $idx) {
+            if (($idx['Key_name'] ?? '') === 'uniq_rcp_group_stage') {
+                $hasStageUnique = true;
+                break;
+            }
+        }
+        if (!$hasStageUnique) {
+            try {
+                $crad->exec('ALTER TABLE research_clearance_payments DROP INDEX uniq_rcp_group');
+            } catch (Throwable $e) {
+                // optional legacy index
+            }
+            $crad->exec(
+                'ALTER TABLE research_clearance_payments
+                 ADD UNIQUE KEY uniq_rcp_group_stage (research_group_id, research_stage)'
+            );
+        }
+    } catch (Throwable $e) {
+        error_log('rcp schema stage: ' . $e->getMessage());
+    }
 }
 
-function rcpFindByGroup(PDO $crad, int $groupId): ?array
+function rcpFindByGroup(PDO $crad, int $groupId, string $stage = 'research_1'): ?array
 {
     if ($groupId <= 0) {
         return null;
     }
+    $stage = rcpNormalizeStage($stage);
     $stmt = $crad->prepare(
-        "SELECT * FROM research_clearance_payments WHERE research_group_id = ? ORDER BY id DESC LIMIT 1"
+        "SELECT * FROM research_clearance_payments
+         WHERE research_group_id = ? AND research_stage = ?
+         ORDER BY id DESC LIMIT 1"
     );
-    $stmt->execute([$groupId]);
+    $stmt->execute([$groupId, $stage]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     return $row ?: null;
 }
@@ -49,9 +103,9 @@ function rcpFindById(PDO $crad, int $id): ?array
     return $row ?: null;
 }
 
-function rcpIsApproved(PDO $crad, int $groupId): bool
+function rcpIsApproved(PDO $crad, int $groupId, string $stage = 'research_1'): bool
 {
-    $row = rcpFindByGroup($crad, $groupId);
+    $row = rcpFindByGroup($crad, $groupId, $stage);
     return $row && (string) ($row['status'] ?? '') === 'approved';
 }
 
@@ -77,9 +131,12 @@ function rcpStatusLabel(string $status): string
 
 function rcpPublicRow(array $row): array
 {
+    $stage = rcpNormalizeStage((string) ($row['research_stage'] ?? 'research_1'));
     return [
         'id' => (int) ($row['id'] ?? 0),
         'research_group_id' => (int) ($row['research_group_id'] ?? 0),
+        'research_stage' => $stage,
+        'stage_label' => rcpStageLabel($stage),
         'status' => (string) ($row['status'] ?? ''),
         'status_label' => rcpStatusLabel((string) ($row['status'] ?? '')),
         'or_number' => (string) ($row['or_number'] ?? ''),
@@ -90,6 +147,8 @@ function rcpPublicRow(array $row): array
         'approved_by_name' => (string) ($row['approved_by_name'] ?? ''),
         'approved_at' => (string) ($row['approved_at'] ?? ''),
         'updated_at' => (string) ($row['updated_at'] ?? ''),
+        'can_upload' => !empty($row['can_upload']),
+        'locked_reason' => (string) ($row['locked_reason'] ?? ''),
     ];
 }
 
@@ -144,6 +203,11 @@ function rcpOcrImageText(string $path): string
     return $text;
 }
 
+function rcpExtractReferenceFromImage(string $path): string
+{
+    return rcpParseReferenceNumber(rcpOcrImageText($path));
+}
+
 function rcpEnsureOrFromImage(PDO $crad, array $row): array
 {
     $or = trim((string) ($row['or_number'] ?? ''));
@@ -169,9 +233,19 @@ function rcpEnsureOrFromImage(PDO $crad, array $row): array
     return $row;
 }
 
-function rcpExtractReferenceFromImage(string $path): string
+function rcpCanUploadStage(PDO $crad, int $groupId, string $stage): array
 {
-    return rcpParseReferenceNumber(rcpOcrImageText($path));
+    $stage = rcpNormalizeStage($stage);
+    if ($stage === 'research_1') {
+        return ['ok' => true, 'reason' => ''];
+    }
+    if (function_exists('rscClearanceDoneExists') && rscClearanceDoneExists($crad, $groupId, 'research_1')) {
+        return ['ok' => true, 'reason' => ''];
+    }
+    return [
+        'ok' => false,
+        'reason' => 'Finish Research 1 clearance (Pre-Oral) before uploading Research 2 college payment.',
+    ];
 }
 
 function rcpStoreUpload(int $groupId, array $file): array
@@ -203,24 +277,29 @@ function rcpStoreUpload(int $groupId, array $file): array
     return ['ok' => true, 'file' => $stored, 'original' => $name, 'path' => $path];
 }
 
-function rcpStudentUpload(PDO $crad, int $groupId, array $file, string $orNumber = ''): array
+function rcpStudentUpload(PDO $crad, int $groupId, array $file, string $orNumber = '', string $stage = 'research_1'): array
 {
     rcpEnsureSchema($crad);
+    $stage = rcpNormalizeStage($stage);
     if ($groupId <= 0) {
         return ['ok' => false, 'error' => 'No research group is registered for this student.'];
+    }
+    $gate = rcpCanUploadStage($crad, $groupId, $stage);
+    if (empty($gate['ok'])) {
+        return ['ok' => false, 'error' => (string) ($gate['reason'] ?? 'This payment stage is locked.')];
     }
     $saved = rcpStoreUpload($groupId, $file);
     if (empty($saved['ok'])) {
         return $saved;
     }
-    $existing = rcpFindByGroup($crad, $groupId);
+    $existing = rcpFindByGroup($crad, $groupId, $stage);
     $or = rcpExtractReferenceFromImage((string) ($saved['path'] ?? ''));
     if ($or === '') {
         $typed = strtoupper(trim($orNumber));
         $or = rcpParseReferenceNumber($typed) ?: $typed;
     }
     if ($existing && (string) ($existing['status'] ?? '') === 'approved') {
-        return ['ok' => false, 'error' => 'College payment is already approved.'];
+        return ['ok' => false, 'error' => rcpStageLabel($stage) . ' college payment is already approved.'];
     }
     if ($existing) {
         $old = basename(str_replace('\\', '/', (string) ($existing['uploaded_file'] ?? '')));
@@ -229,6 +308,7 @@ function rcpStudentUpload(PDO $crad, int $groupId, array $file, string $orNumber
              SET uploaded_file = :file,
                  uploaded_original = :original,
                  or_number = :or_number,
+                 research_stage = :stage,
                  status = 'pending',
                  approved_by_user_id = NULL,
                  approved_by_name = '',
@@ -238,6 +318,7 @@ function rcpStudentUpload(PDO $crad, int $groupId, array $file, string $orNumber
             ':file' => (string) $saved['file'],
             ':original' => (string) $saved['original'],
             ':or_number' => $or,
+            ':stage' => $stage,
             ':id' => (int) $existing['id'],
         ]);
         if ($old !== '' && $old !== (string) $saved['file']) {
@@ -250,11 +331,12 @@ function rcpStudentUpload(PDO $crad, int $groupId, array $file, string $orNumber
     } else {
         $crad->prepare(
             "INSERT INTO research_clearance_payments
-                (research_group_id, student_user_id, uploaded_file, uploaded_original, or_number, remarks, status)
+                (research_group_id, research_stage, student_user_id, uploaded_file, uploaded_original, or_number, remarks, status)
              VALUES
-                (:gid, :uid, :file, :original, :or_number, '', 'pending')"
+                (:gid, :stage, :uid, :file, :original, :or_number, '', 'pending')"
         )->execute([
             ':gid' => $groupId,
+            ':stage' => $stage,
             ':uid' => (int) ($_SESSION['user_id'] ?? 0) ?: null,
             ':file' => (string) $saved['file'],
             ':original' => (string) $saved['original'],
@@ -265,9 +347,10 @@ function rcpStudentUpload(PDO $crad, int $groupId, array $file, string $orNumber
     return ['ok' => true, 'payment' => $fresh];
 }
 
-function rcpApplyToClearance(PDO $crad, int $groupId, string $orNumber, string $remarks): void
+function rcpApplyToClearance(PDO $crad, int $groupId, string $orNumber, string $remarks, string $stage = 'research_1'): void
 {
-    $clearance = function_exists('rscFindByGroup') ? rscFindByGroup($crad, $groupId) : null;
+    $stage = rcpNormalizeStage($stage);
+    $clearance = function_exists('rscFindByGroup') ? rscFindByGroup($crad, $groupId, $stage) : null;
     if (!$clearance) {
         return;
     }
@@ -296,6 +379,7 @@ function rcpAdminApprove(PDO $crad, array $payment, string $orNumber, string $re
 {
     $or = trim($orNumber) !== '' ? trim($orNumber) : trim((string) ($payment['or_number'] ?? ''));
     $note = trim($remarks) !== '' ? trim($remarks) : 'HMA';
+    $stage = rcpNormalizeStage((string) ($payment['research_stage'] ?? 'research_1'));
     if ($or === '') {
         return ['ok' => false, 'error' => 'Enter the O.R. number from the college payment.'];
     }
@@ -315,7 +399,11 @@ function rcpAdminApprove(PDO $crad, array $payment, string $orNumber, string $re
         ':name' => (string) (function_exists('getCurrentUserName') ? getCurrentUserName() : ''),
         ':id' => (int) $payment['id'],
     ]);
-    rcpApplyToClearance($crad, (int) $payment['research_group_id'], $or, $note);
+    rcpApplyToClearance($crad, (int) $payment['research_group_id'], $or, $note, $stage);
+    if (function_exists('rscEnsureForReadyGroup')) {
+        rscEnsureForReadyGroup($crad, (int) $payment['research_group_id'], $stage);
+        rcpApplyToClearance($crad, (int) $payment['research_group_id'], $or, $note, $stage);
+    }
     $fresh = rcpFindById($crad, (int) $payment['id']);
     if (function_exists('rscNotify') && function_exists('rscStudentRecipients')) {
         $clearance = [
@@ -329,8 +417,8 @@ function rcpAdminApprove(PDO $crad, array $payment, string $orNumber, string $re
                 0,
                 $recipient,
                 'payment_approved',
-                'College payment approved',
-                'Your college payment was approved. The O.R. number and remarks are now on your Research Services Clearance form.',
+                rcpStageLabel($stage) . ' college payment approved',
+                'Your ' . rcpStageLabel($stage) . ' college payment was approved. The O.R. number and remarks are now on that Research Services Clearance form.',
                 function_exists('rscStudentUrl') ? rscStudentUrl() : '#'
             );
         }
@@ -367,6 +455,37 @@ function rcpListForAdmin(PDO $crad): array
          LEFT JOIN research_groups rg ON rg.id = p.research_group_id
          ORDER BY FIELD(p.status, 'pending', 'rejected', 'approved'), p.updated_at DESC"
     )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+}
+
+function rcpStudentInbox(PDO $crad, int $groupId): array
+{
+    rcpEnsureSchema($crad);
+    $rows = [];
+    foreach (rcpStageList() as $item) {
+        $stage = $item['key'];
+        $row = rcpFindByGroup($crad, $groupId, $stage);
+        $gate = rcpCanUploadStage($crad, $groupId, $stage);
+        if (!$row) {
+            $row = [
+                'id' => 0,
+                'research_group_id' => $groupId,
+                'research_stage' => $stage,
+                'status' => '',
+                'or_number' => '',
+                'remarks' => '',
+                'uploaded_file' => '',
+                'uploaded_original' => '',
+                'updated_at' => '',
+            ];
+        }
+        $row['can_upload'] = !empty($gate['ok']) && (string) ($row['status'] ?? '') !== 'approved';
+        $row['locked_reason'] = empty($gate['ok']) ? (string) ($gate['reason'] ?? '') : '';
+        if (!empty($row['id']) && !empty($row['uploaded_file'])) {
+            $row = rcpEnsureOrFromImage($crad, $row);
+        }
+        $rows[] = rcpPublicRow($row);
+    }
+    return $rows;
 }
 
 function rcpCanApprove(): bool
