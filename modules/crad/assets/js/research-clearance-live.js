@@ -88,16 +88,13 @@
         if (fileInput) fileInput.hidden = false;
         if (signBtn) {
             var canAdviser = role === 'adviser' && row && row.status === 'sent_to_adviser';
-            var canCrad = isCrad && row && row.form_verified && row.has_upload && row.has_adviser_signature && row.status !== 'clearance_done';
+            var canCrad = isCrad && row && row.status !== 'clearance_done' && (
+                !!row.can_crad_sign
+                || !!(row.form_verified && row.has_upload && row.has_adviser_signature)
+            );
             signBtn.hidden = !(canAdviser || canCrad);
-            if (isCrad && canCrad) {
-                var hasAll = !!(row.has_mis_signature && row.has_aa_signature);
-                signBtn.disabled = !hasAll;
-                signBtn.title = hasAll ? '' : 'CRAD cannot sign until the Adviser, MIS, and AA signatures are on the form.';
-            } else {
-                signBtn.disabled = false;
-                signBtn.title = '';
-            }
+            signBtn.disabled = false;
+            signBtn.title = '';
         }
         if (printBtn) printBtn.hidden = !row || (isCrad && !(row && row.form_verified && row.has_upload));
         if (downloadBtn) downloadBtn.hidden = !row;
@@ -106,8 +103,7 @@
         if (emptyEl) emptyEl.hidden = role === 'student' ? !!row : true;
         if (uploadGate) uploadGate.hidden = !(isCrad && row && !(row.form_verified && row.has_upload));
         if (misAaNote) {
-            var uploaded = !!(isCrad && row && row.form_verified && row.has_upload && row.status !== 'clearance_done');
-            misAaNote.hidden = !(uploaded && !(row.has_mis_signature && row.has_aa_signature));
+            misAaNote.hidden = true;
         }
         if (uploadPreview) uploadPreview.hidden = true;
         if (uploadView) uploadView.innerHTML = '';

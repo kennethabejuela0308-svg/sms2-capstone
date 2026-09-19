@@ -72,7 +72,7 @@ renderBreadcrumbs($breadcrumbs);
 
         <div class="alert alert-info" data-rsc-mis-aa-note hidden>
             <?= smsIcon('info-circle', ['class' => 'me-2']) ?>
-            <strong>Note:</strong> CRAD cannot sign until the Adviser, MIS, and AA signatures are on the uploaded clearance form.
+            After you upload the printed form with the Adviser, MIS, and AA signatures, you can sign as CRAD.
         </div>
 
         <div class="rsc-wrap" data-rsc-form hidden></div>
