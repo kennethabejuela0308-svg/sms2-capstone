@@ -1183,73 +1183,81 @@ if ($crad) {
                 if (!$lockStmt->fetch()) {
                     throw new RuntimeException('Proposed schedule was not found.');
                 }
-            if ($scheduleDefenseType === CRAD_DEFENSE_TYPE_FINAL) {
+                if ($scheduleDefenseType === CRAD_DEFENSE_TYPE_FINAL) {
+                    $crad->prepare(
+                        "INSERT INTO research_panel_assignments
+                            (research_group_id, defense_schedule_id, proposal_id, title_approval_id, proposal_number,
+                             group_number, research_title, panel_user_id, panel_name, panel_email, expertise,
+                             availability_status, assignment_status, defense_phase, assigned_by, assigned_at, created_at, updated_at)
+                         SELECT research_group_id, ?, proposal_id, title_approval_id, proposal_number,
+                                group_number, research_title, panel_user_id, panel_name, panel_email, expertise,
+                                availability_status, 'Assigned', ?, assigned_by, NOW(), NOW(), NOW()
+                         FROM research_panel_assignments
+                         WHERE research_group_id = ?
+                           AND defense_phase = ?
+                           AND assignment_status = 'Assigned'
+                         ON DUPLICATE KEY UPDATE defense_schedule_id = VALUES(defense_schedule_id), assignment_status = 'Assigned', updated_at = NOW()"
+                    )->execute([$scheduleId, CRAD_DEFENSE_PHASE_FINAL, $groupId, CRAD_DEFENSE_PHASE_PRE_ORAL]);
+                }
+                $crad->prepare("UPDATE research_defense_schedules SET status = 'Rejected', updated_at = NOW() WHERE research_group_id = ? AND id <> ? AND defense_type = ? AND LOWER(status) IN ('proposed', 'selected')")
+                    ->execute([$groupId, $scheduleId, $scheduleDefenseType]);
+                $crad->prepare("UPDATE research_defense_schedules SET status = 'Finalized', finalized_by = ?, finalized_at = NOW(), updated_at = NOW() WHERE id = ?")
+                    ->execute([(int) getCurrentUserId(), $scheduleId]);
                 $crad->prepare(
-                    "INSERT INTO research_panel_assignments
-                        (research_group_id, defense_schedule_id, proposal_id, title_approval_id, proposal_number,
-                         group_number, research_title, panel_user_id, panel_name, panel_email, expertise,
-                         availability_status, assignment_status, defense_phase, assigned_by, assigned_at, created_at, updated_at)
-                     SELECT research_group_id, ?, proposal_id, title_approval_id, proposal_number,
-                            group_number, research_title, panel_user_id, panel_name, panel_email, expertise,
-                            availability_status, 'Assigned', ?, assigned_by, NOW(), NOW(), NOW()
-                     FROM research_panel_assignments
+                    "UPDATE research_panel_assignments
+                     SET defense_schedule_id = ?, updated_at = NOW()
                      WHERE research_group_id = ?
                        AND defense_phase = ?
-                       AND assignment_status = 'Assigned'
-                     ON DUPLICATE KEY UPDATE defense_schedule_id = VALUES(defense_schedule_id), assignment_status = 'Assigned', updated_at = NOW()"
-                )->execute([$scheduleId, CRAD_DEFENSE_PHASE_FINAL, $groupId, CRAD_DEFENSE_PHASE_PRE_ORAL]);
-            }
-            $crad->prepare("UPDATE research_defense_schedules SET status = 'Rejected', updated_at = NOW() WHERE research_group_id = ? AND id <> ? AND defense_type = ? AND LOWER(status) IN ('proposed', 'selected')")
-                ->execute([$groupId, $scheduleId, $scheduleDefenseType]);
-            $crad->prepare("UPDATE research_defense_schedules SET status = 'Finalized', finalized_by = ?, finalized_at = NOW(), updated_at = NOW() WHERE id = ?")
-                ->execute([(int) getCurrentUserId(), $scheduleId]);
-            $crad->prepare(
-                "UPDATE research_panel_assignments
-                 SET defense_schedule_id = ?, updated_at = NOW()
-                                 WHERE research_group_id = ?
-                                     AND defense_phase = ?
-                   AND assignment_status = 'Assigned'
-                ")->execute([$scheduleId, $groupId, $scheduleDefenseType === CRAD_DEFENSE_TYPE_FINAL ? CRAD_DEFENSE_PHASE_FINAL : CRAD_DEFENSE_PHASE_PRE_ORAL]);
-            $planStmt = $crad->prepare("SELECT id FROM research_plans WHERE research_group_id = ? LIMIT 1");
-            $planStmt->execute([$groupId]);
-            $planId = (int) ($planStmt->fetchColumn() ?: 0);
-            if ($planId > 0 && $scheduleDefenseType === CRAD_DEFENSE_TYPE_PRE_ORAL) {
-                rpSetCurrentStageIfFirstSemesterComplete($crad, $planId, $groupId);
-            }
-            $notify = $crad->prepare(
-                "INSERT IGNORE INTO panel_assignment_notifications
-                    (event_key, recipient_user_id, recipient_role, recipient_email, panel_assignment_id,
-                     research_group_id, title, body, url, is_read, created_at)
-                 VALUES
-                    (:event_key, :recipient_user_id, 'panel', :recipient_email, :panel_assignment_id,
-                     :research_group_id, :title, :body, :url, 0, NOW())"
-            );
-            $startLabel = rdScheduleDate((string) ($slot['defense_datetime'] ?? ''), 'M j, Y h:i A');
-            $endLabel = rdScheduleDate((string) ($slot['defense_end_datetime'] ?? ''), 'h:i A');
-            $timeLabel = trim($startLabel . ($endLabel !== '' ? ' - ' . $endLabel : ''));
-            $venueLabel = (string) (($slot['venue'] ?? '') ?: 'TBA');
-            $groupLabel = (string) (($slot['group_number'] ?? '') ?: ($slot['research_group'] ?? 'Research Group'));
-            $notificationBody = $groupLabel . "\n"
-                . (string) ($slot['research_title'] ?? '') . "\n"
-                . 'Date/Time: ' . $timeLabel . "\n"
-                . 'Venue: ' . $venueLabel;
-            foreach ($assignedPanels as $panel) {
-                $panelUserId = (int) ($panel['panel_user_id'] ?? 0);
-                if ($panelUserId <= 0) {
-                    continue;
+                       AND assignment_status = 'Assigned'"
+                )->execute([$scheduleId, $groupId, $scheduleDefenseType === CRAD_DEFENSE_TYPE_FINAL ? CRAD_DEFENSE_PHASE_FINAL : CRAD_DEFENSE_PHASE_PRE_ORAL]);
+                $planStmt = $crad->prepare("SELECT id FROM research_plans WHERE research_group_id = ? LIMIT 1");
+                $planStmt->execute([$groupId]);
+                $planId = (int) ($planStmt->fetchColumn() ?: 0);
+                if ($planId > 0 && $scheduleDefenseType === CRAD_DEFENSE_TYPE_PRE_ORAL) {
+                    rpSetCurrentStageIfFirstSemesterComplete($crad, $planId, $groupId);
                 }
-                $notify->execute([
-                    ':event_key' => strtolower(str_replace(' ', '-', $scheduleDefenseType)) . '-finalized:s' . $scheduleId . ':u' . $panelUserId,
-                    ':recipient_user_id' => $panelUserId,
-                    ':recipient_email' => (string) ($panel['panel_email'] ?? ''),
-                    ':panel_assignment_id' => (int) ($panel['id'] ?? 0) ?: null,
-                    ':research_group_id' => $groupId,
-                    ':title' => $scheduleDefenseType . ' Scheduled',
-                    ':body' => $notificationBody,
-                    ':url' => BASE_URL . '/modules/faculty/pages/defense-details.php?id=' . $scheduleId,
-                ]);
+                $notify = $crad->prepare(
+                    "INSERT IGNORE INTO panel_assignment_notifications
+                        (event_key, recipient_user_id, recipient_role, recipient_email, panel_assignment_id,
+                         research_group_id, title, body, url, is_read, created_at)
+                     VALUES
+                        (:event_key, :recipient_user_id, 'panel', :recipient_email, :panel_assignment_id,
+                         :research_group_id, :title, :body, :url, 0, NOW())"
+                );
+                $startLabel = rdScheduleDate((string) ($slot['defense_datetime'] ?? ''), 'M j, Y h:i A');
+                $endLabel = rdScheduleDate((string) ($slot['defense_end_datetime'] ?? ''), 'h:i A');
+                $timeLabel = trim($startLabel . ($endLabel !== '' ? ' - ' . $endLabel : ''));
+                $venueLabel = (string) (($slot['venue'] ?? '') ?: 'TBA');
+                $groupLabel = (string) (($slot['group_number'] ?? '') ?: ($slot['research_group'] ?? 'Research Group'));
+                $notificationBody = $groupLabel . "\n"
+                    . (string) ($slot['research_title'] ?? '') . "\n"
+                    . 'Date/Time: ' . $timeLabel . "\n"
+                    . 'Venue: ' . $venueLabel;
+                foreach ($assignedPanels as $panel) {
+                    $panelUserId = (int) ($panel['panel_user_id'] ?? 0);
+                    if ($panelUserId <= 0) {
+                        continue;
+                    }
+                    $notify->execute([
+                        ':event_key' => strtolower(str_replace(' ', '-', $scheduleDefenseType)) . '-finalized:s' . $scheduleId . ':u' . $panelUserId,
+                        ':recipient_user_id' => $panelUserId,
+                        ':recipient_email' => (string) ($panel['panel_email'] ?? ''),
+                        ':panel_assignment_id' => (int) ($panel['id'] ?? 0) ?: null,
+                        ':research_group_id' => $groupId,
+                        ':title' => $scheduleDefenseType . ' Scheduled',
+                        ':body' => $notificationBody,
+                        ':url' => BASE_URL . '/modules/faculty/pages/defense-details.php?id=' . $scheduleId,
+                    ]);
+                }
+                if ($crad->inTransaction()) {
+                    $crad->commit();
+                }
+            } catch (Throwable $inner) {
+                if ($crad->inTransaction()) {
+                    $crad->rollBack();
+                }
+                throw $inner;
             }
-            $crad->commit();
             echo json_encode(['ok' => true, 'message' => $scheduleDefenseType . ' schedule confirmed.']);
         } catch (Throwable $e) {
             if ($crad->inTransaction()) {
