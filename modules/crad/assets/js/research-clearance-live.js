@@ -63,22 +63,17 @@
         if (acceptBtn) acceptBtn.hidden = !(row && isCrad && (row.status === 'adviser_signed' || row.status === 'crad_received'));
         if (signBtn) {
             var canAdviser = role === 'adviser' && row && row.status === 'sent_to_adviser';
-            var canCrad = isCrad && row && row.has_upload && row.has_adviser_signature;
+            var canCrad = isCrad && row && row.form_verified && row.has_adviser_signature;
             signBtn.hidden = !(canAdviser || canCrad);
         }
-        if (printBtn) printBtn.hidden = !row || (isCrad && !(row && row.has_upload));
+        if (printBtn) printBtn.hidden = !row || (isCrad && !(row && row.form_verified));
         if (downloadBtn) downloadBtn.hidden = !row;
         if (detailEl) detailEl.hidden = !row;
         if (pickEl) pickEl.hidden = !isInboxRole || !!row;
         if (emptyEl) emptyEl.hidden = role === 'student' ? !!row : true;
-        if (uploadGate) uploadGate.hidden = !(isCrad && row && !row.has_upload);
-        if (uploadPreview) uploadPreview.hidden = !(isCrad && row && row.has_upload);
-        if (uploadView) {
-            uploadView.innerHTML = '';
-            if (isCrad && row && row.has_upload && row.uploaded_url) {
-                uploadView.innerHTML = '<img class="rsc-upload-img" src="' + row.uploaded_url + '" alt="Uploaded clearance image">';
-            }
-        }
+        if (uploadGate) uploadGate.hidden = !(isCrad && row && !row.form_verified);
+        if (uploadPreview) uploadPreview.hidden = true;
+        if (uploadView) uploadView.innerHTML = '';
         if (checkWrap) checkWrap.hidden = !(isCrad && row && row.has_upload);
         if (checkAdviser) checkAdviser.checked = !!(row && row.has_adviser_signature);
         if (checkMis) checkMis.checked = !!(row && row.mis_verified);
@@ -176,8 +171,8 @@
             var fd = new FormData();
             if (fileInput && fileInput.files && fileInput.files[0]) {
                 var picked = fileInput.files[0];
-                if (!/\.(png|jpe?g)$/i.test(picked.name || '')) {
-                    alert('Upload a PNG or JPG image from the adviser Download Image.');
+                if (!/\.png$/i.test(picked.name || '')) {
+                    alert('Upload the official PNG from Adviser → Download Image. Other files are not allowed.');
                     return;
                 }
                 fd.append('clearance_file', picked);
