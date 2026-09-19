@@ -119,7 +119,6 @@
                     var changed = !current || (incoming && String(incoming.id) !== String(current.id)) || rowStamp(incoming) !== lastStamp;
                     renderList(rows);
                     if (changed) applyAdmin(incoming, !!(incoming && (!current || String(incoming.id) !== String(current.id))));
-                    else renderList(rows);
                 }
             })
             .catch(function () {});
