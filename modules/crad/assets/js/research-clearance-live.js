@@ -51,7 +51,11 @@
 
     function applyClearance(row) {
         current = row;
-        if (formBox) formBox.innerHTML = row && row.form_html ? row.form_html : '';
+        var showForm = !!(row && row.form_html) && !isCrad;
+        if (formBox) {
+            formBox.hidden = !showForm;
+            formBox.innerHTML = showForm ? row.form_html : '';
+        }
         if (statusEl) statusEl.textContent = row ? (row.status_label || row.status) : '';
         if (sendBtn) sendBtn.hidden = !(row && row.status === 'draft' && role === 'student');
         if (acceptBtn) acceptBtn.hidden = !(row && isCrad && (row.status === 'adviser_signed' || row.status === 'crad_received'));
@@ -60,11 +64,26 @@
             var canCrad = isCrad && row && row.can_crad_sign;
             signBtn.hidden = !(canAdviser || canCrad);
         }
-        if (printBtn) printBtn.hidden = !row;
+        if (printBtn) printBtn.hidden = isCrad || !row;
         if (detailEl) detailEl.hidden = !row;
         if (pickEl) pickEl.hidden = !isInboxRole || !!row;
         if (emptyEl) emptyEl.hidden = role === 'student' ? !!row : true;
-        if (checkWrap) checkWrap.hidden = !(isCrad && row);
+        if (uploadGate) uploadGate.hidden = !(isCrad && row && !row.has_upload);
+        if (uploadPreview) uploadPreview.hidden = !(isCrad && row && row.has_upload);
+        if (uploadView) {
+            uploadView.innerHTML = '';
+            if (isCrad && row && row.has_upload && row.uploaded_url) {
+                var name = row.uploaded_original || 'Uploaded clearance';
+                var lower = String(name).toLowerCase();
+                if (/\.(png|jpg|jpeg)$/.test(lower) || /\.(png|jpg|jpeg)$/.test(String(row.uploaded_url).toLowerCase())) {
+                    uploadView.innerHTML = '<img class="rsc-upload-img" src="' + row.uploaded_url + '" alt="Uploaded clearance">';
+                } else {
+                    uploadView.innerHTML = '<iframe class="rsc-upload-frame" src="' + row.uploaded_url + '" title="Uploaded clearance"></iframe>';
+                }
+                uploadView.innerHTML += '<div class="mt-2"><a href="' + row.uploaded_url + '" target="_blank" rel="noopener">Open uploaded file</a></div>';
+            }
+        }
+        if (checkWrap) checkWrap.hidden = !(isCrad && row && row.has_upload);
         if (checkAdviser) checkAdviser.checked = !!(row && row.has_adviser_signature);
         if (checkMis) checkMis.checked = !!(row && row.mis_verified);
         if (checkAa) checkAa.checked = !!(row && row.aa_verified);
