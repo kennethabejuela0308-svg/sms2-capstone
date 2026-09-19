@@ -714,20 +714,22 @@ function rscCradReceive(PDO $crad, array $clearance, array $file = []): array
     if (!in_array($status, ['adviser_signed', 'crad_received'], true)) {
         return ['ok' => false, 'error' => 'The adviser must sign first before CRAD can accept this clearance.'];
     }
+    if (trim((string) ($clearance['adviser_signature'] ?? '')) === '') {
+        return ['ok' => false, 'error' => 'This clearance has no adviser signature yet.'];
+    }
 
     $hasNewFile = $file !== [] && (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK;
-    $stored = (string) ($clearance['uploaded_file'] ?? '');
-    $original = (string) ($clearance['uploaded_original'] ?? '');
-    if ($hasNewFile) {
-        $saved = rscStoreUpload((int) $clearance['id'], $file);
-        if (empty($saved['ok'])) {
-            return $saved;
-        }
-        $stored = (string) $saved['file'];
-        $original = (string) $saved['original'];
+    if (!$hasNewFile) {
+        return ['ok' => false, 'error' => 'Upload the official clearance image from Adviser → Download Image.'];
     }
-    if ($stored === '') {
-        return ['ok' => false, 'error' => 'Upload the signed clearance form first so you can check the MIS and AA signatures.'];
+    $saved = rscStoreUpload((int) $clearance['id'], $file);
+    if (empty($saved['ok'])) {
+        return $saved;
+    }
+    $check = rscVerifyOfficialFormImage($clearance, (string) $saved['path']);
+    if (empty($check['ok'])) {
+        @unlink((string) $saved['path']);
+        return $check;
     }
 
     $crad->prepare(
@@ -735,14 +737,32 @@ function rscCradReceive(PDO $crad, array $clearance, array $file = []): array
          SET status = 'crad_received',
              uploaded_file = :file,
              uploaded_original = :original,
-             uploaded_at = NOW()
+             uploaded_at = NOW(),
+             form_verified = 1
          WHERE id = :id"
     )->execute([
-        ':file' => $stored,
-        ':original' => $original !== '' ? $original : null,
+        ':file' => (string) $saved['file'],
+        ':original' => (string) $saved['original'],
         ':id' => (int) $clearance['id'],
     ]);
     return ['ok' => true, 'clearance' => rscFindById($crad, (int) $clearance['id'])];
+}
+
+function rscVerifyOfficialFormImage(array $clearance, string $path): array
+{
+    if ($path === '' || !is_file($path)) {
+        return ['ok' => false, 'error' => 'Upload the official clearance image from Adviser → Download Image.'];
+    }
+    $info = @getimagesize($path);
+    if (!$info || empty($info[0]) || (int) $info[0] < 1000) {
+        return ['ok' => false, 'error' => 'That file is not the official Research Services Clearance image. Download it from the adviser page, then upload that PNG.'];
+    }
+    $expected = trim((string) ($clearance['export_hash'] ?? ''));
+    $actual = hash_file('sha256', $path) ?: '';
+    if ($expected === '' || $actual === '' || !hash_equals($expected, $actual)) {
+        return ['ok' => false, 'error' => 'Only the official clearance form with the adviser signature can be uploaded. Use Adviser → Download Image, then upload that same PNG.'];
+    }
+    return ['ok' => true];
 }
 
 function rscCradVerifyMarks(PDO $crad, array $clearance, bool $mis, bool $aa): array
@@ -779,13 +799,14 @@ function rscCanCradSign(array $clearance): bool
 {
     return trim((string) ($clearance['adviser_signature'] ?? '')) !== ''
         && trim((string) ($clearance['uploaded_file'] ?? '')) !== ''
+        && (int) ($clearance['form_verified'] ?? 0) === 1
         && in_array((string) ($clearance['status'] ?? ''), ['adviser_signed', 'crad_received'], true);
 }
 
 function rscCradSign(PDO $crad, array $clearance, string $signature, string $signerName): array
 {
     if (!rscCanCradSign($clearance)) {
-        return ['ok' => false, 'error' => 'Upload the adviser-signed clearance image first, then CRAD can sign.'];
+        return ['ok' => false, 'error' => 'Upload the official adviser-signed clearance image first. Other files cannot be signed.'];
     }
     $sig = rscNormalizeSignature($signature);
     if ($sig === '') {
@@ -865,21 +886,19 @@ function rscStoreUpload(int $clearanceId, array $file): array
         return ['ok' => false, 'error' => 'Invalid upload.'];
     }
     $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-    if ($ext === 'jpeg') {
-        $ext = 'jpg';
-    }
-    if (!in_array($ext, ['png', 'jpg'], true)) {
-        return ['ok' => false, 'error' => 'Upload the clearance image (PNG or JPG) downloaded by the adviser.'];
+    if ($ext !== 'png') {
+        return ['ok' => false, 'error' => 'Upload the official PNG from Adviser → Download Image.'];
     }
     $dir = ROOT_PATH . '/uploads/research-clearance';
     if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) {
         return ['ok' => false, 'error' => 'Could not store the uploaded clearance.'];
     }
     $stored = 'rsc-' . $clearanceId . '-' . bin2hex(random_bytes(6)) . '.' . $ext;
-    if (!move_uploaded_file($tmp, $dir . '/' . $stored)) {
+    $path = $dir . '/' . $stored;
+    if (!move_uploaded_file($tmp, $path)) {
         return ['ok' => false, 'error' => 'Could not store the uploaded clearance.'];
     }
-    return ['ok' => true, 'file' => $stored, 'original' => $name];
+    return ['ok' => true, 'file' => $stored, 'original' => $name, 'path' => $path];
 }
 
 function rscStatusLabel(string $status): string
@@ -921,6 +940,7 @@ function rscPublicRow(array $row): array
         'uploaded_original' => (string) ($row['uploaded_original'] ?? ''),
         'uploaded_url' => rscUploadPublicUrl($row),
         'has_upload' => trim((string) ($row['uploaded_file'] ?? '')) !== '',
+        'form_verified' => (int) ($row['form_verified'] ?? 0) === 1,
         'has_adviser_signature' => trim((string) ($row['adviser_signature'] ?? '')) !== '',
         'mis_verified' => (int) ($row['mis_verified'] ?? 0) === 1,
         'aa_verified' => (int) ($row['aa_verified'] ?? 0) === 1,
