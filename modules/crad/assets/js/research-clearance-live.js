@@ -233,6 +233,12 @@
             refresh();
         });
     }
+    if (groupSelect) {
+        groupSelect.addEventListener('change', function () {
+            selectedId = groupSelect.value || '';
+            refresh();
+        });
+    }
 
     var modal = document.getElementById('rscSigModal');
     var canvas = document.getElementById('rscSigCanvas');
