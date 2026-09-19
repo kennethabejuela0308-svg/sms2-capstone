@@ -1033,8 +1033,31 @@ function rscStatusLabel(string $status): string
     };
 }
 
+function rscAttachPaymentFields(array $row): array
+{
+    $payment = $row['_payment'] ?? null;
+    if (!is_array($payment)) {
+        $crad = rscDb();
+        $gid = (int) ($row['research_group_id'] ?? 0);
+        $payment = ($crad instanceof PDO && $gid > 0) ? rscApprovedPayment($crad, $gid) : null;
+    }
+    if (is_array($payment)) {
+        $or = trim((string) ($payment['or_number'] ?? ''));
+        if ($or !== '') {
+            $row['or_number'] = $or;
+        }
+        $row['payment_remarks'] = trim((string) ($payment['remarks'] ?? '')) ?: 'HMA';
+        $row['payment_approved'] = true;
+    } else {
+        $row['payment_remarks'] = trim((string) ($row['payment_remarks'] ?? '')) ?: 'HMA';
+        $row['payment_approved'] = false;
+    }
+    return $row;
+}
+
 function rscPublicRow(array $row): array
 {
+    $row = rscAttachPaymentFields($row);
     $row = rscApplyUploadedSignatures($row);
     $members = rscDedupeMembers(json_decode((string) ($row['members_json'] ?? ''), true) ?: []);
     return [
@@ -1043,6 +1066,8 @@ function rscPublicRow(array $row): array
         'status' => (string) $row['status'],
         'status_label' => rscStatusLabel((string) $row['status']),
         'or_number' => (string) $row['or_number'],
+        'payment_remarks' => (string) ($row['payment_remarks'] ?? 'HMA'),
+        'payment_approved' => !empty($row['payment_approved']),
         'member_count' => count($members),
         'leader_student_no' => (string) $row['leader_student_no'],
         'leader_group_no' => (string) $row['leader_group_no'],
@@ -1215,11 +1240,13 @@ function rscFormatDateCell(?string $value): string
 
 function rscRenderFormHtml(array $row, bool $duplicate = true): string
 {
+    $row = rscAttachPaymentFields($row);
     $row = rscApplyUploadedSignatures($row);
     $copy = static function (array $row): string {
         $e = static fn($v) => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
         $members = rscDedupeMembers(json_decode((string) ($row['members_json'] ?? ''), true) ?: []);
         $fallbackOr = trim((string) ($row['or_number'] ?? ''));
+        $remarks = trim((string) ($row['payment_remarks'] ?? '')) ?: 'HMA';
         $memberRows = '';
         foreach ($members as $member) {
             $split = rscSplitName((string) ($member['name'] ?? ''));
@@ -1228,7 +1255,7 @@ function rscRenderFormHtml(array $row, bool $duplicate = true): string
                 . '<td>' . $e($split['last']) . '</td>'
                 . '<td>' . $e($split['first']) . '</td>'
                 . '<td>' . $e($memberOr) . '</td>'
-                . '<td>HMA</td>'
+                . '<td>' . $e($remarks) . '</td>'
                 . '</tr>';
         }
         $adviserSig = trim((string) ($row['adviser_signature'] ?? ''));
