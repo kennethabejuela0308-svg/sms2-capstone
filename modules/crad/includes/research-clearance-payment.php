@@ -154,6 +154,11 @@ function rcpEnsureOrFromImage(PDO $crad, array $row): array
     if ($file === '') {
         return $row;
     }
+    $lock = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'rcp-or-lock-' . (int) ($row['id'] ?? 0);
+    if (is_file($lock) && (time() - (int) filemtime($lock)) < 30) {
+        return $row;
+    }
+    @touch($lock);
     $extracted = rcpExtractReferenceFromImage(ROOT_PATH . '/uploads/college-payment/' . $file);
     if ($extracted === '' || strcasecmp($extracted, $or) === 0) {
         return $row;
