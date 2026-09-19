@@ -483,7 +483,11 @@ function rcpStudentInbox(PDO $crad, int $groupId): array
         if (!empty($row['id']) && !empty($row['uploaded_file'])) {
             $row = rcpEnsureOrFromImage($crad, $row);
         }
-        $rows[] = rcpPublicRow($row);
+        $public = rcpPublicRow($row);
+        if ($public['locked_reason'] !== '' && $public['status'] === '') {
+            $public['status_label'] = 'Locked';
+        }
+        $rows[] = $public;
     }
     return $rows;
 }

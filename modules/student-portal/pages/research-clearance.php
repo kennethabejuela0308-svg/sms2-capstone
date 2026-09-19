@@ -15,7 +15,7 @@ $pageTitle = 'Research Services Clearance';
 $activeModule = 'student_portal';
 $activePage = 'research-clearance';
 $pageBannerIcon = 'fa-stamp';
-$pageBannerDescription = 'Research 1 is Pre-Oral clearance. Research 2 opens after Research 1 is done and its college payment is approved.';
+$pageBannerDescription = 'Research 1 is Pre-Oral clearance. Research 2 opens after Research 1 is done and its collage payment is approved.';
 $breadcrumbs = [
     ['label' => 'Student Portal', 'url' => BASE_URL . '/modules/student-portal/pages/dashboard.php'],
     ['label' => 'Research Services Clearance', 'url' => null],
