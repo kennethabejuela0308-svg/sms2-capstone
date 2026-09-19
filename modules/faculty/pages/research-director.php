@@ -302,7 +302,12 @@ function rdScheduleAutoDefenseType(PDO $pdo, int $groupId, string $requestedType
 
 function rdScheduleReadyRows(PDO $pdo, bool $includeScheduled = false, string $defenseType = CRAD_DEFENSE_TYPE_PRE_ORAL): array
 {
-        if ($defenseType === CRAD_DEFENSE_TYPE_FINAL && function_exists('rscEnsureSchema')) {
+        // Never run DDL (schema ensure) while a transaction is open — MySQL implicitly
+        // commits on ALTER/CREATE and PDO then throws "There is no active transaction".
+        if ($defenseType === CRAD_DEFENSE_TYPE_FINAL
+            && function_exists('rscEnsureSchema')
+            && !$pdo->inTransaction()
+        ) {
             rscEnsureSchema($pdo);
         }
         $finalDefenseJoins = '';
@@ -1273,16 +1278,18 @@ if ($crad) {
             exit;
         }
         $scheduleId = (int) ($_POST['schedule_id'] ?? 0);
-        $lockName = 'rd_choose_preoral_' . $scheduleId;
+        $lockName = 'rd_choose_schedule_' . $scheduleId;
         $lockAcquired = false;
         try {
-            $lockStmt = $crad->prepare("SELECT GET_LOCK(?, 5)");
+            $lockStmt = $crad->prepare('SELECT GET_LOCK(?, 5)');
             $lockStmt->execute([$lockName]);
             $lockAcquired = (int) $lockStmt->fetchColumn() === 1;
             if (!$lockAcquired) {
                 throw new RuntimeException('Schedule is being selected. Please wait and try again.');
             }
-            $crad->beginTransaction();
+
+            // Validate outside the transaction so readiness/schema checks cannot
+            // implicitly commit and break PDO::commit().
             $slot = rdScheduleOne($crad, $scheduleId);
             if (!$slot || !in_array(strtolower((string) ($slot['status'] ?? '')), ['proposed', 'selected'], true)) {
                 throw new RuntimeException('Proposed schedule was not found.');
@@ -1292,26 +1299,49 @@ if ($crad) {
                 throw new RuntimeException('This proposed schedule has a current conflict. Please find an alternative slot.');
             }
             $groupId = (int) ($slot['research_group_id'] ?? 0);
+            $defenseType = (string) ($slot['defense_type'] ?? CRAD_DEFENSE_TYPE_PRE_ORAL);
             $official = $crad->prepare(
                 "SELECT id FROM research_defense_schedules
                  WHERE research_group_id = ?
-                                     AND defense_type = ?
+                   AND defense_type = ?
                    AND LOWER(status) IN ('scheduled', 'finalized', 'final')
                  LIMIT 1"
             );
-                        $official->execute([$groupId, (string) ($slot['defense_type'] ?? CRAD_DEFENSE_TYPE_PRE_ORAL)]);
+            $official->execute([$groupId, $defenseType]);
             if ($official->fetchColumn()) {
                 throw new RuntimeException('This research group already has an official finalized schedule.');
             }
-            $crad->prepare("UPDATE research_defense_schedules SET status = 'Proposed', updated_at = NOW() WHERE research_group_id = ? AND id <> ? AND LOWER(status) = 'selected'")
-                ->execute([$groupId, $scheduleId]);
-            $crad->prepare("UPDATE research_defense_schedules SET status = 'Selected', updated_at = NOW() WHERE id = ?")
-                ->execute([$scheduleId]);
-            $crad->commit();
+
+            $crad->beginTransaction();
+            try {
+                $crad->prepare(
+                    "UPDATE research_defense_schedules
+                     SET status = 'Proposed', updated_at = NOW()
+                     WHERE research_group_id = ?
+                       AND id <> ?
+                       AND defense_type = ?
+                       AND LOWER(status) = 'selected'"
+                )->execute([$groupId, $scheduleId, $defenseType]);
+                $crad->prepare(
+                    "UPDATE research_defense_schedules
+                     SET status = 'Selected', updated_at = NOW()
+                     WHERE id = ?
+                       AND LOWER(status) IN ('proposed', 'selected')"
+                )->execute([$scheduleId]);
+                if ($crad->inTransaction()) {
+                    $crad->commit();
+                }
+            } catch (Throwable $inner) {
+                if ($crad->inTransaction()) {
+                    $crad->rollBack();
+                }
+                throw $inner;
+            }
+
             echo json_encode([
                 'ok' => true,
                 'message' => 'Proposed schedule selected for final review.',
-                'redirect' => rdScheduleTypedUrl('finalize-defense-schedule', (string) ($slot['defense_type'] ?? CRAD_DEFENSE_TYPE_PRE_ORAL), ['schedule_id' => $scheduleId]),
+                'redirect' => rdScheduleTypedUrl('finalize-defense-schedule', $defenseType, ['schedule_id' => $scheduleId]),
             ]);
         } catch (Throwable $e) {
             if ($crad->inTransaction()) {
@@ -1321,7 +1351,7 @@ if ($crad) {
         } finally {
             if ($lockAcquired) {
                 try {
-                    $releaseStmt = $crad->prepare("SELECT RELEASE_LOCK(?)");
+                    $releaseStmt = $crad->prepare('SELECT RELEASE_LOCK(?)');
                     $releaseStmt->execute([$lockName]);
                 } catch (Throwable $e) {
                     error_log('RD choose schedule lock release failed: ' . $e->getMessage());
