@@ -844,14 +844,15 @@ function rscRenderFormHtml(array $row, bool $duplicate = true): string
     $copy = static function (array $row): string {
         $e = static fn($v) => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
         $members = rscDedupeMembers(json_decode((string) ($row['members_json'] ?? ''), true) ?: []);
-        $orNumber = trim((string) ($row['or_number'] ?? ''));
+        $fallbackOr = trim((string) ($row['or_number'] ?? ''));
         $memberRows = '';
         foreach ($members as $member) {
             $split = rscSplitName((string) ($member['name'] ?? ''));
+            $memberOr = rscExtractOrNumber((string) ($member['or_number'] ?? '')) ?: $fallbackOr;
             $memberRows .= '<tr>'
                 . '<td>' . $e($split['last']) . '</td>'
                 . '<td>' . $e($split['first']) . '</td>'
-                . '<td>' . $e($orNumber) . '</td>'
+                . '<td>' . $e($memberOr) . '</td>'
                 . '<td></td>'
                 . '</tr>';
         }
