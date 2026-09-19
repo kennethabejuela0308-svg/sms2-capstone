@@ -922,7 +922,7 @@ function renderResearchCoordinatorPanelAssignment(string $view): void
         ];
     }
     $pageCopy = [
-        'retrieve-defense-ready-research' => ['Retrieve Defense-Ready Research', 'Retrieve research groups that are qualified for Pre-Oral Defense and ready for panel assignment.', 'fa-download'],
+        'retrieve-defense-ready-research' => ['Retrieve Defense-Ready Research', 'Retrieve research groups that are qualified for Pre-Oral Defense. Panel assignment stays locked until Research Services Clearance signatures are complete.', 'fa-download'],
         'select-panel-members' => ['Select Panel Members', 'Select qualified faculty members for the chosen Pre-Oral Defense research.', 'fa-user-friends'],
         'check-panel-availability' => ['Check Panel Availability', 'Review the current availability of selected Panel Members.', 'fa-calendar-check'],
         'assign-panel-members' => ['Assign Panel Members', 'Assign selected and available Panel Members to the Pre-Oral Defense research.', 'fa-user-plus'],
