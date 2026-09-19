@@ -963,30 +963,7 @@ function rscCradSign(PDO $crad, array $clearance, string $signature, string $sig
     ]);
 
     $fresh = rscFindById($crad, (int) $clearance['id']);
-    $ctx = rscLoadGroupContext($crad, (int) $clearance['research_group_id']);
-    $studentRecipients = [];
-    if ($ctx) {
-        $studentRecipients[] = [
-            'id' => (int) ($ctx['student_user_id'] ?? 0),
-            'role_key' => 'student',
-            'email' => strtolower(trim((string) ($ctx['leader_email'] ?? ''))),
-        ];
-        $sms = function_exists('db') ? db() : null;
-        $leaderId = trim((string) ($ctx['leader_id'] ?? $ctx['title_student_id'] ?? ''));
-        if ($sms instanceof PDO && $leaderId !== '' && (int) ($studentRecipients[0]['id'] ?? 0) <= 0) {
-            try {
-                $uStmt = $sms->prepare("SELECT id, email, role_key FROM users WHERE student_id = ? AND role_key = 'student' LIMIT 1");
-                $uStmt->execute([$leaderId]);
-                $user = $uStmt->fetch() ?: null;
-                if ($user) {
-                    $studentRecipients[0] = $user;
-                }
-            } catch (Throwable $e) {
-                // keep fallback recipient
-            }
-        }
-    }
-    foreach ($studentRecipients as $recipient) {
+    foreach (rscStudentRecipients($crad, $clearance) as $recipient) {
         rscNotify(
             $crad,
             'clearance-done:' . (int) $clearance['id'],
@@ -1110,8 +1087,12 @@ function rscRenderFormHtml(array $row, bool $duplicate = true): string
                 . '</tr>';
         }
         $adviserSig = trim((string) ($row['adviser_signature'] ?? ''));
+        $misSig = trim((string) ($row['mis_signature'] ?? ''));
+        $aaSig = trim((string) ($row['aa_signature'] ?? ''));
         $cradSig = trim((string) ($row['crad_signature'] ?? ''));
         $adviserImg = $adviserSig !== '' ? '<img src="' . $e($adviserSig) . '" alt="Adviser signature">' : '';
+        $misImg = $misSig !== '' ? '<img src="' . $e($misSig) . '" alt="MIS signature">' : '';
+        $aaImg = $aaSig !== '' ? '<img src="' . $e($aaSig) . '" alt="AA signature">' : '';
         $cradImg = $cradSig !== '' ? '<img src="' . $e($cradSig) . '" alt="CRAD signature">' : '';
         $adviserDate = rscFormatDate($row['adviser_signed_at'] ?? null);
         $cradDate = rscFormatDate($row['crad_signed_at'] ?? null);
