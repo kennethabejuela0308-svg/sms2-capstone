@@ -244,7 +244,7 @@ function rcpCanUploadStage(PDO $crad, int $groupId, string $stage): array
     }
     return [
         'ok' => false,
-        'reason' => 'Finish Research 1 clearance (Pre-Oral) before uploading Research 2 college payment.',
+        'reason' => 'Finish Research 1 clearance (Pre-Oral) before uploading Research 2 collage payment.',
     ];
 }
 

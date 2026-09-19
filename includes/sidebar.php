@@ -183,7 +183,7 @@ $studentNavGroups = [
         ['slug' => 'submission-history', 'href' => BASE_URL . '/modules/student-portal/pages/submission-history.php', 'icon' => 'fa-history', 'label' => 'Submission History', 'locked' => false],
     ],
     'Research Clearance' => [
-        ['slug' => 'college-payment', 'href' => BASE_URL . '/modules/student-portal/pages/college-payment.php', 'icon' => 'fa-receipt', 'label' => 'Upload College Payment', 'locked' => false],
+        ['slug' => 'college-payment', 'href' => BASE_URL . '/modules/student-portal/pages/college-payment.php', 'icon' => 'fa-receipt', 'label' => 'Upload Collage Payment', 'locked' => false],
         ['slug' => 'research-clearance', 'href' => BASE_URL . '/modules/student-portal/pages/research-clearance.php', 'icon' => 'fa-stamp', 'label' => 'Research Services Clearance', 'locked' => false],
     ],
     'Core System' => [

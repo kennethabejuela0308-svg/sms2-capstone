@@ -108,7 +108,7 @@ renderBreadcrumbs($breadcrumbs);
             <?php if (!empty($public['locked_reason'])): ?>
                 <?= e((string) $public['locked_reason']) ?>
                 <?php if (str_contains((string) ($public['locked_reason'] ?? ''), 'payment')): ?>
-                    <a href="<?= e(BASE_URL . '/modules/student-portal/pages/college-payment.php?stage=' . urlencode((string) ($public['research_stage'] ?? 'research_1'))) ?>">Upload College Payment</a>
+                    <a href="<?= e(BASE_URL . '/modules/student-portal/pages/college-payment.php?stage=' . urlencode((string) ($public['research_stage'] ?? 'research_1'))) ?>">Upload Collage Payment</a>
                 <?php endif; ?>
             <?php else: ?>
                 Open a clearance in the inbox. Research 1 is for Pre-Oral. Research 2 opens after Research 1 is finished and its payment is approved.
