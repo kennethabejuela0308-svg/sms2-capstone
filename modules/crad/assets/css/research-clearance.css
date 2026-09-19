@@ -2,11 +2,14 @@
 .rsc-toolbar { display:flex; flex-wrap:wrap; gap:.65rem; align-items:center; justify-content:space-between; margin-bottom:1rem; }
 .rsc-print-root .rsc-toolbar {
     position: sticky;
-    top: 0;
-    z-index: 30;
-    background: #f8fafc;
-    padding: .7rem 0 .85rem;
-    border-bottom: 1px solid #e2e8f0;
+    top: var(--sms-navbar-height, 56px);
+    z-index: 40;
+    background: #fff;
+    padding: .7rem .85rem;
+    margin: 0 0 1rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
 }
 .rsc-status { font-weight:800; color:#334155; }
 .rsc-sheet {

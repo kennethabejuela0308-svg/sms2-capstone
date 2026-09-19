@@ -11,6 +11,7 @@
     var listBody = root.querySelector('[data-rsc-rows]');
     var sendBtn = root.querySelector('[data-rsc-send]');
     var acceptBtn = root.querySelector('[data-rsc-accept]');
+    var acceptAgainBtn = root.querySelector('[data-rsc-accept-again]');
     var signBtn = root.querySelector('[data-rsc-sign]');
     var printBtn = root.querySelector('[data-rsc-print]');
     var downloadBtn = root.querySelector('[data-rsc-download]');
@@ -107,10 +108,7 @@
         if (checkMis) checkMis.checked = !!(row && row.mis_verified);
         if (checkAa) checkAa.checked = !!(row && row.aa_verified);
         if (uploadName) uploadName.textContent = row && row.uploaded_original ? row.uploaded_original : '';
-        if (shouldScroll && row && detailEl) {
-            detailEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            shouldScroll = false;
-        }
+        shouldScroll = false;
     }
 
     function renderRows(rows) {
