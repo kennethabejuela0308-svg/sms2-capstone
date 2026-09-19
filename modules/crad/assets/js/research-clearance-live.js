@@ -223,9 +223,13 @@
             var name = picked.name;
             fileInput.value = '';
             if (data && data.ok) {
-                if (uploadOk) {
-                    uploadOk.hidden = false;
-                    uploadOk.textContent = 'Re-uploaded: ' + name;
+                if (data.clearance && data.clearance.uploaded_url) {
+                    current = Object.assign({}, current || {}, data.clearance);
+                    if (formBox) {
+                        formBox.hidden = false;
+                        formBox.innerHTML = '<img class="rsc-upload-img" alt="Uploaded clearance form" src="'
+                            + data.clearance.uploaded_url + '">';
+                    }
                 }
                 refresh();
                 return;

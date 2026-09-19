@@ -78,6 +78,7 @@ try {
                     'has_upload' => trim((string) ($fresh['uploaded_file'] ?? '')) !== '',
                     'form_verified' => (int) ($fresh['form_verified'] ?? 0) === 1,
                     'uploaded_original' => (string) ($fresh['uploaded_original'] ?? ''),
+                    'uploaded_url' => rscUploadPublicUrl($fresh),
                     'uploaded_at' => (string) ($fresh['uploaded_at'] ?? ''),
                     'has_adviser_signature' => trim((string) ($fresh['adviser_signature'] ?? '')) !== '',
                     'has_mis_signature' => trim((string) ($fresh['mis_signature'] ?? '')) !== '',
