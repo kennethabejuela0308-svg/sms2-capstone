@@ -977,8 +977,15 @@ function rscUploadPublicUrl(array $row): string
 
 function rscStoreUpload(int $clearanceId, array $file): array
 {
-    if ((int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-        return ['ok' => false, 'error' => 'Upload failed. Please try again.'];
+    $code = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
+    if ($code !== UPLOAD_ERR_OK) {
+        $messages = [
+            UPLOAD_ERR_INI_SIZE => 'The clearance image is too large for the server. Use the PNG from Adviser → Download Image.',
+            UPLOAD_ERR_FORM_SIZE => 'The clearance image is too large. Please upload a smaller PNG or JPG.',
+            UPLOAD_ERR_PARTIAL => 'The upload was interrupted. Please try again.',
+            UPLOAD_ERR_NO_FILE => 'Choose the Research Services Clearance picture first.',
+        ];
+        return ['ok' => false, 'error' => $messages[$code] ?? 'Upload failed. Please try again.'];
     }
     $tmp = (string) ($file['tmp_name'] ?? '');
     $name = (string) ($file['name'] ?? 'clearance.png');

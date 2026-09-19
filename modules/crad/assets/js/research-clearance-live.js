@@ -49,7 +49,15 @@
             credentials: 'same-origin',
             cache: 'no-store',
             headers: { 'Accept': 'application/json' }
-        }).then(function (r) { return r.json(); });
+        }).then(function (r) {
+            return r.text().then(function (text) {
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    return { ok: false, error: 'Upload failed. Please refresh and try the clearance PNG again.' };
+                }
+            });
+        });
     }
 
     function applyClearance(row) {
@@ -201,7 +209,9 @@
             acceptBtn.disabled = true;
             post('crad_receive', fd).then(function (data) {
                 if (data && data.ok && data.clearance) applyClearance(data.clearance);
-                else if (data && data.error) alert(data.error);
+                else alert((data && data.error) || 'Could not upload the clearance form. Please try again.');
+            }).catch(function () {
+                alert('Could not upload the clearance form. Please try again.');
             }).finally(function () { acceptBtn.disabled = false; });
         });
     }

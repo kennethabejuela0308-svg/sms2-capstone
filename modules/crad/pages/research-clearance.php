@@ -80,5 +80,5 @@ renderBreadcrumbs($breadcrumbs);
     </div>
 </div>
 <?php require __DIR__ . '/../includes/research-clearance-sig-modal.php'; ?>
-<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-upload-first-2"></script>
+<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-upload-ok-3"></script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>
