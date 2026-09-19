@@ -1124,8 +1124,7 @@ if ($crad) {
         }
         $scheduleId = (int) ($_POST['schedule_id'] ?? 0);
         try {
-            $crad->beginTransaction();
-            $stmt = $crad->prepare("SELECT * FROM research_defense_schedules WHERE id = ? AND LOWER(status) IN ('proposed', 'selected') FOR UPDATE");
+            $stmt = $crad->prepare("SELECT * FROM research_defense_schedules WHERE id = ? AND LOWER(status) IN ('proposed', 'selected')");
             $stmt->execute([$scheduleId]);
             $slot = $stmt->fetch();
             if (!$slot) {
@@ -1149,13 +1148,13 @@ if ($crad) {
                 "SELECT id FROM research_defense_schedules
                  WHERE id <> ?
                    AND research_group_id = ?
-                                     AND defense_type = ?
+                   AND defense_type = ?
                    AND LOWER(status) IN ('scheduled', 'finalized', 'final')
                  LIMIT 1"
             );
-                        $official->execute([$scheduleId, $groupId, (string) ($slot['defense_type'] ?? CRAD_DEFENSE_TYPE_PRE_ORAL)]);
+            $official->execute([$scheduleId, $groupId, (string) ($slot['defense_type'] ?? CRAD_DEFENSE_TYPE_PRE_ORAL)]);
             if ($official->fetchColumn()) {
-                                $conflicts[] = 'This research group already has an official ' . (string) ($slot['defense_type'] ?? CRAD_DEFENSE_TYPE_PRE_ORAL) . ' schedule.';
+                $conflicts[] = 'This research group already has an official ' . (string) ($slot['defense_type'] ?? CRAD_DEFENSE_TYPE_PRE_ORAL) . ' schedule.';
             }
             if ($conflicts) {
                 throw new RuntimeException(implode(' ', $conflicts));
@@ -1176,6 +1175,14 @@ if ($crad) {
                 throw new RuntimeException('No active panel members are assigned to this research group.');
             }
             $scheduleDefenseType = (string) ($slot['defense_type'] ?? CRAD_DEFENSE_TYPE_PRE_ORAL);
+
+            $crad->beginTransaction();
+            try {
+                $lockStmt = $crad->prepare("SELECT * FROM research_defense_schedules WHERE id = ? AND LOWER(status) IN ('proposed', 'selected') FOR UPDATE");
+                $lockStmt->execute([$scheduleId]);
+                if (!$lockStmt->fetch()) {
+                    throw new RuntimeException('Proposed schedule was not found.');
+                }
             if ($scheduleDefenseType === CRAD_DEFENSE_TYPE_FINAL) {
                 $crad->prepare(
                     "INSERT INTO research_panel_assignments

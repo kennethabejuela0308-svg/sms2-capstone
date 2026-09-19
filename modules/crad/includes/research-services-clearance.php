@@ -80,6 +80,10 @@ function rscEnsureSchema(?PDO $crad = null): void
     if (!$crad instanceof PDO) {
         return;
     }
+    // DDL implicitly commits MySQL transactions; skip while a txn is open.
+    if ($crad->inTransaction()) {
+        return;
+    }
 
     $crad->exec(
         "CREATE TABLE IF NOT EXISTS research_services_clearances (
