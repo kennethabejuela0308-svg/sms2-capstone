@@ -484,7 +484,7 @@ function rscEnsureForReadyGroup(PDO $crad, int $groupId): ?array
          WHERE id = :id"
     )->execute([
         ':tid' => $payload['title_approval_id'],
-        ':or_number' => $orNumber,
+        ':or_number' => $or,
         ':leader_student_no' => $payload['leader_student_no'],
         ':leader_group_no' => $payload['leader_group_no'],
         ':program' => $payload['program'],
