@@ -81,9 +81,9 @@ renderBreadcrumbs($breadcrumbs);
             <label class="d-block mb-1"><input type="checkbox" data-rsc-check-mis <?= !empty($public['mis_verified']) ? 'checked' : '' ?>> MIS signature (physical)</label>
             <label class="d-block mb-1"><input type="checkbox" data-rsc-check-aa <?= !empty($public['aa_verified']) ? 'checked' : '' ?>> AA signature (physical)</label>
         </section>
-        <div class="rsc-wrap" data-rsc-form <?= ($public && !empty($public['has_upload'])) ? '' : 'hidden' ?>><?= ($public && !empty($public['has_upload'])) ? ($public['form_html'] ?? '') : '' ?></div>
+        <div class="rsc-wrap" data-rsc-form hidden></div>
     </div>
 </div>
 <?php require __DIR__ . '/../includes/research-clearance-sig-modal.php'; ?>
-<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-no-inbox-1"></script>
+<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-one-form-1"></script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>
