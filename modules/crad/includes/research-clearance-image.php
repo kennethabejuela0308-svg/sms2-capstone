@@ -170,12 +170,13 @@ function rscDrawFormCopy($im, array $row, int $left, int $top, int $width): int
         ['2. OR no. Verified by Accounting / MIS', 'MIS:', $misDate, '', 40],
         ['3. Turnitin username and Password Released by AAI / AA', 'AA:', $aaDate, '', 40],
         [
-            '4. Research Services Personnel Assignment  Grammarian: ' . trim((string) ($row['grammarian_name'] ?? ''))
-                . '   Statistician / Technical Adviser: ' . trim((string) ($row['adviser_name'] ?? $row['statistician_name'] ?? '')),
+            '4. Research Services Personnel Assignment',
             'CRAD: ' . trim((string) ($row['crad_name'] ?? '')),
             $cradDate,
             (string) ($row['crad_signature'] ?? ''),
-            64,
+            72,
+            'Grammarian: ' . trim((string) ($row['grammarian_name'] ?? ''))
+                . "\nStatistician / Technical Adviser: " . trim((string) ($row['adviser_name'] ?? $row['statistician_name'] ?? '')),
         ],
     ];
     foreach ($tasks as $task) {
