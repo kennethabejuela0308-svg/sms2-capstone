@@ -5,6 +5,7 @@ require_once ROOT_PATH . '/includes/authentication.php';
 require_once ROOT_PATH . '/includes/security.php';
 require_once ROOT_PATH . '/config/database.php';
 require_once ROOT_PATH . '/modules/crad/config/config.php';
+require_once ROOT_PATH . '/modules/crad/includes/research-services-clearance.php';
 
 const RD_PANEL_CONTEXT_KEY = 'panel_assignment_context';
 const RD_PANEL_DEFAULT_REQUIRED_COUNT = 3;

@@ -353,6 +353,27 @@ function smsMarkCurrentUserNotificationRead(int $notificationId): void
         return;
     }
 
+    if ($notificationId >= 800000000 && $notificationId < 900000000) {
+        try {
+            $where = smsCurrentUserNotificationWhere();
+            $stmt = $crad->prepare(
+                "UPDATE research_clearance_notifications
+                 SET is_read = 1
+                 WHERE id = :notification_id
+                   AND {$where['sql']}
+                 LIMIT 1"
+            );
+            $stmt->bindValue(':notification_id', $notificationId - 800000000, PDO::PARAM_INT);
+            foreach ($where['params'] as $key => $value) {
+                $stmt->bindValue($key, $value);
+            }
+            $stmt->execute();
+        } catch (Throwable $e) {
+            error_log('Clearance notification mark-read failed: ' . $e->getMessage());
+        }
+        return;
+    }
+
     try {
         $table = $crad->query("SHOW TABLES LIKE 'chapter_evaluation_notifications'")->fetchColumn();
         if (!$table) {
