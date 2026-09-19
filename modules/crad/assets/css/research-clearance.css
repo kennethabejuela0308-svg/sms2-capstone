@@ -1,5 +1,13 @@
 .rsc-wrap { max-width: 860px; margin: 0 auto; }
 .rsc-toolbar { display:flex; flex-wrap:wrap; gap:.65rem; align-items:center; justify-content:space-between; margin-bottom:1rem; }
+.rsc-print-root .rsc-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: #f8fafc;
+    padding: .7rem 0 .85rem;
+    border-bottom: 1px solid #e2e8f0;
+}
 .rsc-status { font-weight:800; color:#334155; }
 .rsc-sheet {
     background:#fff;

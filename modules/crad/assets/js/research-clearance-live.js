@@ -72,9 +72,11 @@
         if (acceptBtn) {
             var canUpload = !!(row && isCrad && (row.status === 'adviser_signed' || row.status === 'crad_received' || row.status === 'clearance_done'));
             acceptBtn.hidden = !canUpload;
+            acceptBtn.disabled = false;
             var uploadLabel = acceptBtn.querySelector('[data-rsc-upload-label]');
             if (uploadLabel) uploadLabel.textContent = row && row.has_upload ? 'Re-upload Image' : 'Upload Image';
         }
+        if (fileInput) fileInput.hidden = !canUpload;
         if (signBtn) {
             var canAdviser = role === 'adviser' && row && row.status === 'sent_to_adviser';
             var canCrad = isCrad && row && row.form_verified && row.has_upload && row.has_adviser_signature && row.status !== 'clearance_done';
@@ -132,7 +134,12 @@
     function refresh() {
         var url = endpoint + (selectedId ? ((endpoint.indexOf('?') >= 0 ? '&' : '?') + 'id=' + encodeURIComponent(selectedId)) : '');
         fetch(url, { credentials: 'same-origin', cache: 'no-store', headers: { 'Accept': 'application/json' } })
-            .then(function (r) { return r.json(); })
+            .then(function (r) {
+                return r.text().then(function (text) {
+                    try { return JSON.parse(text); }
+                    catch (e) { return null; }
+                });
+            })
             .then(function (data) {
                 if (!data || !data.ok) return;
                 if (syncEl) syncEl.textContent = data.last_sync || '';
@@ -192,32 +199,46 @@
         });
     }
 
-    if (acceptBtn) {
-        acceptBtn.addEventListener('click', function () {
-            var fd = new FormData();
-            if (fileInput && fileInput.files && fileInput.files[0]) {
-                var picked = fileInput.files[0];
-                if (!/\.(png|jpe?g)$/i.test(picked.name || '')) {
-                    alert('Upload a PNG or JPG picture of the Research Services Clearance form.');
-                    return;
-                }
-                fd.append('clearance_file', picked);
-            } else if (isCrad) {
-                alert('Choose the clearance image (PNG or JPG) first.');
+    function uploadPickedFile() {
+        if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+            return;
+        }
+        var picked = fileInput.files[0];
+        if (!/\.(png|jpe?g)$/i.test(picked.name || '')) {
+            alert('Upload a PNG or JPG picture of the Research Services Clearance form.');
+            fileInput.value = '';
+            return;
+        }
+        var fd = new FormData();
+        fd.append('clearance_file', picked);
+        if (acceptBtn) acceptBtn.disabled = true;
+        post('crad_receive', fd).then(function (data) {
+            fileInput.value = '';
+            if (data && data.ok) {
+                if (data.clearance) applyClearance(data.clearance);
+                refresh();
                 return;
             }
-            acceptBtn.disabled = true;
-            post('crad_receive', fd).then(function (data) {
-                if (fileInput) fileInput.value = '';
-                if (data && data.ok) {
-                    if (data.clearance) applyClearance(data.clearance);
-                    refresh();
-                    return;
-                }
-                alert((data && data.error) || 'Could not re-upload the clearance form. Please try again.');
-            }).catch(function () {
-                alert('Could not re-upload the clearance form. Please try again.');
-            }).finally(function () { acceptBtn.disabled = false; });
+            alert((data && data.error) || 'Could not re-upload the clearance form. Please try again.');
+        }).catch(function () {
+            alert('Could not re-upload the clearance form. Please try again.');
+        }).finally(function () {
+            if (acceptBtn) acceptBtn.disabled = false;
+        });
+    }
+
+    if (acceptBtn) {
+        acceptBtn.addEventListener('click', function () {
+            if (!fileInput) return;
+            fileInput.value = '';
+            fileInput.click();
+        });
+    }
+    if (fileInput) {
+        fileInput.addEventListener('change', function () {
+            if (isCrad && fileInput.files && fileInput.files[0]) {
+                uploadPickedFile();
+            }
         });
     }
 
