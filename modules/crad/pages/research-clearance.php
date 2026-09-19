@@ -75,12 +75,6 @@ renderBreadcrumbs($breadcrumbs);
             <div data-rsc-upload-view></div>
             <small class="text-muted" data-rsc-upload-name><?= e($public['uploaded_original'] ?? '') ?></small>
         </div>
-        <section class="glass-panel p-3 mb-3" data-rsc-check-wrap <?= ($public && !empty($public['has_upload'])) ? '' : 'hidden' ?>>
-            <div class="fw-semibold mb-2">CRAD signature check — MIS and AA are physical signatures, not computerized.</div>
-            <label class="d-block mb-1"><input type="checkbox" data-rsc-check-adviser disabled <?= !empty($public['has_adviser_signature']) ? 'checked' : '' ?>> Adviser signature (from the system)</label>
-            <label class="d-block mb-1"><input type="checkbox" data-rsc-check-mis <?= !empty($public['mis_verified']) ? 'checked' : '' ?>> MIS signature (physical)</label>
-            <label class="d-block mb-1"><input type="checkbox" data-rsc-check-aa <?= !empty($public['aa_verified']) ? 'checked' : '' ?>> AA signature (physical)</label>
-        </section>
         <div class="rsc-wrap" data-rsc-form hidden></div>
     </div>
 </div>
