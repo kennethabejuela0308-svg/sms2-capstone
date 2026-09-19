@@ -259,7 +259,6 @@ if (!isset($facultyAccountNavGroups['Research Monitoring'])) {
         ['slug' => 'revision-monitoring', 'href' => BASE_URL . '/modules/faculty/pages/revision-monitoring.php', 'icon' => 'fa-redo', 'label' => 'Revision Monitoring'],
         ['slug' => 'submitted-updates', 'href' => BASE_URL . '/modules/faculty/pages/submitted-updates.php', 'icon' => 'fa-inbox', 'label' => 'Submitted Updates'],
         ['slug' => 'adviser-feedback-history', 'href' => BASE_URL . '/modules/faculty/pages/adviser-feedback-history.php', 'icon' => 'fa-comments', 'label' => 'Adviser Feedback'],
-        ['slug' => 'research-clearance', 'href' => BASE_URL . '/modules/faculty/pages/research-clearance.php', 'icon' => 'fa-stamp', 'label' => 'Research Services Clearance'],
     ];
 }
 

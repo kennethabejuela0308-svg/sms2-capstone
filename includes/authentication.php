@@ -701,7 +701,8 @@ function getVisibleModules(array $modules): array
                 'Financial' => ['account-balance', 'payment-history'],
                 'Academics' => ['class-schedule', 'academic-records', 'subjects-professors', 'grades-portal'],
                 'Research' => ['research-proposal-submission'],
-                'Document Submission' => ['submit-chapters', 'research-clearance', 'my-submissions', 'submission-status', 'submission-history'],
+                'Document Submission' => ['submit-chapters', 'my-submissions', 'submission-status', 'submission-history'],
+                'Research Clearance' => ['research-clearance'],
             ],
             'pages' => [
                 ['slug' => 'dashboard', 'title' => 'Dashboard'],

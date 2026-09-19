@@ -532,6 +532,9 @@ $MODULES = [
         'label' => 'CRAD',
         'icon'  => 'fa-flask',
         'groups' => [
+            'Research Clearance' => [
+                'research-clearance',
+            ],
             'Research Proposal' => [
                 'register-proposal',
                 'research-group-number',
