@@ -931,7 +931,7 @@ function chapterSubmitEvaluation(PDO $crad, array $submission, array $data): arr
             ':submission_id' => (int) $submission['id'],
             ':group_id' => (int) $submission['research_group_id'],
             ':evaluator_user_id' => (int) ($_SESSION['user_id'] ?? 0),
-            ':evaluator_name' => (string) ($_SESSION['user_name'] ?? ''),
+            ':evaluator_name' => chapterLiveEvaluatorName(),
             ':content_score' => $scores['content_score'],
             ':methodology_score' => $scores['methodology_score'],
             ':references_score' => $scores['references_score'],

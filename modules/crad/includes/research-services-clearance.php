@@ -13,6 +13,65 @@ function rscDb(): ?PDO
     return function_exists('cradDb') ? cradDb() : getCradDatabaseConnection();
 }
 
+function rscSmsDb(): ?PDO
+{
+    return function_exists('db') ? db() : null;
+}
+
+function rscLiveAccountName(int $userId = 0, string $email = '', string $roleKey = '', string $fallback = ''): string
+{
+    $fallback = trim($fallback);
+    $sms = rscSmsDb();
+    if (!$sms instanceof PDO) {
+        return $fallback;
+    }
+    try {
+        if ($userId > 0) {
+            $stmt = $sms->prepare(
+                "SELECT full_name FROM users
+                 WHERE id = ? AND TRIM(COALESCE(full_name, '')) <> ''
+                 LIMIT 1"
+            );
+            $stmt->execute([$userId]);
+            $name = trim((string) $stmt->fetchColumn());
+            if ($name !== '') {
+                return $name;
+            }
+        }
+        $email = strtolower(trim($email));
+        if ($email !== '') {
+            $stmt = $sms->prepare(
+                "SELECT full_name FROM users
+                 WHERE LOWER(TRIM(email)) = ? AND TRIM(COALESCE(full_name, '')) <> ''
+                 LIMIT 1"
+            );
+            $stmt->execute([$email]);
+            $name = trim((string) $stmt->fetchColumn());
+            if ($name !== '') {
+                return $name;
+            }
+        }
+        $roleKey = strtolower(trim($roleKey));
+        if ($roleKey !== '') {
+            $stmt = $sms->prepare(
+                "SELECT full_name FROM users
+                 WHERE role_key = ? AND TRIM(COALESCE(full_name, '')) <> ''
+                   AND (status = 'active' OR status = 1 OR status IS NULL OR status = '')
+                 ORDER BY id DESC
+                 LIMIT 1"
+            );
+            $stmt->execute([$roleKey]);
+            $name = trim((string) $stmt->fetchColumn());
+            if ($name !== '') {
+                return $name;
+            }
+        }
+    } catch (Throwable $e) {
+        // keep fallback
+    }
+    return $fallback;
+}
+
 function rscEnsureSchema(?PDO $crad = null): void
 {
     $crad = $crad ?: rscDb();
@@ -333,17 +392,34 @@ function rscLoadGroupContext(PDO $crad, int $groupId): ?array
     }
 
     $grammarian = '';
+    $grammarianUserId = 0;
     try {
         $gStmt = $crad->prepare(
-            "SELECT evaluator_name FROM chapter_evaluations
-             WHERE research_group_id = ? AND TRIM(evaluator_name) <> ''
+            "SELECT evaluator_user_id, evaluator_name FROM chapter_evaluations
+             WHERE research_group_id = ?
              ORDER BY id DESC LIMIT 1"
         );
         $gStmt->execute([$groupId]);
-        $grammarian = trim((string) $gStmt->fetchColumn());
+        $eval = $gStmt->fetch() ?: null;
+        if ($eval) {
+            $grammarianUserId = (int) ($eval['evaluator_user_id'] ?? 0);
+            $grammarian = trim((string) ($eval['evaluator_name'] ?? ''));
+        }
     } catch (Throwable $e) {
         $grammarian = '';
     }
+    $grammarian = rscLiveAccountName($grammarianUserId, '', 'grammarian', $grammarian);
+
+    $adviserUserId = (int) ($group['adviser_user_id'] ?? 0);
+    $adviserEmail = strtolower(trim((string) ($group['adviser_email'] ?? '')));
+    $adviserName = rscLiveAccountName(
+        $adviserUserId,
+        $adviserEmail,
+        '',
+        trim((string) ($group['adviser_name'] ?? $group['adviser'] ?? ''))
+    );
+    $group['resolved_adviser_name'] = $adviserName;
+    $group['adviser_name'] = $adviserName;
 
     $program = trim((string) ($group['college_dept'] ?? ''));
     if ($program === '') {
@@ -430,7 +506,7 @@ function rscEnsureForReadyGroup(PDO $crad, int $groupId): ?array
         'research_title' => trim((string) ($ctx['research_title'] ?? '')),
         'members_json' => json_encode($members, JSON_UNESCAPED_UNICODE),
         'grammarian_name' => (string) ($ctx['resolved_grammarian'] ?? ''),
-        'adviser_name' => trim((string) ($ctx['adviser_name'] ?? $ctx['adviser'] ?? '')),
+        'adviser_name' => trim((string) ($ctx['resolved_adviser_name'] ?? $ctx['adviser_name'] ?? $ctx['adviser'] ?? '')),
         'adviser_user_id' => (int) ($ctx['adviser_user_id'] ?? 0) ?: null,
         'adviser_email' => strtolower(trim((string) ($ctx['adviser_email'] ?? ''))),
     ];
