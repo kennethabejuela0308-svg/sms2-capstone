@@ -78,6 +78,7 @@ if (!function_exists('smsNavPageIcon')) {
             'curriculum-analytics' => 'fa-book',
             'class-schedule-analytics' => 'fa-calendar-alt',
             'research-proposal-analytics' => 'fa-clipboard-list',
+            'research-clearance' => 'fa-stamp',
             'submit-chapters' => 'fa-file-upload',
             'my-submissions' => 'fa-folder-open',
             'submission-status' => 'fa-chart-line',

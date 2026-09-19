@@ -730,6 +730,12 @@ $researchDirectorNavGroups = [
                                                     data-admin-subgroup="#<?= htmlspecialchars($groupCollapseId) ?>"
                                                     aria-expanded="<?= $isGroupActive ? 'true' : 'false' ?>"
                                                     aria-controls="<?= htmlspecialchars($groupCollapseId) ?>">
+                                                <?= smsIcon(
+                                                    (string) $groupLabel === 'Research Clearance'
+                                                        ? 'fa-stamp'
+                                                        : smsNavPageIcon((string) ($groupSlugs[0] ?? '')),
+                                                    ['aria-hidden' => 'true']
+                                                ) ?>
                                                 <span><?= htmlspecialchars((string) $groupLabel) ?></span>
                                                 <?= smsIcon('chevron-down', ['class' => 'sidebar-chevron ms-auto', 'aria-hidden' => 'true']) ?>
                                             </button>
