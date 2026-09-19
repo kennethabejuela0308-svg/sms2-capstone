@@ -900,11 +900,11 @@ function rscRenderFormHtml(array $row, bool $duplicate = true): string
             . '</tbody></table></div>';
     };
 
-    $html = $copy($row);
+    $html = '<div class="rsc-print-set">' . $copy($row);
     if ($duplicate) {
         $html .= $copy($row);
     }
-    return $html;
+    return $html . '</div>';
 }
 
 function rscStudentCanAccess(PDO $crad, array $clearance): bool
