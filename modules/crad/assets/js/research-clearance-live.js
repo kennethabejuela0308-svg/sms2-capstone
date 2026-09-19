@@ -77,7 +77,7 @@
             var uploadLabel = acceptBtn.querySelector('[data-rsc-upload-label]');
             if (uploadLabel) uploadLabel.textContent = row && row.has_upload ? 'Re-upload Image' : 'Upload Image';
         }
-        if (fileInput) fileInput.hidden = !canUpload;
+        if (fileInput) fileInput.hidden = false;
         if (signBtn) {
             var canAdviser = role === 'adviser' && row && row.status === 'sent_to_adviser';
             var canCrad = isCrad && row && row.form_verified && row.has_upload && row.has_adviser_signature && row.status !== 'clearance_done';
@@ -225,13 +225,13 @@
         });
     }
 
-    if (acceptBtn) {
-        acceptBtn.addEventListener('click', function () {
-            if (!fileInput) return;
-            fileInput.value = '';
-            fileInput.click();
-        });
+    function openFilePicker() {
+        if (!fileInput) return;
+        fileInput.value = '';
+        fileInput.click();
     }
+    if (acceptBtn) acceptBtn.addEventListener('click', openFilePicker);
+    if (acceptAgainBtn) acceptAgainBtn.addEventListener('click', openFilePicker);
     if (fileInput) {
         fileInput.addEventListener('change', function () {
             if (isCrad && fileInput.files && fileInput.files[0]) {
