@@ -62,7 +62,7 @@
         if (acceptBtn) acceptBtn.hidden = !(row && isCrad && (row.status === 'adviser_signed' || row.status === 'crad_received'));
         if (signBtn) {
             var canAdviser = role === 'adviser' && row && row.status === 'sent_to_adviser';
-            var canCrad = isCrad && row && row.can_crad_sign;
+            var canCrad = isCrad && row && row.has_upload && row.has_adviser_signature;
             signBtn.hidden = !(canAdviser || canCrad);
         }
         if (printBtn) printBtn.hidden = !row || (isCrad && !(row && row.has_upload));
@@ -75,14 +75,7 @@
         if (uploadView) {
             uploadView.innerHTML = '';
             if (isCrad && row && row.has_upload && row.uploaded_url) {
-                var name = row.uploaded_original || 'Uploaded clearance';
-                var lower = String(name).toLowerCase();
-                if (/\.(png|jpg|jpeg)$/.test(lower) || /\.(png|jpg|jpeg)$/.test(String(row.uploaded_url).toLowerCase())) {
-                    uploadView.innerHTML = '<img class="rsc-upload-img" src="' + row.uploaded_url + '" alt="Uploaded clearance">';
-                } else {
-                    uploadView.innerHTML = '<iframe class="rsc-upload-frame" src="' + row.uploaded_url + '" title="Uploaded clearance"></iframe>';
-                }
-                uploadView.innerHTML += '<div class="mt-2"><a href="' + row.uploaded_url + '" target="_blank" rel="noopener">Open uploaded file</a></div>';
+                uploadView.innerHTML = '<img class="rsc-upload-img" src="' + row.uploaded_url + '" alt="Uploaded clearance image">';
             }
         }
         if (checkWrap) checkWrap.hidden = !(isCrad && row && row.has_upload);
