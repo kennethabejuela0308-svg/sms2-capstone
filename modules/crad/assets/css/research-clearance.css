@@ -50,6 +50,7 @@
 .rsc-table th { font-weight:700; background:#f8fafc; text-align:left; }
 .rsc-table--members td { height:22px; }
 .rsc-table--tasks td { min-height:42px; }
+.rsc-table--tasks td:last-child { font-size:10pt; line-height:1.25; white-space:nowrap; }
 .rsc-table--tasks img { display:block; max-height:42px; max-width:180px; margin-top:4px; }
 .rsc-empty, .rsc-pick { padding:1.25rem 1rem; text-align:center; color:#64748b; }
 .rsc-inbox-scroll { max-height: 420px; overflow: auto; }
