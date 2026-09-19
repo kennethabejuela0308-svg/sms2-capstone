@@ -246,9 +246,22 @@ function finalDefenseSubmitEvaluation(PDO $crad, int $scheduleId, array $data): 
         }
         $score = (float) $raw;
         if ($score < $criterion['min'] || $score > $criterion['max']) {
-            return ['ok' => false, 'error' => $criterion['label'] . ' score must be between 0 and 100.'];
+            return [
+                'ok' => false,
+                'error' => $criterion['label'] . ' Score cannot exceed ' . (int) $criterion['max']
+                    . '%. Evaluation cannot be submitted.',
+            ];
         }
         $scores[$criterion['key']] = $score;
+    }
+
+    $overall = round(array_sum($scores), 2);
+    $totalMax = finalDefenseEvaluationTotalMax();
+    if ($overall > $totalMax) {
+        return [
+            'ok' => false,
+            'error' => 'Total score cannot exceed ' . (int) $totalMax . '%. Evaluation cannot be submitted.',
+        ];
     }
 
     $result = strtoupper(trim((string) ($data['result'] ?? '')));
@@ -260,9 +273,9 @@ function finalDefenseSubmitEvaluation(PDO $crad, int $scheduleId, array $data): 
         $stmt = $crad->prepare(
             "INSERT INTO final_defense_evaluations
                 (defense_schedule_id, research_group_id, panel_user_id, panel_name,
-                 content_score, methodology_score, references_score, format_score,
+                 content_score, methodology_score, references_score, format_score, defense_score,
                  remarks, result, overall_score, status, submitted_at, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Submitted', NOW(), NOW())"
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Submitted', NOW(), NOW())"
         );
         $stmt->execute([
             $scheduleId,
@@ -273,9 +286,10 @@ function finalDefenseSubmitEvaluation(PDO $crad, int $scheduleId, array $data): 
             $scores['methodology'],
             $scores['references'],
             $scores['format'],
+            $scores['defense'],
             trim((string) ($data['remarks'] ?? '')),
             $result,
-            round(array_sum($scores) / count($scores), 2),
+            $overall,
         ]);
         return ['ok' => true, 'message' => 'Final Defense evaluation submitted successfully.'];
     } catch (PDOException $e) {
