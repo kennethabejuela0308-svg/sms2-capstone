@@ -15,7 +15,7 @@ $pageTitle = 'Research Services Clearance';
 $activeModule = 'crad';
 $activePage = 'research-clearance';
 $pageBannerIcon = 'fa-stamp';
-$pageBannerDescription = 'Accept the student clearance form and add the CRAD signature.';
+$pageBannerDescription = 'Upload the adviser-signed clearance image, then sign as CRAD.';
 $breadcrumbs = [
     ['label' => 'CRAD', 'url' => BASE_URL . '/modules/crad/index.php'],
     ['label' => 'Research Services Clearance', 'url' => null],
@@ -25,14 +25,14 @@ $crad = rscDb();
 rscEnsureSchema($crad);
 $rows = rscListForCrad($crad);
 $selectedId = (int) ($_GET['id'] ?? 0);
-$current = $selectedId > 0 ? rscRefreshExisting($crad, rscFindById($crad, $selectedId)) : null;
+$current = $selectedId > 0 ? rscRefreshExisting($crad, rscFindById($crad, $selectedId)) : ($rows[0] ?? null);
 $public = $current ? rscPublicRow($current) : null;
 $rscSigPadLabel = 'CRAD Signature Pad (Draw Below)';
 
 require_once ROOT_PATH . '/includes/layout-start.php';
 renderBreadcrumbs($breadcrumbs);
 ?>
-<link rel="stylesheet" href="<?= BASE_URL ?>/modules/crad/assets/css/research-clearance.css?v=rsc-crad-sign-1">
+<link rel="stylesheet" href="<?= BASE_URL ?>/modules/crad/assets/css/research-clearance.css?v=rsc-no-inbox-1">
 
 <div class="glass-dashboard rsc-print-root"
      data-rsc-live
@@ -40,52 +40,38 @@ renderBreadcrumbs($breadcrumbs);
      data-rsc-endpoint="<?= e(BASE_URL . '/modules/crad/api/research-clearance.php') ?>"
      data-rsc-csrf="<?= e(csrfToken()) ?>"
      data-rsc-id="<?= $public ? (int) $public['id'] : '' ?>">
-    <section class="glass-panel p-4 mb-3 rsc-inbox">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="mb-0"><?= smsIcon('stamp', ['class' => 'me-2 text-primary']) ?>Clearance Inbox</h5>
-            <small class="text-muted" data-rsc-sync></small>
-        </div>
-        <div class="table-responsive rsc-inbox-scroll">
-            <table class="table align-middle mb-0">
-                <thead><tr><th>Group</th><th>Title</th><th>O.R. No.</th><th>Status</th><th></th></tr></thead>
-                <tbody data-rsc-rows>
-                    <?php if (!$rows): ?>
-                        <tr><td colspan="5" class="text-muted">No signed clearance forms yet.</td></tr>
-                    <?php else: ?>
-                        <?php foreach ($rows as $item): $itemPublic = rscPublicRow($item); ?>
-                            <tr<?= $public && (int) $public['id'] === (int) $itemPublic['id'] ? ' class="table-active"' : '' ?> data-rsc-open="<?= (int) $itemPublic['id'] ?>">
-                                <td><?= e($itemPublic['leader_group_no']) ?></td>
-                                <td><?= e($itemPublic['research_title']) ?></td>
-                                <td><?= e($itemPublic['or_number']) ?></td>
-                                <td><?= e($itemPublic['status_label']) ?></td>
-                                <td><button type="button" class="btn btn-sm btn-outline-primary" data-rsc-open="<?= (int) $itemPublic['id'] ?>">Open</button></td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
-    </section>
-
     <div class="rsc-empty" data-rsc-empty <?= $rows ? 'hidden' : '' ?>>Waiting for an adviser-signed Research Services Clearance.</div>
-    <div class="rsc-pick" data-rsc-pick <?= ($rows && !$public) ? '' : 'hidden' ?>>Open a row, then upload the PNG/JPG image downloaded by the adviser.</div>
+
     <div data-rsc-detail <?= $public ? '' : 'hidden' ?>>
         <div class="rsc-toolbar">
-            <div class="rsc-status" data-rsc-status><?= e($public['status_label'] ?? '') ?></div>
+            <div>
+                <div class="rsc-status" data-rsc-status><?= e($public['status_label'] ?? '') ?></div>
+                <small class="text-muted" data-rsc-sync></small>
+            </div>
             <div class="d-flex flex-wrap gap-2 align-items-center">
-                <button type="button" class="btn btn-outline-secondary" data-rsc-close><?= smsIcon('arrow-left', ['class' => 'me-1']) ?>Back to Inbox</button>
+                <?php if (count($rows) > 1): ?>
+                    <select class="form-select form-select-sm" style="max-width:280px;" data-rsc-group>
+                        <?php foreach ($rows as $item): $itemPublic = rscPublicRow($item); ?>
+                            <option value="<?= (int) $itemPublic['id'] ?>"<?= $public && (int) $public['id'] === (int) $itemPublic['id'] ? ' selected' : '' ?>>
+                                <?= e($itemPublic['leader_group_no'] ?: ('#' . $itemPublic['id'])) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                <?php endif; ?>
                 <input type="file" class="form-control form-control-sm" style="max-width:260px;" data-rsc-file accept=".png,.jpg,.jpeg,image/png,image/jpeg">
                 <button type="button" class="btn btn-outline-primary" data-rsc-accept <?= ($public && in_array($public['status'], ['adviser_signed', 'crad_received'], true)) ? '' : 'hidden' ?>><?= smsIcon('upload', ['class' => 'me-1']) ?>Upload Image</button>
                 <button type="button" class="btn btn-outline-secondary" data-rsc-print <?= ($public && !empty($public['has_upload'])) ? '' : 'hidden' ?>><?= smsIcon('print', ['class' => 'me-1']) ?>Print</button>
-                <button type="button" class="btn btn-success" data-rsc-sign <?= ($public && !empty($public['can_crad_sign'])) ? '' : 'hidden' ?>><?= smsIcon('signature', ['class' => 'me-1']) ?>Sign Clearance</button>
+                <button type="button" class="btn btn-success" data-rsc-sign <?= ($public && !empty($public['has_upload']) && !empty($public['has_adviser_signature'])) ? '' : 'hidden' ?>><?= smsIcon('signature', ['class' => 'me-1']) ?>Sign Clearance</button>
             </div>
         </div>
+
         <div class="alert alert-warning" data-rsc-upload-gate <?= ($public && empty($public['has_upload'])) ? '' : 'hidden' ?>>
             <?= smsIcon('upload', ['class' => 'me-2']) ?>
-            Upload the clearance <strong>image</strong> (PNG or JPG) from the adviser Download Image. After that, you can sign as CRAD.
+            Upload the adviser <strong>Download Image</strong> (PNG or JPG) first. The clearance form stays hidden until you upload that image. Then you can sign as CRAD.
         </div>
+
         <div data-rsc-upload-preview <?= ($public && !empty($public['has_upload'])) ? '' : 'hidden' ?>>
-            <div class="fw-semibold mb-2">Uploaded adviser-signed image — CRAD can sign the form now.</div>
+            <div class="fw-semibold mb-2">Uploaded adviser-signed image</div>
             <div data-rsc-upload-view></div>
             <small class="text-muted" data-rsc-upload-name><?= e($public['uploaded_original'] ?? '') ?></small>
         </div>
@@ -99,5 +85,5 @@ renderBreadcrumbs($breadcrumbs);
     </div>
 </div>
 <?php require __DIR__ . '/../includes/research-clearance-sig-modal.php'; ?>
-<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-img-1"></script>
+<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-no-inbox-1"></script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>

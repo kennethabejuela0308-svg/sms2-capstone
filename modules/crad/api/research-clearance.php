@@ -135,6 +135,9 @@ try {
         $rows = rscListForCrad($crad);
         $id = (int) ($_GET['id'] ?? 0);
         $current = $id > 0 ? rscRefreshExisting($crad, rscFindById($crad, $id)) : null;
+        if (!$current && $rows) {
+            $current = $rows[0];
+        }
         $payload['ready'] = $rows !== [];
         $payload['clearance'] = $current ? rscPublicRow($current) : null;
         $payload['rows'] = array_map('rscPublicRow', $rows);
