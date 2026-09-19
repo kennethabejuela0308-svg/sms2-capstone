@@ -136,6 +136,7 @@ function rdPanelReadySql(): string
              )
              INNER JOIN research_services_clearances rsc
                ON rsc.research_group_id = rg.id
+              AND rsc.research_stage = 'research_1'
               AND rsc.status = 'clearance_done'
               AND TRIM(COALESCE(rsc.adviser_signature, '')) <> ''
               AND TRIM(COALESCE(rsc.crad_signature, '')) <> ''

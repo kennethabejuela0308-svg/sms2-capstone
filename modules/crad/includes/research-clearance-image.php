@@ -125,7 +125,7 @@ function rscDrawFormCopy($im, array $row, int $left, int $top, int $width): int
     $m3 = (int) ($width * 0.32);
     $m4 = $width - $m1 - $m2 - $m3;
     $cx = $x;
-    foreach (['Last Name', 'First Name', 'Research 1 / Defense O.R. No.', 'Remarks'] as $i => $label) {
+    foreach (['Last Name', 'First Name', rscOrColumnLabel((string) ($row['research_stage'] ?? 'research_1')), 'Remarks'] as $i => $label) {
         $w = [$m1, $m2, $m3, $m4][$i];
         rscImageCell($im, $cx, $y, $w, $rh, $black, true, $head);
         rscImageText($im, $cx + 6, $y + 7, $label, 10, $black, true, $w - 10);
