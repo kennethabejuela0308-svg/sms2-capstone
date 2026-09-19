@@ -680,7 +680,7 @@ function rdPanelRenderRows(array $rows): void
         <div class="rdpa-empty">
             <?= smsIcon('flask') ?>
             <strong>No Defense-Ready Research</strong>
-            <span>Research groups will appear here when Chapter 1, 2, and 3 are accepted.</span>
+            <span>Research groups appear here only after Chapters 1–3 are accepted and Research Services Clearance signatures are complete.</span>
         </div>
     <?php else: ?>
         <div class="table-responsive"><table class="table align-middle mb-0 rdpa-table"><thead><tr><th>Reference No.</th><th>Group</th><th>Research Title</th><th>Academic Year</th><th>Adviser</th><th>Pre-Oral Status</th><th>Panel Assignment</th><th>Action</th></tr></thead><tbody>
@@ -710,7 +710,7 @@ function rdPanelRenderResearchPicker(array $rows, string $emptyTitle = 'No Resea
         <div class="rdpa-empty">
             <?= smsIcon('flask') ?>
             <strong>No Defense-Ready Research</strong>
-            <span>Research groups will appear here when Chapter 1, 2, and 3 are accepted.</span>
+            <span>Research groups appear here only after Chapters 1–3 are accepted and Research Services Clearance signatures are complete.</span>
         </div>
     <?php return; endif; ?>
     <div class="rdpa-empty rdpa-empty--picker">
