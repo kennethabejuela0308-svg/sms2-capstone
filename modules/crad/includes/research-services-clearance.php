@@ -972,7 +972,8 @@ function rscUploadPublicUrl(array $row): string
     if ($file === '' || $file === '.' || $file === '..') {
         return '';
     }
-    return BASE_URL . '/uploads/research-clearance/' . rawurlencode($file);
+    $stamp = strtotime((string) ($row['uploaded_at'] ?? '')) ?: time();
+    return BASE_URL . '/uploads/research-clearance/' . rawurlencode($file) . '?v=' . $stamp;
 }
 
 function rscStoreUpload(int $clearanceId, array $file): array
@@ -1044,6 +1045,7 @@ function rscPublicRow(array $row): array
         'crad_signed_at' => (string) ($row['crad_signed_at'] ?? ''),
         'uploaded_original' => (string) ($row['uploaded_original'] ?? ''),
         'uploaded_url' => rscUploadPublicUrl($row),
+        'uploaded_at' => (string) ($row['uploaded_at'] ?? ''),
         'has_upload' => trim((string) ($row['uploaded_file'] ?? '')) !== '',
         'form_verified' => (int) ($row['form_verified'] ?? 0) === 1,
         'has_adviser_signature' => trim((string) ($row['adviser_signature'] ?? '')) !== '',
