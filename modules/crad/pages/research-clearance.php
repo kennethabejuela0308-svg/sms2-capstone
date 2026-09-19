@@ -32,7 +32,7 @@ $rscSigPadLabel = 'CRAD Signature Pad (Draw Below)';
 require_once ROOT_PATH . '/includes/layout-start.php';
 renderBreadcrumbs($breadcrumbs);
 ?>
-<link rel="stylesheet" href="<?= BASE_URL ?>/modules/crad/assets/css/research-clearance.css?v=rsc-upload-first-2">
+<link rel="stylesheet" href="<?= BASE_URL ?>/modules/crad/assets/css/research-clearance.css?v=rsc-reupload-4">
 
 <div class="glass-dashboard rsc-print-root"
      data-rsc-live
@@ -80,5 +80,5 @@ renderBreadcrumbs($breadcrumbs);
     </div>
 </div>
 <?php require __DIR__ . '/../includes/research-clearance-sig-modal.php'; ?>
-<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-form-html-4"></script>
+<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-reupload-4"></script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>

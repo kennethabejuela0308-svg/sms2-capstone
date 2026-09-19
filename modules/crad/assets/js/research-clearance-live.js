@@ -69,8 +69,8 @@
         }
         if (statusEl) statusEl.textContent = row ? (row.status_label || row.status) : '';
         if (sendBtn) sendBtn.hidden = !(row && row.status === 'draft' && role === 'student');
+        var canUpload = !!(row && isCrad && (row.status === 'adviser_signed' || row.status === 'crad_received' || row.status === 'clearance_done'));
         if (acceptBtn) {
-            var canUpload = !!(row && isCrad && (row.status === 'adviser_signed' || row.status === 'crad_received' || row.status === 'clearance_done'));
             acceptBtn.hidden = !canUpload;
             acceptBtn.disabled = false;
             var uploadLabel = acceptBtn.querySelector('[data-rsc-upload-label]');
