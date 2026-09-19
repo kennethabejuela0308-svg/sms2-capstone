@@ -28,6 +28,30 @@ function chapterEvaluationCriteria(): array
     ];
 }
 
+function chapterLiveEvaluatorName(): string
+{
+    $fallback = trim((string) ($_SESSION['user_name'] ?? ''));
+    $userId = (int) ($_SESSION['user_id'] ?? 0);
+    $sms = function_exists('db') ? db() : null;
+    if ($sms instanceof PDO && $userId > 0) {
+        try {
+            $stmt = $sms->prepare(
+                "SELECT full_name FROM users
+                 WHERE id = ? AND TRIM(COALESCE(full_name, '')) <> ''
+                 LIMIT 1"
+            );
+            $stmt->execute([$userId]);
+            $name = trim((string) $stmt->fetchColumn());
+            if ($name !== '') {
+                return $name;
+            }
+        } catch (Throwable $e) {
+            // keep session fallback
+        }
+    }
+    return $fallback;
+}
+
 function chapterEvaluationMaxPoints(): float
 {
     return 20.0;
