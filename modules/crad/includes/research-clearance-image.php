@@ -292,29 +292,36 @@ function rscSignatureCellBoxes(array $row, int $pageWidth, int $pad): array
     ];
 }
 
-function rscCropHasInk($im, int $x, int $y, int $w, int $h): bool
+function rscInkRatio($im, int $x, int $y, int $w, int $h): float
 {
     $maxX = imagesx($im);
     $maxY = imagesy($im);
-    if ($w < 8 || $h < 8 || $x < 0 || $y < 0 || $x + $w > $maxX || $y + $h > $maxY) {
-        return false;
+    $x = max(0, $x);
+    $y = max(0, $y);
+    $w = min($w, $maxX - $x);
+    $h = min($h, $maxY - $y);
+    if ($w < 8 || $h < 8) {
+        return 0.0;
     }
     $dark = 0;
     $total = 0;
-    $step = max(1, (int) min($w, $h) / 16);
+    $step = 1;
     for ($yy = $y; $yy < $y + $h; $yy += $step) {
         for ($xx = $x; $xx < $x + $w; $xx += $step) {
             $rgb = imagecolorat($im, $xx, $yy);
-            $r = ($rgb >> 16) & 255;
-            $g = ($rgb >> 8) & 255;
-            $b = $rgb & 255;
+            $avg = ((($rgb >> 16) & 255) + (($rgb >> 8) & 255) + ($rgb & 255)) / 3;
             $total++;
-            if ((($r + $g + $b) / 3) < 145) {
+            if ($avg < 155) {
                 $dark++;
             }
         }
     }
-    return $total > 0 && ($dark / $total) >= 0.02;
+    return $total > 0 ? $dark / $total : 0.0;
+}
+
+function rscCropHasInk($im, int $x, int $y, int $w, int $h): bool
+{
+    return rscInkRatio($im, $x, $y, $w, $h) >= 0.004;
 }
 
 function rscCropToDataUrl($im, int $x, int $y, int $w, int $h): string
@@ -336,6 +343,20 @@ function rscCropToDataUrl($im, int $x, int $y, int $w, int $h): string
     return $bin !== '' ? ('data:image/png;base64,' . base64_encode($bin)) : '';
 }
 
+function rscBestInkBand($im, int $x, int $w, int $centerY, int $h, int $search): array
+{
+    $bestY = $centerY;
+    $bestInk = rscInkRatio($im, $x, $centerY, $w, $h);
+    for ($y = $centerY - $search; $y <= $centerY + $search; $y += 4) {
+        $ink = rscInkRatio($im, $x, $y, $w, $h);
+        if ($ink > $bestInk) {
+            $bestInk = $ink;
+            $bestY = $y;
+        }
+    }
+    return ['y' => $bestY, 'ink' => $bestInk];
+}
+
 function rscExtractPhysicalSignatures(string $path, array $row): array
 {
     $empty = ['mis' => '', 'aa' => ''];
@@ -348,61 +369,43 @@ function rscExtractPhysicalSignatures(string $path, array $row): array
         return $empty;
     }
 
-    $targetW = 1240;
-    $sw = imagesx($src);
-    $sh = imagesy($src);
-    $scaled = $src;
-    if ($sw !== $targetW) {
-        $targetH = max(200, (int) round($sh * ($targetW / max(1, $sw))));
-        $scaled = imagecreatetruecolor($targetW, $targetH);
-        $white = imagecolorallocate($scaled, 255, 255, 255);
-        imagefilledrectangle($scaled, 0, 0, $targetW, $targetH, $white);
-        imagecopyresampled($scaled, $src, 0, 0, 0, 0, $targetW, $targetH, $sw, $sh);
-        imagedestroy($src);
-    }
+    $w = imagesx($src);
+    $h = imagesy($src);
+    $copyH = (int) max(200, round($h * 0.5));
+    $x = (int) ($w * 0.47);
+    $sigW = (int) ($w * 0.34);
+    $bandH = max(28, (int) ($copyH * 0.10));
+    $search = max(16, (int) ($copyH * 0.06));
 
-    $attempts = [];
-    foreach ([28, 16, 8, 0] as $pad) {
-        $boxes = rscSignatureCellBoxes($row, $targetW, $pad);
-        $attempts[] = $boxes;
-        $copyGap = (int) ($boxes['aa']['y'] + $boxes['aa']['h'] + 90);
-        $second = $boxes;
-        $second['mis']['y'] += $copyGap;
-        $second['aa']['y'] += $copyGap;
-        $attempts[] = $second;
+    $copies = [0];
+    if ($h > ($copyH + 80)) {
+        $copies[] = $copyH;
     }
-    $fw = imagesx($scaled);
-    $fh = imagesy($scaled);
-    $copyH = (int) ($fh * (imagesy($scaled) > ($fw * 1.15) ? 0.48 : 0.92));
-    $attempts[] = [
-        'mis' => ['x' => (int) ($fw * 0.50), 'y' => (int) ($copyH * 0.70), 'w' => (int) ($fw * 0.30), 'h' => (int) ($copyH * 0.07)],
-        'aa' => ['x' => (int) ($fw * 0.50), 'y' => (int) ($copyH * 0.78), 'w' => (int) ($fw * 0.30), 'h' => (int) ($copyH * 0.07)],
-    ];
 
     $found = $empty;
-    foreach ($attempts as $boxes) {
-        foreach (['mis', 'aa'] as $key) {
-            if ($found[$key] !== '') {
-                continue;
-            }
-            $b = $boxes[$key];
-            if (rscCropHasInk($scaled, (int) $b['x'], (int) $b['y'], (int) $b['w'], (int) $b['h'])) {
-                $found[$key] = rscCropToDataUrl($scaled, (int) $b['x'], (int) $b['y'], (int) $b['w'], (int) $b['h']);
-            }
+    foreach ($copies as $top) {
+        $misCenter = $top + (int) ($copyH * 0.60);
+        $aaCenter = $top + (int) ($copyH * 0.70);
+        $mis = rscBestInkBand($src, $x, $sigW, $misCenter, $bandH, $search);
+        $aa = rscBestInkBand($src, $x, $sigW, $aaCenter, $bandH, $search);
+        if ($found['mis'] === '' && $mis['ink'] >= 0.004) {
+            $found['mis'] = rscCropToDataUrl($src, $x, (int) $mis['y'], $sigW, $bandH);
+        }
+        if ($found['aa'] === '' && $aa['ink'] >= 0.004) {
+            $found['aa'] = rscCropToDataUrl($src, $x, (int) $aa['y'], $sigW, $bandH);
         }
         if ($found['mis'] !== '' && $found['aa'] !== '') {
             break;
         }
     }
-    if ($found['mis'] === '' || $found['aa'] === '') {
-        $fallback = rscSignatureCellBoxes($row, $targetW, 28);
-        if ($found['mis'] === '') {
-            $found['mis'] = rscCropToDataUrl($scaled, (int) $fallback['mis']['x'], (int) $fallback['mis']['y'], (int) $fallback['mis']['w'], (int) $fallback['mis']['h']);
-        }
-        if ($found['aa'] === '') {
-            $found['aa'] = rscCropToDataUrl($scaled, (int) $fallback['aa']['x'], (int) $fallback['aa']['y'], (int) $fallback['aa']['w'], (int) $fallback['aa']['h']);
-        }
+
+    if ($found['mis'] === '') {
+        $found['mis'] = rscCropToDataUrl($src, $x, (int) ($copyH * 0.58), $sigW, $bandH);
     }
-    imagedestroy($scaled);
+    if ($found['aa'] === '') {
+        $found['aa'] = rscCropToDataUrl($src, $x, (int) ($copyH * 0.70), $sigW, $bandH);
+    }
+
+    imagedestroy($src);
     return $found;
 }
