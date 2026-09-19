@@ -560,6 +560,7 @@ $MODULES = [
                 'document-repository',
             ],
             'Research Documents' => [
+                'research-clearance',
                 'documentation-publication-management',
                 'final-manuscript-review',
                 'revision-compliance',
@@ -589,6 +590,7 @@ $MODULES = [
             ['slug' => 'project-milestones', 'title' => 'Project Milestones'],
             ['slug' => 'publications-ip', 'title' => 'Publications & IP'],
             ['slug' => 'document-repository', 'title' => 'Document Repository'],
+            ['slug' => 'research-clearance', 'title' => 'Research Services Clearance'],
             ['slug' => 'documentation-publication-management', 'title' => 'Documentation & Publication Management'],
             ['slug' => 'final-manuscript-review', 'title' => 'Final Manuscript Review'],
             ['slug' => 'revision-compliance', 'title' => 'Revision & Compliance'],

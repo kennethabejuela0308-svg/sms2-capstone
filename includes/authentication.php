@@ -701,7 +701,7 @@ function getVisibleModules(array $modules): array
                 'Financial' => ['account-balance', 'payment-history'],
                 'Academics' => ['class-schedule', 'academic-records', 'subjects-professors', 'grades-portal'],
                 'Research' => ['research-proposal-submission'],
-                'Document Submission' => ['submit-chapters', 'my-submissions', 'submission-status', 'submission-history'],
+                'Document Submission' => ['submit-chapters', 'research-clearance', 'my-submissions', 'submission-status', 'submission-history'],
             ],
             'pages' => [
                 ['slug' => 'dashboard', 'title' => 'Dashboard'],
@@ -715,6 +715,7 @@ function getVisibleModules(array $modules): array
                 ['slug' => 'grades-portal', 'title' => 'Grades Portal'],
                 ['slug' => 'research-proposal-submission', 'title' => 'Research Proposal'],
                 ['slug' => 'submit-chapters', 'title' => 'Submit Chapter 1-3'],
+                ['slug' => 'research-clearance', 'title' => 'Research Services Clearance'],
                 ['slug' => 'my-submissions', 'title' => 'My Submissions'],
                 ['slug' => 'submission-status', 'title' => 'Submission Status'],
                 ['slug' => 'submission-history', 'title' => 'Submission History'],
