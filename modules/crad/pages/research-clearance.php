@@ -61,7 +61,7 @@ renderBreadcrumbs($breadcrumbs);
                 <input type="file" class="form-control form-control-sm" style="max-width:260px;" data-rsc-file accept=".png,.jpg,.jpeg,image/png,image/jpeg">
                 <button type="button" class="btn btn-outline-primary" data-rsc-accept <?= ($public && in_array($public['status'], ['adviser_signed', 'crad_received', 'clearance_done'], true)) ? '' : 'hidden' ?>><?= smsIcon('upload', ['class' => 'me-1']) ?><span data-rsc-upload-label><?= !empty($public['has_upload']) ? 'Re-upload Image' : 'Upload Image' ?></span></button>
                 <button type="button" class="btn btn-outline-secondary" data-rsc-print <?= ($public && !empty($public['form_verified'])) ? '' : 'hidden' ?>><?= smsIcon('print', ['class' => 'me-1']) ?>Print</button>
-                <button type="button" class="btn btn-success" data-rsc-sign <?= ($public && !empty($public['form_verified']) && !empty($public['has_adviser_signature']) && ($public['status'] ?? '') !== 'clearance_done') ? '' : 'hidden' ?>><?= smsIcon('signature', ['class' => 'me-1']) ?>Sign Clearance</button>
+                <button type="button" class="btn btn-success" data-rsc-sign <?= ($public && !empty($public['form_verified']) && !empty($public['has_adviser_signature']) && ($public['status'] ?? '') !== 'clearance_done') ? '' : 'hidden' ?><?= ($public && (empty($public['mis_verified']) || empty($public['aa_verified']))) ? ' disabled' : '' ?> title="<?= ($public && (empty($public['mis_verified']) || empty($public['aa_verified']))) ? 'Note: CRAD cannot sign if the MIS and AA physical signatures are missing.' : '' ?>"><?= smsIcon('signature', ['class' => 'me-1']) ?>Sign Clearance</button>
             </div>
         </div>
 
