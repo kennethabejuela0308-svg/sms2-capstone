@@ -53,7 +53,7 @@
 
     function applyClearance(row) {
         current = row;
-        var showForm = !!(row && row.form_html) && !isCrad;
+        var showForm = !!(row && row.form_html) && (!isCrad || !!(row && row.form_verified));
         if (formBox) {
             formBox.hidden = !showForm;
             formBox.innerHTML = showForm ? row.form_html : '';

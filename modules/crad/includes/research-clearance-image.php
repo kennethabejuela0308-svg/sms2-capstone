@@ -189,7 +189,12 @@ function rscDrawFormCopy($im, array $row, int $left, int $top, int $width): int
         rscImageCell($im, $x, $y, $t1, $th, $black);
         rscImageText($im, $x + 6, $y + 8, $leftText, 9, $black, false, $t1 - 12);
         if ($extra !== '') {
-            rscImageText($im, $x + 6, $y + 26, $extra, 9, $black, true, $t1 - 12);
+            $lines = preg_split("/\n/", $extra) ?: [$extra];
+            $lineY = $y + 26;
+            foreach ($lines as $line) {
+                rscImageText($im, $x + 6, $lineY, trim($line), 9, $black, true, $t1 - 12);
+                $lineY += 16;
+            }
         }
         rscImageCell($im, $x + $t1, $y, $t2, $th, $black);
         rscImageText($im, $x + $t1 + 6, $y + 8, $midText, 9, $black, false, $t2 - 12);
