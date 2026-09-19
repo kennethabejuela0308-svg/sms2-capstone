@@ -79,6 +79,8 @@ if (!function_exists('smsNavPageIcon')) {
             'class-schedule-analytics' => 'fa-calendar-alt',
             'research-proposal-analytics' => 'fa-clipboard-list',
             'research-clearance' => 'fa-stamp',
+            'college-payment' => 'fa-receipt',
+            'approval-clearance-payment' => 'fa-file-invoice',
             'submit-chapters' => 'fa-file-upload',
             'my-submissions' => 'fa-folder-open',
             'submission-status' => 'fa-chart-line',

@@ -528,6 +528,9 @@ function smsAdminCoreSystemNav(): array
 {
     return [
         'groups' => [
+            'Research Clearance' => [
+                'approval-clearance-payment',
+            ],
             'Core System' => [
                 'dashboard-analytics',
                 'grant-opportunities',
@@ -535,6 +538,7 @@ function smsAdminCoreSystemNav(): array
             ],
         ],
         'pages' => [
+            ['slug' => 'approval-clearance-payment', 'title' => 'Approval Clearance Payment'],
             ['slug' => 'dashboard-analytics', 'title' => 'Dashboard & Analytics'],
             ['slug' => 'grant-opportunities', 'title' => 'Grant Opportunities'],
             ['slug' => 'proposals-applications', 'title' => 'Proposals & Applications'],
@@ -714,7 +718,7 @@ function getVisibleModules(array $modules): array
                 'Academics' => ['class-schedule', 'academic-records', 'subjects-professors', 'grades-portal'],
                 'Research' => ['research-proposal-submission'],
                 'Document Submission' => ['submit-chapters', 'my-submissions', 'submission-status', 'submission-history'],
-                'Research Clearance' => ['research-clearance'],
+                'Research Clearance' => ['college-payment', 'research-clearance'],
             ],
             'pages' => [
                 ['slug' => 'dashboard', 'title' => 'Dashboard'],
@@ -728,6 +732,7 @@ function getVisibleModules(array $modules): array
                 ['slug' => 'grades-portal', 'title' => 'Grades Portal'],
                 ['slug' => 'research-proposal-submission', 'title' => 'Research Proposal'],
                 ['slug' => 'submit-chapters', 'title' => 'Submit Chapter 1-3'],
+                ['slug' => 'college-payment', 'title' => 'Upload College Payment'],
                 ['slug' => 'research-clearance', 'title' => 'Research Services Clearance'],
                 ['slug' => 'my-submissions', 'title' => 'My Submissions'],
                 ['slug' => 'submission-status', 'title' => 'Submission Status'],
