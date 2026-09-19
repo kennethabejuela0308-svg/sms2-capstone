@@ -54,7 +54,7 @@
 
     function applyClearance(row) {
         current = row;
-        var showForm = !!(row && row.form_html) && (!isCrad || !!(row && row.form_verified));
+        var showForm = !!(row && row.form_html) && (!isCrad || !!(row && row.form_verified && row.has_upload));
         if (formBox) {
             formBox.hidden = !showForm;
             formBox.innerHTML = showForm ? row.form_html : '';
@@ -69,25 +69,27 @@
         }
         if (signBtn) {
             var canAdviser = role === 'adviser' && row && row.status === 'sent_to_adviser';
-            var canCrad = isCrad && row && row.form_verified && row.has_adviser_signature && row.status !== 'clearance_done';
+            var canCrad = isCrad && row && row.form_verified && row.has_upload && row.has_adviser_signature && row.status !== 'clearance_done';
             signBtn.hidden = !(canAdviser || canCrad);
             if (isCrad && canCrad) {
-                signBtn.disabled = !(row.mis_verified && row.aa_verified);
-                signBtn.title = row.mis_verified && row.aa_verified
-                    ? ''
-                    : 'Note: CRAD cannot sign if the MIS and AA physical signatures are missing.';
+                var hasAll = !!(row.has_mis_signature && row.has_aa_signature);
+                signBtn.disabled = !hasAll;
+                signBtn.title = hasAll ? '' : 'CRAD cannot sign until the Adviser, MIS, and AA signatures are on the form.';
             } else {
                 signBtn.disabled = false;
                 signBtn.title = '';
             }
         }
-        if (printBtn) printBtn.hidden = !row || (isCrad && !(row && row.form_verified));
+        if (printBtn) printBtn.hidden = !row || (isCrad && !(row && row.form_verified && row.has_upload));
         if (downloadBtn) downloadBtn.hidden = !row;
         if (detailEl) detailEl.hidden = !row;
         if (pickEl) pickEl.hidden = !isInboxRole || !!row;
         if (emptyEl) emptyEl.hidden = role === 'student' ? !!row : true;
-        if (uploadGate) uploadGate.hidden = !(isCrad && row && !row.form_verified);
-        if (misAaNote) misAaNote.hidden = !(isCrad && row && row.form_verified && row.status !== 'clearance_done');
+        if (uploadGate) uploadGate.hidden = !(isCrad && row && !(row.form_verified && row.has_upload));
+        if (misAaNote) {
+            var uploaded = !!(isCrad && row && row.form_verified && row.has_upload && row.status !== 'clearance_done');
+            misAaNote.hidden = !(uploaded && !(row.has_mis_signature && row.has_aa_signature));
+        }
         if (uploadPreview) uploadPreview.hidden = true;
         if (uploadView) uploadView.innerHTML = '';
         if (checkWrap) checkWrap.hidden = !(isCrad && row && row.has_upload);
@@ -280,8 +282,8 @@
     }
 
     function openSig() {
-        if (isCrad && (!current || !current.mis_verified || !current.aa_verified)) {
-            alert('Note: CRAD cannot sign if the MIS and AA physical signatures are missing.');
+        if (isCrad && (!current || !current.has_adviser_signature || !current.has_mis_signature || !current.has_aa_signature)) {
+            alert('CRAD cannot sign until the Adviser, MIS, and AA signatures are on the clearance form.');
             return;
         }
         if (!modal) return;

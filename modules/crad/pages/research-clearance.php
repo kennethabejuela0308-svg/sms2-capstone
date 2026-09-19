@@ -15,7 +15,7 @@ $pageTitle = 'Research Services Clearance';
 $activeModule = 'crad';
 $activePage = 'research-clearance';
 $pageBannerIcon = 'fa-stamp';
-$pageBannerDescription = 'Upload the adviser-signed clearance image, then sign as CRAD.';
+$pageBannerDescription = 'Upload the printed clearance after Adviser, MIS, and AA have signed, then sign as CRAD.';
 $breadcrumbs = [
     ['label' => 'CRAD', 'url' => BASE_URL . '/modules/crad/index.php'],
     ['label' => 'Research Services Clearance', 'url' => null],
@@ -32,7 +32,7 @@ $rscSigPadLabel = 'CRAD Signature Pad (Draw Below)';
 require_once ROOT_PATH . '/includes/layout-start.php';
 renderBreadcrumbs($breadcrumbs);
 ?>
-<link rel="stylesheet" href="<?= BASE_URL ?>/modules/crad/assets/css/research-clearance.css?v=rsc-no-inbox-1">
+<link rel="stylesheet" href="<?= BASE_URL ?>/modules/crad/assets/css/research-clearance.css?v=rsc-upload-first-2">
 
 <div class="glass-dashboard rsc-print-root"
      data-rsc-live
@@ -60,36 +60,25 @@ renderBreadcrumbs($breadcrumbs);
                 <?php endif; ?>
                 <input type="file" class="form-control form-control-sm" style="max-width:260px;" data-rsc-file accept=".png,.jpg,.jpeg,image/png,image/jpeg">
                 <button type="button" class="btn btn-outline-primary" data-rsc-accept <?= ($public && in_array($public['status'], ['adviser_signed', 'crad_received', 'clearance_done'], true)) ? '' : 'hidden' ?>><?= smsIcon('upload', ['class' => 'me-1']) ?><span data-rsc-upload-label><?= !empty($public['has_upload']) ? 'Re-upload Image' : 'Upload Image' ?></span></button>
-                <button type="button" class="btn btn-outline-secondary" data-rsc-print <?= ($public && !empty($public['form_verified'])) ? '' : 'hidden' ?>><?= smsIcon('print', ['class' => 'me-1']) ?>Print</button>
-                <button type="button" class="btn btn-success" data-rsc-sign <?= ($public && !empty($public['form_verified']) && !empty($public['has_adviser_signature']) && ($public['status'] ?? '') !== 'clearance_done') ? '' : 'hidden' ?><?= ($public && (empty($public['mis_verified']) || empty($public['aa_verified']))) ? ' disabled' : '' ?> title="<?= ($public && (empty($public['mis_verified']) || empty($public['aa_verified']))) ? 'Note: CRAD cannot sign if the MIS and AA physical signatures are missing.' : '' ?>"><?= smsIcon('signature', ['class' => 'me-1']) ?>Sign Clearance</button>
+                <button type="button" class="btn btn-outline-secondary" data-rsc-print hidden><?= smsIcon('print', ['class' => 'me-1']) ?>Print</button>
+                <button type="button" class="btn btn-success" data-rsc-sign hidden><?= smsIcon('signature', ['class' => 'me-1']) ?>Sign Clearance</button>
             </div>
         </div>
 
-        <div class="alert alert-warning" data-rsc-upload-gate <?= ($public && empty($public['has_upload'])) ? '' : 'hidden' ?>>
+        <div class="alert alert-warning" data-rsc-upload-gate>
             <?= smsIcon('upload', ['class' => 'me-2']) ?>
-            Upload the Research Services Clearance picture that already has the adviser signature. Other photos cannot be signed.
+            Upload the printed Research Services Clearance that already has the <strong>Adviser, MIS, and AA</strong> signatures. The form appears only after a valid upload.
         </div>
 
-        <div class="alert alert-info" data-rsc-mis-aa-note <?= ($public && !empty($public['form_verified']) && ($public['status'] ?? '') !== 'clearance_done') ? '' : 'hidden' ?>>
+        <div class="alert alert-info" data-rsc-mis-aa-note hidden>
             <?= smsIcon('info-circle', ['class' => 'me-2']) ?>
-            <strong>Note:</strong> CRAD cannot sign if the MIS and AA physical signatures are missing.
-            Confirm both signatures on the uploaded form first.
-            <div class="d-flex flex-wrap gap-3 mt-2" data-rsc-check-wrap>
-                <label class="form-check mb-0">
-                    <input class="form-check-input" type="checkbox" data-rsc-check-mis <?= !empty($public['mis_verified']) ? 'checked' : '' ?>>
-                    <span class="form-check-label">MIS physical signature is on the form</span>
-                </label>
-                <label class="form-check mb-0">
-                    <input class="form-check-input" type="checkbox" data-rsc-check-aa <?= !empty($public['aa_verified']) ? 'checked' : '' ?>>
-                    <span class="form-check-label">AA physical signature is on the form</span>
-                </label>
-            </div>
+            <strong>Note:</strong> CRAD cannot sign until the Adviser, MIS, and AA signatures are on the uploaded clearance form.
         </div>
 
         <div data-rsc-upload-preview hidden></div>
-        <div class="rsc-wrap" data-rsc-form <?= ($public && !empty($public['form_verified'])) ? '' : 'hidden' ?>><?= ($public && !empty($public['form_verified'])) ? ($public['form_html'] ?? '') : '' ?></div>
+        <div class="rsc-wrap" data-rsc-form hidden></div>
     </div>
 </div>
 <?php require __DIR__ . '/../includes/research-clearance-sig-modal.php'; ?>
-<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-mis-aa-note-1"></script>
+<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-upload-first-2"></script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>

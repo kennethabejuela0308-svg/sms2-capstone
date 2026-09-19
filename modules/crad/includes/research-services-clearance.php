@@ -730,7 +730,7 @@ function rscAdviserSign(PDO $crad, array $clearance, string $signature, string $
                 $officer,
                 'adviser_signed',
                 'Clearance ready for CRAD',
-                'An adviser signed a Research Services Clearance. Upload the form and confirm the MIS and AA signatures before signing.',
+                'An adviser signed a Research Services Clearance. After MIS and AA sign the printed form, upload that picture to computerize their signatures.',
                 rscCradUrl((int) $clearance['id'])
             );
         }
