@@ -59,9 +59,9 @@ renderBreadcrumbs($breadcrumbs);
                     </select>
                 <?php endif; ?>
                 <input type="file" class="form-control form-control-sm" style="max-width:260px;" data-rsc-file accept=".png,.jpg,.jpeg,image/png,image/jpeg">
-                <button type="button" class="btn btn-outline-primary" data-rsc-accept <?= ($public && in_array($public['status'], ['adviser_signed', 'crad_received'], true)) ? '' : 'hidden' ?>><?= smsIcon('upload', ['class' => 'me-1']) ?>Upload Image</button>
+                <button type="button" class="btn btn-outline-primary" data-rsc-accept <?= ($public && in_array($public['status'], ['adviser_signed', 'crad_received', 'clearance_done'], true)) ? '' : 'hidden' ?>><?= smsIcon('upload', ['class' => 'me-1']) ?><span data-rsc-upload-label><?= !empty($public['has_upload']) ? 'Re-upload Image' : 'Upload Image' ?></span></button>
                 <button type="button" class="btn btn-outline-secondary" data-rsc-print <?= ($public && !empty($public['form_verified'])) ? '' : 'hidden' ?>><?= smsIcon('print', ['class' => 'me-1']) ?>Print</button>
-                <button type="button" class="btn btn-success" data-rsc-sign <?= ($public && !empty($public['form_verified']) && !empty($public['has_adviser_signature'])) ? '' : 'hidden' ?>><?= smsIcon('signature', ['class' => 'me-1']) ?>Sign Clearance</button>
+                <button type="button" class="btn btn-success" data-rsc-sign <?= ($public && !empty($public['form_verified']) && !empty($public['has_adviser_signature']) && ($public['status'] ?? '') !== 'clearance_done') ? '' : 'hidden' ?>><?= smsIcon('signature', ['class' => 'me-1']) ?>Sign Clearance</button>
             </div>
         </div>
 
@@ -75,5 +75,5 @@ renderBreadcrumbs($breadcrumbs);
     </div>
 </div>
 <?php require __DIR__ . '/../includes/research-clearance-sig-modal.php'; ?>
-<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-form-ok-2"></script>
+<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-reupload-1"></script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>

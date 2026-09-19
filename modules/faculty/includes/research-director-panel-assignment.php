@@ -139,8 +139,6 @@ function rdPanelReadySql(): string
               AND rsc.status = 'clearance_done'
               AND TRIM(COALESCE(rsc.adviser_signature, '')) <> ''
               AND TRIM(COALESCE(rsc.crad_signature, '')) <> ''
-              AND rsc.mis_verified = 1
-              AND rsc.aa_verified = 1
              LEFT JOIN research_panel_assignments rpa
                ON rpa.research_group_id = rg.id
               AND " . rdPanelActiveAssignmentSql('rpa') . "
@@ -496,7 +494,15 @@ function rdPanelAssign(array $data): array
     $selectedIds = array_values(array_unique(array_filter(array_map('intval', (array) ($data['panel_ids'] ?? [])))));
     $group = rdPanelReadyGroup($groupId);
     if (!$group) {
-        return ['ok' => false, 'message' => 'Research group is not defense-ready.'];
+        $clearanceMessage = 'Cannot assign panel until Research Services Clearance signatures are complete (Adviser and CRAD).';
+        try {
+            if ($groupId > 0 && rscClearanceDoneExists($crad, $groupId)) {
+                $clearanceMessage = 'Research group is not defense-ready.';
+            }
+        } catch (Throwable $e) {
+            // keep clearance lock message
+        }
+        return ['ok' => false, 'message' => $clearanceMessage];
     }
     if (!$selectedIds) {
         return ['ok' => false, 'message' => 'Select at least one panel member.'];

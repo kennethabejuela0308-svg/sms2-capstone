@@ -60,10 +60,15 @@
         }
         if (statusEl) statusEl.textContent = row ? (row.status_label || row.status) : '';
         if (sendBtn) sendBtn.hidden = !(row && row.status === 'draft' && role === 'student');
-        if (acceptBtn) acceptBtn.hidden = !(row && isCrad && (row.status === 'adviser_signed' || row.status === 'crad_received'));
+        if (acceptBtn) {
+            var canUpload = !!(row && isCrad && (row.status === 'adviser_signed' || row.status === 'crad_received' || row.status === 'clearance_done'));
+            acceptBtn.hidden = !canUpload;
+            var uploadLabel = acceptBtn.querySelector('[data-rsc-upload-label]');
+            if (uploadLabel) uploadLabel.textContent = row && row.has_upload ? 'Re-upload Image' : 'Upload Image';
+        }
         if (signBtn) {
             var canAdviser = role === 'adviser' && row && row.status === 'sent_to_adviser';
-            var canCrad = isCrad && row && row.form_verified && row.has_adviser_signature;
+            var canCrad = isCrad && row && row.form_verified && row.has_adviser_signature && row.status !== 'clearance_done';
             signBtn.hidden = !(canAdviser || canCrad);
         }
         if (printBtn) printBtn.hidden = !row || (isCrad && !(row && row.form_verified));

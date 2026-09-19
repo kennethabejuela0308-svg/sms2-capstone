@@ -1006,7 +1006,6 @@ function rscPublicRow(array $row): array
         'form_verified' => (int) ($row['form_verified'] ?? 0) === 1,
         'has_adviser_signature' => trim((string) ($row['adviser_signature'] ?? '')) !== '',
         'has_crad_signature' => trim((string) ($row['crad_signature'] ?? '')) !== '',
-        'has_upload' => trim((string) ($row['uploaded_file'] ?? '')) !== '',
         'mis_verified' => (int) ($row['mis_verified'] ?? 0) === 1,
         'aa_verified' => (int) ($row['aa_verified'] ?? 0) === 1,
         'can_crad_sign' => rscCanCradSign($row),
