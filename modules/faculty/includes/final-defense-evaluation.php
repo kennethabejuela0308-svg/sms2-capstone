@@ -40,7 +40,7 @@ function finalDefenseEnsureSchema(PDO $crad): void
 function finalDefenseRequirePanelMember(): void
 {
     requireAuth();
-    if (getCurrentUserRoleKey() !== 'panel') {
+    if (!smsIsPanelDefenseRole()) {
         http_response_code(403);
         exit('Forbidden');
     }

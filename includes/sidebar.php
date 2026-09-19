@@ -553,6 +553,52 @@ $researchDirectorNavGroups = [
                 </li>
                 <?php endif; ?>
 
+                <?php if ($roleKey === 'department_chair'): ?>
+                    <?php
+                    $chairDefenseItems = $panelNavGroups['DEFENSE'];
+                    $chairDefenseActive = false;
+                    $chairDefenseOverview = (string) ($chairDefenseItems[0]['href'] ?? '');
+                    foreach ($chairDefenseItems as $chairDefenseProbe) {
+                        if (($activePage ?? '') === ($chairDefenseProbe['slug'] ?? '')) {
+                            $chairDefenseActive = true;
+                            break;
+                        }
+                    }
+                    $chairDefenseCollapseId = 'navGrp_dept_chair_defense';
+                    ?>
+                    <li class="nav-item admin-module-item">
+                        <button type="button"
+                                class="nav-link sidebar-parent admin-module-toggle <?= $chairDefenseActive ? 'active' : '' ?>"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#<?= htmlspecialchars($chairDefenseCollapseId) ?>"
+                                aria-expanded="<?= $chairDefenseActive ? 'true' : 'false' ?>"
+                                aria-controls="<?= htmlspecialchars($chairDefenseCollapseId) ?>"
+                                data-overview-url="<?= htmlspecialchars($chairDefenseOverview) ?>"
+                                data-title="DEFENSE"
+                                title="DEFENSE">
+                            <?= smsIcon((string) ($chairDefenseItems[0]['icon'] ?? 'fa-clipboard-list'), ['aria-hidden' => 'true']) ?>
+                            <span>DEFENSE</span>
+                            <?= smsIcon('chevron-down', ['class' => 'sidebar-chevron ms-auto', 'aria-hidden' => 'true']) ?>
+                        </button>
+                        <div class="collapse admin-module-body sidebar-submenu <?= $chairDefenseActive ? 'show' : '' ?>"
+                             id="<?= htmlspecialchars($chairDefenseCollapseId) ?>">
+                            <ul class="nav flex-column">
+                                <?php foreach ($chairDefenseItems as $chairDefenseItem): ?>
+                                <li class="nav-item">
+                                    <a class="nav-link sidebar-sub <?= (($activePage ?? '') === $chairDefenseItem['slug']) ? 'active' : '' ?>"
+                                       href="<?= htmlspecialchars($chairDefenseItem['href']) ?>"
+                                       data-title="<?= htmlspecialchars($chairDefenseItem['label']) ?>"
+                                       title="<?= htmlspecialchars($chairDefenseItem['label']) ?>">
+                                        <?= smsIcon($chairDefenseItem['icon'], ['aria-hidden' => 'true']) ?>
+                                        <span><?= htmlspecialchars($chairDefenseItem['label']) ?></span>
+                                    </a>
+                                </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        </div>
+                    </li>
+                <?php endif; ?>
+
                 <?php if ($sidebarMode === 'admin_modules' && in_array($roleKey, $grantApprovalSidebarRoles, true)): ?>
                     <?php
                     $grantApprovalSidebarItems = grantReviewWorkflowSidebarItems($roleKey);

@@ -74,6 +74,25 @@ function smsIsGrantedAdminRole(string $roleKey): bool
     return in_array($normalized, ['superadmin', 'sms_admin'], true);
 }
 
+function smsIsPanelDefenseRole(?string $roleKey = null): bool
+{
+    $roleKey = smsNormalizeRoleKey($roleKey ?? getCurrentUserRoleKey());
+
+    return in_array($roleKey, ['panel', 'department_chair'], true);
+}
+
+function smsPanelDefenseWorkflowPaths(): array
+{
+    return [
+        '/modules/faculty/pages/assigned-defenses.php',
+        '/modules/faculty/pages/defense-details.php',
+        '/modules/faculty/pages/panel-evaluation-scoring.php',
+        '/modules/faculty/pages/panel-evaluation-history.php',
+        '/modules/faculty/pages/panel-final-defense-evaluation.php',
+        '/modules/faculty/api/panel-defense.php',
+    ];
+}
+
 /**
  * DB-granted module access for Admin / Super Admin roles (replaces legacy admin checks).
  */
@@ -933,6 +952,13 @@ function requireModuleAccess(string $moduleKey): void
         }
         if (in_array($roleKey, ['review_committee', 'adviser'], true)) {
             foreach ($grantReviewerPages as $allowedPath) {
+                if (str_ends_with($scriptPath, $allowedPath)) {
+                    return;
+                }
+            }
+        }
+        if (smsIsPanelDefenseRole($roleKey)) {
+            foreach (smsPanelDefenseWorkflowPaths() as $allowedPath) {
                 if (str_ends_with($scriptPath, $allowedPath)) {
                     return;
                 }

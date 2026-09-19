@@ -9,7 +9,7 @@ require_once ROOT_PATH . '/modules/crad/includes/chapter-evaluation-workflow.php
 function panelRequirePanelMember(): void
 {
     requireAuth();
-    if (getCurrentUserRoleKey() !== 'panel') {
+    if (!smsIsPanelDefenseRole()) {
         http_response_code(403);
         exit('Forbidden');
     }
@@ -161,7 +161,7 @@ function panelDefenseRows(bool $history = false): array
 
 function chapterPanelCanAccessSubmission(PDO $crad, array $submission): bool
 {
-    if (getCurrentUserRoleKey() !== 'panel') {
+    if (!smsIsPanelDefenseRole()) {
         return false;
     }
 
