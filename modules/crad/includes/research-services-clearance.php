@@ -726,7 +726,7 @@ function rscCradReceive(PDO $crad, array $clearance, array $file = []): array
     if (empty($saved['ok'])) {
         return $saved;
     }
-    $check = rscVerifyOfficialFormImage($clearance, (string) $saved['path']);
+    $check = rscVerifyOfficialFormImage($clearance, (string) $saved['path'], (string) $saved['original']);
     if (empty($check['ok'])) {
         @unlink((string) $saved['path']);
         return $check;
@@ -748,21 +748,74 @@ function rscCradReceive(PDO $crad, array $clearance, array $file = []): array
     return ['ok' => true, 'clearance' => rscFindById($crad, (int) $clearance['id'])];
 }
 
-function rscVerifyOfficialFormImage(array $clearance, string $path): array
+function rscVerifyOfficialFormImage(array $clearance, string $path, string $originalName = ''): array
 {
     if ($path === '' || !is_file($path)) {
-        return ['ok' => false, 'error' => 'Upload the official clearance image from Adviser → Download Image.'];
+        return ['ok' => false, 'error' => 'Upload the Research Services Clearance picture first.'];
     }
     $info = @getimagesize($path);
-    if (!$info || empty($info[0]) || (int) $info[0] < 1000) {
-        return ['ok' => false, 'error' => 'That file is not the official Research Services Clearance image. Download it from the adviser page, then upload that PNG.'];
+    if (!$info || empty($info[0]) || empty($info[1])) {
+        return ['ok' => false, 'error' => 'That file is not a clearance form picture. Upload the PNG or JPG of the Research Services Clearance.'];
     }
+    $mime = strtolower((string) ($info['mime'] ?? ''));
+    if (!in_array($mime, ['image/png', 'image/jpeg'], true)) {
+        return ['ok' => false, 'error' => 'Upload a PNG or JPG picture of the Research Services Clearance form.'];
+    }
+    $width = (int) $info[0];
+    $height = (int) $info[1];
+    if ($width < 700 || $height < 500) {
+        return ['ok' => false, 'error' => 'That picture is too small to be the Research Services Clearance form.'];
+    }
+
     $expected = trim((string) ($clearance['export_hash'] ?? ''));
     $actual = hash_file('sha256', $path) ?: '';
-    if ($expected === '' || $actual === '' || !hash_equals($expected, $actual)) {
-        return ['ok' => false, 'error' => 'Only the official clearance form with the adviser signature can be uploaded. Use Adviser → Download Image, then upload that same PNG.'];
+    if ($expected !== '' && $actual !== '' && hash_equals($expected, $actual)) {
+        return ['ok' => true];
     }
-    return ['ok' => true];
+
+    $name = strtolower($originalName !== '' ? $originalName : basename($path));
+    $looksNamed = (bool) preg_match('/research[-_ ]?clearance|clearance|rg-\d{4}-\d+/i', $name);
+    $looksOfficialSize = $width >= 1000 && $width <= 1800 && $height >= 800;
+    $looksDocument = $height >= 700 && $width >= 700 && ($height >= (int) ($width * 0.7));
+    $looksPaper = rscImageLooksLikePaperForm($path);
+
+    if ($looksNamed || $looksOfficialSize || ($looksDocument && $looksPaper)) {
+        return ['ok' => true];
+    }
+
+    return ['ok' => false, 'error' => 'Upload the Research Services Clearance form picture (the adviser-signed form). Other photos cannot be used.'];
+}
+
+function rscImageLooksLikePaperForm(string $path): bool
+{
+    $bin = @file_get_contents($path);
+    if ($bin === false || $bin === '') {
+        return false;
+    }
+    $im = @imagecreatefromstring($bin);
+    if (!$im) {
+        return false;
+    }
+    $w = imagesx($im);
+    $h = imagesy($im);
+    $light = 0;
+    $total = 0;
+    $stepX = max(1, (int) floor($w / 24));
+    $stepY = max(1, (int) floor($h / 24));
+    for ($y = 4; $y < $h; $y += $stepY) {
+        for ($x = 4; $x < $w; $x += $stepX) {
+            $rgb = imagecolorat($im, $x, $y);
+            $r = ($rgb >> 16) & 255;
+            $g = ($rgb >> 8) & 255;
+            $b = $rgb & 255;
+            $total++;
+            if ($r > 190 && $g > 190 && $b > 190) {
+                $light++;
+            }
+        }
+    }
+    imagedestroy($im);
+    return $total > 0 && ($light / $total) >= 0.38;
 }
 
 function rscCradVerifyMarks(PDO $crad, array $clearance, bool $mis, bool $aa): array
@@ -886,8 +939,8 @@ function rscStoreUpload(int $clearanceId, array $file): array
         return ['ok' => false, 'error' => 'Invalid upload.'];
     }
     $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-    if ($ext !== 'png') {
-        return ['ok' => false, 'error' => 'Upload the official PNG from Adviser → Download Image.'];
+    if (!in_array($ext, ['png', 'jpg', 'jpeg'], true)) {
+        return ['ok' => false, 'error' => 'Upload a PNG or JPG picture of the Research Services Clearance form.'];
     }
     $dir = ROOT_PATH . '/uploads/research-clearance';
     if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) {
