@@ -320,6 +320,9 @@
         var btn = e.target.closest('[data-rsc-open]');
         if (!btn) return;
         selectedId = btn.getAttribute('data-rsc-open') || '';
+        selectedStage = btn.getAttribute('data-rsc-stage') || selectedStage || 'research_1';
+        root.setAttribute('data-rsc-stage', selectedStage);
+        if (!selectedId || selectedId === '0') selectedId = '';
         shouldScroll = true;
         refresh();
     });
