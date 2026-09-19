@@ -67,7 +67,15 @@ try {
             }
             $file = is_array($_FILES['clearance_file'] ?? null) ? $_FILES['clearance_file'] : [];
             $result = rscCradReceive($crad, $row, $file);
-            echo json_encode(['ok' => !empty($result['ok']), 'error' => $result['error'] ?? null, 'clearance' => isset($result['clearance']) ? rscPublicRow($result['clearance']) : null]);
+            $public = isset($result['clearance']) ? rscPublicRow($result['clearance']) : null;
+            $payload = ['ok' => !empty($result['ok']), 'error' => $result['error'] ?? null, 'clearance' => $public];
+            $json = json_encode($payload, JSON_INVALID_UTF8_SUBSTITUTE);
+            if ($json === false && $public) {
+                $public['form_html'] = '';
+                $payload['clearance'] = $public;
+                $json = json_encode($payload, JSON_INVALID_UTF8_SUBSTITUTE);
+            }
+            echo $json !== false ? $json : json_encode(['ok' => !empty($result['ok']), 'error' => $result['error'] ?? 'Uploaded. Refresh to see the form.', 'clearance' => null]);
             exit;
         }
 

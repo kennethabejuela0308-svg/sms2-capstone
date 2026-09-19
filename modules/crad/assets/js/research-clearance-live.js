@@ -208,10 +208,15 @@
             }
             acceptBtn.disabled = true;
             post('crad_receive', fd).then(function (data) {
-                if (data && data.ok && data.clearance) applyClearance(data.clearance);
-                else alert((data && data.error) || 'Could not upload the clearance form. Please try again.');
+                if (fileInput) fileInput.value = '';
+                if (data && data.ok) {
+                    if (data.clearance) applyClearance(data.clearance);
+                    refresh();
+                    return;
+                }
+                alert((data && data.error) || 'Could not re-upload the clearance form. Please try again.');
             }).catch(function () {
-                alert('Could not upload the clearance form. Please try again.');
+                alert('Could not re-upload the clearance form. Please try again.');
             }).finally(function () { acceptBtn.disabled = false; });
         });
     }
