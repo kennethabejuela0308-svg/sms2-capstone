@@ -534,7 +534,6 @@ $MODULES = [
         'groups' => [
             'Research Clearance' => [
                 'research-clearance',
-                'approval-clearance-payment',
             ],
             'Research Proposal' => [
                 'register-proposal',
