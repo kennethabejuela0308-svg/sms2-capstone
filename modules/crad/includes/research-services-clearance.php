@@ -783,7 +783,7 @@ function rscRenderFormHtml(array $row, bool $duplicate = true): string
             . '<div class="rsc-meta">Leader Student No.: <strong>' . $e($row['leader_student_no'] ?? '') . '</strong>'
             . ' &nbsp; Leader Group No.: <strong>' . $e($row['leader_group_no'] ?? '') . '</strong></div>'
             . '<div class="rsc-letterhead">'
-            . '<div class="rsc-seal">BCP</div>'
+            . '<div class="rsc-seal"><img src="' . $e(BASE_URL . '/images/bcp-crest.png?v=rsc-logo-1') . '" alt="Bestlink College of the Philippines logo"></div>'
             . '<div class="rsc-heading">'
             . '<div class="rsc-school">BESTLINK COLLEGE OF THE PHILIPPINES</div>'
             . '<div class="rsc-address">#1071 Brgy. Kaligayahan, Quirino Highway, Novaliches, Quezon City</div>'

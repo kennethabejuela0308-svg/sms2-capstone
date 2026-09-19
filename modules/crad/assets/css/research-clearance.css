@@ -13,8 +13,15 @@
 .rsc-meta { text-align:right; font-size:9pt; margin-bottom:.45rem; }
 .rsc-letterhead { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
 .rsc-seal {
-    width:54px; height:54px; border:2px solid #1e3a8a; border-radius:50%;
+    width:58px; height:68px;
     display:flex; align-items:center; justify-content:center;
+    flex:0 0 58px;
+}
+.rsc-seal img {
+    width:58px; height:68px; object-fit:contain; display:block;
+}
+.rsc-seal--right {
+    width:54px; height:54px; border:2px solid #1e3a8a; border-radius:50%;
     font-size:11px; font-weight:800; color:#1e3a8a; flex:0 0 54px;
 }
 .rsc-heading { flex:1; text-align:center; }
