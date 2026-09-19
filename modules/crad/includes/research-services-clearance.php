@@ -1569,7 +1569,7 @@ function rscStudentInbox(PDO $crad, int $groupId): array
         } elseif ($needChapter && !$chapterOk) {
             $locked = 'Chapter 1-3 must be scored first.';
         } elseif (!$paymentOk) {
-            $locked = 'Upload and wait for Admin approval of ' . rscStageLabel($stage) . ' college payment.';
+            $locked = 'Upload and wait for Admin approval of ' . rscStageLabel($stage) . ' collage payment.';
         }
         $public['ready'] = $ready;
         $public['locked_reason'] = $locked;

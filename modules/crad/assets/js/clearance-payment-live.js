@@ -143,7 +143,7 @@
         }
         if (preview) {
             preview.innerHTML = row.uploaded_url
-                ? '<img class="rsc-upload-img" alt="College payment" src="' + row.uploaded_url + '">'
+                ? '<img class="rsc-upload-img" alt="Collage payment" src="' + row.uploaded_url + '">'
                 : '';
         }
         if (approveBtn) approveBtn.disabled = row.status === 'approved';
@@ -223,8 +223,16 @@
 
     if (uploadBtn && fileInput) {
         uploadBtn.addEventListener('click', function () {
+            if (current && current.locked_reason) {
+                alert(current.locked_reason);
+                return;
+            }
+            if (!(current && current.can_upload)) {
+                alert('This collage payment stage is locked.');
+                return;
+            }
             if (!fileInput.files || !fileInput.files[0]) {
-                alert('Choose the college payment PNG or JPG first.');
+                alert('Choose the collage payment PNG or JPG first.');
                 return;
             }
             uploading = true;

@@ -252,7 +252,7 @@ function rcpStoreUpload(int $groupId, array $file): array
 {
     $code = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
     if ($code !== UPLOAD_ERR_OK) {
-        return ['ok' => false, 'error' => 'Choose a PNG or JPG picture of the college payment.'];
+        return ['ok' => false, 'error' => 'Choose a PNG or JPG picture of the collage payment.'];
     }
     $tmp = (string) ($file['tmp_name'] ?? '');
     $name = (string) ($file['name'] ?? 'payment.png');
@@ -262,7 +262,7 @@ function rcpStoreUpload(int $groupId, array $file): array
     $info = @getimagesize($tmp);
     $mime = strtolower((string) ($info['mime'] ?? ''));
     if (!in_array($mime, ['image/png', 'image/jpeg'], true)) {
-        return ['ok' => false, 'error' => 'Upload a PNG or JPG picture of the college payment.'];
+        return ['ok' => false, 'error' => 'Upload a PNG or JPG picture of the collage payment.'];
     }
     $ext = $mime === 'image/png' ? 'png' : 'jpg';
     $dir = ROOT_PATH . '/uploads/college-payment';
@@ -299,7 +299,7 @@ function rcpStudentUpload(PDO $crad, int $groupId, array $file, string $orNumber
         $or = rcpParseReferenceNumber($typed) ?: $typed;
     }
     if ($existing && (string) ($existing['status'] ?? '') === 'approved') {
-        return ['ok' => false, 'error' => rcpStageLabel($stage) . ' college payment is already approved.'];
+        return ['ok' => false, 'error' => rcpStageLabel($stage) . ' collage payment is already approved.'];
     }
     if ($existing) {
         $old = basename(str_replace('\\', '/', (string) ($existing['uploaded_file'] ?? '')));
@@ -417,8 +417,8 @@ function rcpAdminApprove(PDO $crad, array $payment, string $orNumber, string $re
                 0,
                 $recipient,
                 'payment_approved',
-                rcpStageLabel($stage) . ' college payment approved',
-                'Your ' . rcpStageLabel($stage) . ' college payment was approved. The O.R. number and remarks are now on that Research Services Clearance form.',
+                rcpStageLabel($stage) . ' collage payment approved',
+                'Your ' . rcpStageLabel($stage) . ' collage payment was approved. The O.R. number and remarks are now on that Research Services Clearance form.',
                 function_exists('rscStudentUrl') ? rscStudentUrl() : '#'
             );
         }
