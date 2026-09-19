@@ -34,6 +34,7 @@
 .rsc-table--tasks td { min-height:42px; }
 .rsc-table--tasks img { display:block; max-height:42px; max-width:180px; margin-top:4px; }
 .rsc-empty { padding:2rem 1rem; text-align:center; color:#64748b; }
+.rsc-physical { display:inline-block; font-size:8.5pt; font-weight:700; color:#047857; }
 @media print {
     body * { visibility: hidden !important; }
     .rsc-print-root, .rsc-print-root * { visibility: visible !important; }

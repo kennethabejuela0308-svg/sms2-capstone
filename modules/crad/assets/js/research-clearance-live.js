@@ -15,8 +15,14 @@
     var printBtn = root.querySelector('[data-rsc-print]');
     var fileInput = root.querySelector('[data-rsc-file]');
     var emptyEl = root.querySelector('[data-rsc-empty]');
+    var checkWrap = root.querySelector('[data-rsc-check-wrap]');
+    var checkAdviser = root.querySelector('[data-rsc-check-adviser]');
+    var checkMis = root.querySelector('[data-rsc-check-mis]');
+    var checkAa = root.querySelector('[data-rsc-check-aa]');
+    var uploadName = root.querySelector('[data-rsc-upload-name]');
     var current = null;
     var selectedId = root.getAttribute('data-rsc-id') || '';
+    var isCrad = role === 'crad_officer' || role === 'admin' || role === 'sms_admin' || role === 'superadmin';
 
     function post(action, extra) {
         var fd = extra instanceof FormData ? extra : new FormData();
@@ -40,15 +46,19 @@
         if (formBox) formBox.innerHTML = row && row.form_html ? row.form_html : '';
         if (statusEl) statusEl.textContent = row ? (row.status_label || row.status) : '';
         if (sendBtn) sendBtn.hidden = !(row && row.status === 'draft' && role === 'student');
-        if (acceptBtn) acceptBtn.hidden = !(row && (row.status === 'adviser_signed') && (role === 'crad_officer' || role === 'admin' || role === 'sms_admin' || role === 'superadmin'));
+        if (acceptBtn) acceptBtn.hidden = !(row && isCrad && (row.status === 'adviser_signed' || row.status === 'crad_received'));
         if (signBtn) {
             var canAdviser = role === 'adviser' && row && row.status === 'sent_to_adviser';
-            var canCrad = (role === 'crad_officer' || role === 'admin' || role === 'sms_admin' || role === 'superadmin')
-                && row && (row.status === 'crad_received' || row.status === 'adviser_signed');
+            var canCrad = isCrad && row && row.can_crad_sign;
             signBtn.hidden = !(canAdviser || canCrad);
         }
         if (printBtn) printBtn.hidden = !row;
         if (emptyEl) emptyEl.hidden = !!row;
+        if (checkWrap) checkWrap.hidden = !(isCrad && row);
+        if (checkAdviser) checkAdviser.checked = !!(row && row.has_adviser_signature);
+        if (checkMis) checkMis.checked = !!(row && row.mis_verified);
+        if (checkAa) checkAa.checked = !!(row && row.aa_verified);
+        if (uploadName) uploadName.textContent = row && row.uploaded_original ? row.uploaded_original : '';
     }
 
     function renderRows(rows) {
