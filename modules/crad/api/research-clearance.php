@@ -105,9 +105,9 @@ try {
     if ($role === 'adviser') {
         $rows = rscListForAdviser($crad);
         $id = (int) ($_GET['id'] ?? 0);
-        $current = $id > 0 ? rscRefreshExisting($crad, rscFindById($crad, $id)) : ($rows[0] ?? null);
+        $current = $id > 0 ? rscRefreshExisting($crad, rscFindById($crad, $id)) : null;
         if ($current && !rscAdviserCanAccess($current)) {
-            $current = $rows[0] ?? null;
+            $current = null;
         }
         $payload['ready'] = $rows !== [];
         $payload['clearance'] = $current ? rscPublicRow($current) : null;
@@ -119,7 +119,7 @@ try {
     if (rscCanManageAsCrad()) {
         $rows = rscListForCrad($crad);
         $id = (int) ($_GET['id'] ?? 0);
-        $current = $id > 0 ? rscRefreshExisting($crad, rscFindById($crad, $id)) : ($rows[0] ?? null);
+        $current = $id > 0 ? rscRefreshExisting($crad, rscFindById($crad, $id)) : null;
         $payload['ready'] = $rows !== [];
         $payload['clearance'] = $current ? rscPublicRow($current) : null;
         $payload['rows'] = array_map('rscPublicRow', $rows);

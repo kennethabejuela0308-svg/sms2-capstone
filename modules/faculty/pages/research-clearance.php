@@ -25,9 +25,9 @@ $crad = rscDb();
 rscEnsureSchema($crad);
 $rows = rscListForAdviser($crad);
 $selectedId = (int) ($_GET['id'] ?? 0);
-$current = $selectedId > 0 ? rscRefreshExisting($crad, rscFindById($crad, $selectedId)) : ($rows[0] ?? null);
+$current = $selectedId > 0 ? rscRefreshExisting($crad, rscFindById($crad, $selectedId)) : null;
 if ($current && !rscAdviserCanAccess($current)) {
-    $current = $rows[0] ?? null;
+    $current = null;
 }
 $public = $current ? rscPublicRow($current) : null;
 $rscSigPadLabel = 'Adviser Signature Pad (Draw Below)';
