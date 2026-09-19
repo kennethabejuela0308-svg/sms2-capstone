@@ -183,17 +183,21 @@
                 if (syncEl) syncEl.textContent = data.last_sync || '';
                 if (role === 'student') {
                     if (data.rows) renderRows(data.rows);
-                    if (data.clearance) {
+                    if (data.clearance && data.clearance.id) {
                         selectedId = String(data.clearance.id);
                         selectedStage = data.clearance.research_stage || selectedStage;
+                        root.setAttribute('data-rsc-stage', selectedStage);
                         applyClearance(data.clearance);
                     } else {
+                        selectedId = '';
                         var locked = null;
                         if (data.rows && selectedStage) {
                             locked = data.rows.filter(function (row) { return row.research_stage === selectedStage; })[0] || null;
                         }
-                        applyClearance(locked && locked.locked_reason ? locked : null);
-                        if (locked && emptyText) emptyText.textContent = locked.locked_reason || emptyText.textContent;
+                        applyClearance(locked || null);
+                        if (locked && emptyText && locked.locked_reason) {
+                            emptyText.textContent = locked.locked_reason;
+                        }
                     }
                 } else if (isCrad) {
                     var cradRow = data.clearance;
@@ -430,5 +434,5 @@
     }
 
     refresh();
-    window.setInterval(refresh, 2000);
+    window.setInterval(refresh, 1000);
 })();
