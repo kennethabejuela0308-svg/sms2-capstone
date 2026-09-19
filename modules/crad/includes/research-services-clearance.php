@@ -686,13 +686,18 @@ function rscEnsureForReadyGroup(PDO $crad, int $groupId, string $stage = 'resear
     return rscFindById($crad, (int) $existing['id']);
 }
 
-function rscFindByGroup(PDO $crad, int $groupId): ?array
+function rscFindByGroup(PDO $crad, int $groupId, string $stage = 'research_1'): ?array
 {
     if ($groupId <= 0) {
         return null;
     }
-    $stmt = $crad->prepare('SELECT * FROM research_services_clearances WHERE research_group_id = ? LIMIT 1');
-    $stmt->execute([$groupId]);
+    $stage = rscNormalizeStage($stage);
+    $stmt = $crad->prepare(
+        'SELECT * FROM research_services_clearances
+         WHERE research_group_id = ? AND research_stage = ?
+         LIMIT 1'
+    );
+    $stmt->execute([$groupId, $stage]);
     $row = $stmt->fetch() ?: null;
     return $row ?: null;
 }
@@ -1121,10 +1126,11 @@ function rscStatusLabel(string $status): string
 function rscAttachPaymentFields(array $row): array
 {
     $payment = $row['_payment'] ?? null;
+    $stage = rscNormalizeStage((string) ($row['research_stage'] ?? 'research_1'));
     if (!is_array($payment)) {
         $crad = rscDb();
         $gid = (int) ($row['research_group_id'] ?? 0);
-        $payment = ($crad instanceof PDO && $gid > 0) ? rscApprovedPayment($crad, $gid) : null;
+        $payment = ($crad instanceof PDO && $gid > 0) ? rscApprovedPayment($crad, $gid, $stage) : null;
     }
     if (is_array($payment)) {
         $or = trim((string) ($payment['or_number'] ?? ''));
@@ -1137,6 +1143,7 @@ function rscAttachPaymentFields(array $row): array
         $row['payment_remarks'] = trim((string) ($row['payment_remarks'] ?? '')) ?: 'HMA';
         $row['payment_approved'] = false;
     }
+    $row['research_stage'] = $stage;
     return $row;
 }
 
@@ -1148,6 +1155,8 @@ function rscPublicRow(array $row): array
     return [
         'id' => (int) $row['id'],
         'research_group_id' => (int) $row['research_group_id'],
+        'research_stage' => rscNormalizeStage((string) ($row['research_stage'] ?? 'research_1')),
+        'stage_label' => rscStageLabel((string) ($row['research_stage'] ?? 'research_1')),
         'status' => (string) $row['status'],
         'status_label' => rscStatusLabel((string) $row['status']),
         'or_number' => (string) $row['or_number'],
@@ -1396,7 +1405,7 @@ function rscRenderFormHtml(array $row, bool $duplicate = true): string
             . '<tr><th>Research Title</th><td colspan="3">' . $e($row['research_title'] ?? '') . '</td></tr>'
             . '</tbody></table>'
             . '<table class="rsc-table rsc-table--members"><thead><tr>'
-            . '<th>Last Name</th><th>First Name</th><th>Research 1 / Defense O.R. No.</th><th>Remarks</th>'
+            . '<th>Last Name</th><th>First Name</th><th>' . $e(rscOrColumnLabel((string) ($row['research_stage'] ?? 'research_1'))) . '</th><th>Remarks</th>'
             . '</tr></thead><tbody>' . $memberRows . '</tbody></table>'
             . '<table class="rsc-table rsc-table--tasks"><thead><tr>'
             . '<th style="width:48%">Task</th><th>Name and Signature</th><th style="width:18%">Date</th>'
