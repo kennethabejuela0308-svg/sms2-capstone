@@ -167,8 +167,8 @@ function rscDrawFormCopy($im, array $row, int $left, int $top, int $width): int
     $cradDate = rscFormatDate($row['crad_signed_at'] ?? null);
     $tasks = [
         ['1. Submitted OR Copy to Research Adviser', 'Adviser: ' . trim((string) ($row['adviser_name'] ?? '')), $adviserDate, (string) ($row['adviser_signature'] ?? ''), 56],
-        ['2. OR no. Verified by Accounting / MIS', 'MIS:', $misDate, '', 40],
-        ['3. Turnitin username and Password Released by AAI / AA', 'AA:', $aaDate, '', 40],
+        ['2. OR no. Verified by Accounting / MIS', 'MIS:', $misDate, (string) ($row['mis_signature'] ?? ''), 40],
+        ['3. Turnitin username and Password Released by AAI / AA', 'AA:', $aaDate, (string) ($row['aa_signature'] ?? ''), 40],
         [
             '4. Research Services Personnel Assignment',
             'CRAD: ' . trim((string) ($row['crad_name'] ?? '')),
@@ -263,4 +263,122 @@ function rscSendFormPngDownload(PDO $crad, array $row): void
     header('Content-Length: ' . strlen($png));
     header('Cache-Control: no-store');
     echo $png;
+}
+
+function rscSignatureCellBoxes(array $row, int $pageWidth, int $pad): array
+{
+    $width = max(200, $pageWidth - ($pad * 2));
+    $x = $pad;
+    $y = $pad + 22 + 78 + 28 + 28 + 28;
+    $members = rscDedupeMembers(json_decode((string) ($row['members_json'] ?? ''), true) ?: []);
+    $y += 28 * max(1, count($members));
+    $y += 28;
+    $t1 = (int) ($width * 0.48);
+    $t2 = (int) ($width * 0.34);
+    $misY = $y + 56;
+    $aaY = $misY + 40;
+    return [
+        'mis' => ['x' => $x + $t1 + 8, 'y' => $misY + 14, 'w' => max(20, $t2 - 16), 'h' => 22],
+        'aa' => ['x' => $x + $t1 + 8, 'y' => $aaY + 14, 'w' => max(20, $t2 - 16), 'h' => 22],
+    ];
+}
+
+function rscCropHasInk($im, int $x, int $y, int $w, int $h): bool
+{
+    $maxX = imagesx($im);
+    $maxY = imagesy($im);
+    if ($w < 8 || $h < 8 || $x < 0 || $y < 0 || $x + $w > $maxX || $y + $h > $maxY) {
+        return false;
+    }
+    $dark = 0;
+    $total = 0;
+    $step = max(1, (int) min($w, $h) / 16);
+    for ($yy = $y; $yy < $y + $h; $yy += $step) {
+        for ($xx = $x; $xx < $x + $w; $xx += $step) {
+            $rgb = imagecolorat($im, $xx, $yy);
+            $r = ($rgb >> 16) & 255;
+            $g = ($rgb >> 8) & 255;
+            $b = $rgb & 255;
+            $total++;
+            if ((($r + $g + $b) / 3) < 145) {
+                $dark++;
+            }
+        }
+    }
+    return $total > 0 && ($dark / $total) >= 0.02;
+}
+
+function rscCropToDataUrl($im, int $x, int $y, int $w, int $h): string
+{
+    $maxX = imagesx($im);
+    $maxY = imagesy($im);
+    $x = max(0, min($x, $maxX - 2));
+    $y = max(0, min($y, $maxY - 2));
+    $w = max(8, min($w, $maxX - $x));
+    $h = max(8, min($h, $maxY - $y));
+    $crop = imagecreatetruecolor($w, $h);
+    $white = imagecolorallocate($crop, 255, 255, 255);
+    imagefilledrectangle($crop, 0, 0, $w, $h, $white);
+    imagecopy($crop, $im, 0, 0, $x, $y, $w, $h);
+    ob_start();
+    imagepng($crop);
+    $bin = (string) ob_get_clean();
+    imagedestroy($crop);
+    return $bin !== '' ? ('data:image/png;base64,' . base64_encode($bin)) : '';
+}
+
+function rscExtractPhysicalSignatures(string $path, array $row): array
+{
+    $empty = ['mis' => '', 'aa' => ''];
+    if ($path === '' || !is_file($path) || !function_exists('imagecreatefromstring')) {
+        return $empty;
+    }
+    $bin = @file_get_contents($path);
+    $src = $bin !== false ? @imagecreatefromstring($bin) : null;
+    if (!$src) {
+        return $empty;
+    }
+
+    $targetW = 1240;
+    $sw = imagesx($src);
+    $sh = imagesy($src);
+    $scaled = $src;
+    if ($sw !== $targetW) {
+        $targetH = max(200, (int) round($sh * ($targetW / max(1, $sw))));
+        $scaled = imagecreatetruecolor($targetW, $targetH);
+        $white = imagecolorallocate($scaled, 255, 255, 255);
+        imagefilledrectangle($scaled, 0, 0, $targetW, $targetH, $white);
+        imagecopyresampled($scaled, $src, 0, 0, 0, 0, $targetW, $targetH, $sw, $sh);
+        imagedestroy($src);
+    }
+
+    $attempts = [];
+    foreach ([28, 16, 8, 0] as $pad) {
+        $attempts[] = rscSignatureCellBoxes($row, $targetW, $pad);
+    }
+    $fw = imagesx($scaled);
+    $fh = imagesy($scaled);
+    $copyH = (int) ($fh * (imagesy($scaled) > ($fw * 1.15) ? 0.48 : 0.92));
+    $attempts[] = [
+        'mis' => ['x' => (int) ($fw * 0.50), 'y' => (int) ($copyH * 0.70), 'w' => (int) ($fw * 0.30), 'h' => (int) ($copyH * 0.07)],
+        'aa' => ['x' => (int) ($fw * 0.50), 'y' => (int) ($copyH * 0.78), 'w' => (int) ($fw * 0.30), 'h' => (int) ($copyH * 0.07)],
+    ];
+
+    $found = $empty;
+    foreach ($attempts as $boxes) {
+        foreach (['mis', 'aa'] as $key) {
+            if ($found[$key] !== '') {
+                continue;
+            }
+            $b = $boxes[$key];
+            if (rscCropHasInk($scaled, (int) $b['x'], (int) $b['y'], (int) $b['w'], (int) $b['h'])) {
+                $found[$key] = rscCropToDataUrl($scaled, (int) $b['x'], (int) $b['y'], (int) $b['w'], (int) $b['h']);
+            }
+        }
+        if ($found['mis'] !== '' && $found['aa'] !== '') {
+            break;
+        }
+    }
+    imagedestroy($scaled);
+    return $found;
 }
