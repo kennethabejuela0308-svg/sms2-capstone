@@ -10,9 +10,10 @@ if (!$row) {
     exit;
 }
 $path = ROOT_PATH . '/uploads/college-payment/' . basename((string) $row['uploaded_file']);
-$or = rcpExtractReferenceFromImage($path);
 echo 'id=' . $row['id'] . "\n";
+echo 'file=' . $path . "\n";
 echo 'old=' . $row['or_number'] . "\n";
+$or = rcpExtractReferenceFromImage($path);
 echo 'extracted=' . $or . "\n";
 if ($or !== '') {
     $crad->prepare('UPDATE research_clearance_payments SET or_number = ? WHERE id = ?')->execute([$or, (int) $row['id']]);
