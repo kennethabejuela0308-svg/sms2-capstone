@@ -67,6 +67,9 @@ try {
     if ($role === 'student') {
         $group = chapterRegisteredStudentGroup($crad);
         $row = $group ? rcpFindByGroup($crad, (int) $group['id']) : null;
+        if ($row) {
+            $row = rcpEnsureOrFromImage($crad, $row);
+        }
         echo json_encode([
             'ok' => true,
             'last_sync' => date('M j, Y g:i:s A'),
@@ -83,7 +86,8 @@ try {
     echo json_encode([
         'ok' => true,
         'last_sync' => date('M j, Y g:i:s A'),
-        'rows' => array_map(static function (array $row): array {
+        'rows' => array_map(static function (array $row) use ($crad): array {
+            $row = rcpEnsureOrFromImage($crad, $row);
             $public = rcpPublicRow($row);
             $public['group_number'] = (string) ($row['group_number'] ?? '');
             $public['research_title'] = (string) ($row['research_title'] ?? '');

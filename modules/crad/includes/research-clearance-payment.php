@@ -117,24 +117,51 @@ function rcpOcrImageText(string $path): string
     if ($path === '' || !is_file($path) || !is_file($script)) {
         return '';
     }
-    $outFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'rcp-ocr-' . bin2hex(random_bytes(4)) . '.txt';
-    $cmd = 'powershell -STA -NoProfile -ExecutionPolicy Bypass -File '
+    $real = realpath($path) ?: $path;
+    $tmpDir = sys_get_temp_dir();
+    $token = bin2hex(random_bytes(4));
+    $outFile = $tmpDir . DIRECTORY_SEPARATOR . 'rcp-ocr-' . $token . '.txt';
+    $jobFile = $tmpDir . DIRECTORY_SEPARATOR . 'rcp-ocr-job-' . $token . '.json';
+    file_put_contents($jobFile, json_encode(['image' => $real, 'out' => $outFile], JSON_UNESCAPED_SLASHES));
+    $ps = 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe';
+    if (!is_file($ps)) {
+        $ps = 'powershell';
+    }
+    $cmd = $ps
+        . ' -NoProfile -ExecutionPolicy Bypass -File '
         . escapeshellarg($script)
-        . ' -ImagePath '
-        . escapeshellarg($path)
-        . ' -OutFile '
-        . escapeshellarg($outFile);
+        . ' -JobFile '
+        . escapeshellarg($jobFile);
     $out = [];
     $code = 0;
     @exec($cmd, $out, $code);
     $text = is_file($outFile) ? trim((string) @file_get_contents($outFile)) : '';
-    if (is_file($outFile)) {
-        @unlink($outFile);
-    }
+    @unlink($outFile);
+    @unlink($jobFile);
     if ($text === '') {
         $text = trim(implode(' ', $out));
     }
     return $text;
+}
+
+function rcpEnsureOrFromImage(PDO $crad, array $row): array
+{
+    $or = trim((string) ($row['or_number'] ?? ''));
+    if ($or !== '' && !preg_match('/^OR-\d+$/i', $or)) {
+        return $row;
+    }
+    $file = basename(str_replace('\\', '/', (string) ($row['uploaded_file'] ?? '')));
+    if ($file === '') {
+        return $row;
+    }
+    $extracted = rcpExtractReferenceFromImage(ROOT_PATH . '/uploads/college-payment/' . $file);
+    if ($extracted === '' || strcasecmp($extracted, $or) === 0) {
+        return $row;
+    }
+    $crad->prepare('UPDATE research_clearance_payments SET or_number = ? WHERE id = ?')
+        ->execute([$extracted, (int) ($row['id'] ?? 0)]);
+    $row['or_number'] = $extracted;
+    return $row;
 }
 
 function rcpExtractReferenceFromImage(string $path): string
