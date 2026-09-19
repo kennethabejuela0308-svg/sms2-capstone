@@ -11,14 +11,14 @@ if (getCurrentUserRoleKey() !== 'student') {
     exit('Forbidden');
 }
 
-$pageTitle = 'Upload College Payment';
+$pageTitle = 'Upload Collage Payment';
 $activeModule = 'student_portal';
 $activePage = 'college-payment';
 $pageBannerIcon = 'fa-receipt';
-$pageBannerDescription = 'Upload Research 1 or Research 2 college payment. Admin must approve it before that clearance form opens.';
+$pageBannerDescription = 'Upload Research 1 or Research 2 collage payment. Admin must approve it before that clearance form opens.';
 $breadcrumbs = [
     ['label' => 'Student Portal', 'url' => BASE_URL . '/modules/student-portal/pages/dashboard.php'],
-    ['label' => 'Upload College Payment', 'url' => null],
+    ['label' => 'Upload Collage Payment', 'url' => null],
 ];
 
 $crad = rscDb();
@@ -33,6 +33,8 @@ foreach ($inbox as $item) {
         break;
     }
 }
+$stageLocked = $public && !empty($public['locked_reason']);
+$canUpload = $public && !empty($public['can_upload']) && !$stageLocked;
 
 require_once ROOT_PATH . '/includes/layout-start.php';
 renderBreadcrumbs($breadcrumbs);
@@ -45,13 +47,13 @@ renderBreadcrumbs($breadcrumbs);
      data-rcp-stage="<?= e($selectedStage) ?>">
     <div class="rsc-toolbar d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <div>
-            <div class="fw-bold" data-rcp-status><?= e(($public['stage_label'] ?? 'Research 1') . ' — ' . ($public['status_label'] ?? 'No college payment uploaded yet')) ?></div>
+            <div class="fw-bold" data-rcp-status><?= e(($public['stage_label'] ?? 'Research 1') . ' — ' . ($public['status_label'] ?? 'No collage payment uploaded yet')) ?></div>
             <small class="text-muted" data-rcp-sync></small>
         </div>
     </div>
 
     <?php if (!$group): ?>
-        <div class="alert alert-info">A registered research group is needed before you can upload a college payment.</div>
+        <div class="alert alert-info">A registered research group is needed before you can upload a collage payment.</div>
     <?php else: ?>
         <section class="glass-panel p-4 mb-3">
             <h5 class="mb-3"><?= smsIcon('inbox', ['class' => 'me-2 text-primary']) ?>Payment Inbox</h5>
@@ -79,23 +81,25 @@ renderBreadcrumbs($breadcrumbs);
             </div>
         </section>
 
-        <div class="alert alert-info" data-rcp-gate>
-            Upload the <?= e((string) ($public['stage_label'] ?? 'Research 1')) ?> college payment picture. After Admin approves it, that O.R. number and remarks appear on the matching clearance form.
+        <div class="alert alert-info <?= $stageLocked ? 'd-none' : '' ?>" data-rcp-gate <?= $stageLocked ? 'hidden' : '' ?>>
+            Upload the <?= e((string) ($public['stage_label'] ?? 'Research 1')) ?> collage payment picture. After Admin approves it, that O.R. number and remarks appear on the matching clearance form.
         </div>
-        <div class="alert alert-warning d-none" data-rcp-locked></div>
+        <div class="alert alert-warning <?= $stageLocked ? '' : 'd-none' ?>" data-rcp-locked <?= $stageLocked ? '' : 'hidden' ?>>
+            <?= $stageLocked ? e((string) $public['locked_reason']) : '' ?>
+        </div>
 
-        <section class="glass-panel p-4 mb-3" data-rcp-upload-panel>
+        <section class="glass-panel p-4 mb-3" data-rcp-upload-panel <?= $canUpload || (!empty($public['has_upload']) && !$stageLocked) ? '' : 'hidden' ?>>
             <div class="row g-3 align-items-end">
                 <div class="col-md-6">
-                    <label class="form-label fw-bold" for="rcpFile">College payment image</label>
-                    <input type="file" id="rcpFile" class="form-control" accept=".png,.jpg,.jpeg,image/png,image/jpeg">
+                    <label class="form-label fw-bold" for="rcpFile">Collage payment image</label>
+                    <input type="file" id="rcpFile" class="form-control" accept=".png,.jpg,.jpeg,image/png,image/jpeg" <?= $canUpload ? '' : 'disabled' ?>>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fw-bold" for="rcpOr">Reference / O.R. Number</label>
                     <input type="text" id="rcpOr" class="form-control" value="<?= e($public['or_number'] ?? '') ?>" placeholder="Taken from the payment picture" readonly>
                 </div>
                 <div class="col-md-2">
-                    <button type="button" class="btn btn-sms-primary w-100" id="rcpUploadBtn" <?= empty($public['can_upload']) ? 'disabled' : '' ?>>
+                    <button type="button" class="btn btn-sms-primary w-100" id="rcpUploadBtn" <?= $canUpload ? '' : 'disabled' ?>>
                         <?= smsIcon('upload', ['class' => 'me-1']) ?><span data-rcp-upload-label><?= !empty($public['has_upload']) ? 'Re-upload' : 'Upload' ?></span>
                     </button>
                 </div>
@@ -103,13 +107,13 @@ renderBreadcrumbs($breadcrumbs);
             <div class="small text-muted mt-2" data-rcp-file-name><?= e($public['uploaded_original'] ?? '') ?></div>
         </section>
 
-        <div class="rsc-wrap" data-rcp-preview <?= empty($public['uploaded_url']) ? 'hidden' : '' ?>>
-            <?php if (!empty($public['uploaded_url'])): ?>
-                <img class="rsc-upload-img" alt="College payment" src="<?= e($public['uploaded_url']) ?>">
+        <div class="rsc-wrap" data-rcp-preview <?= (empty($public['uploaded_url']) || $stageLocked) ? 'hidden' : '' ?>>
+            <?php if (!empty($public['uploaded_url']) && !$stageLocked): ?>
+                <img class="rsc-upload-img" alt="Collage payment" src="<?= e($public['uploaded_url']) ?>">
             <?php endif; ?>
         </div>
     <?php endif; ?>
 </div>
 <link rel="stylesheet" href="<?= BASE_URL ?>/modules/crad/assets/css/research-clearance.css?v=rsc-stage-1">
-<script src="<?= BASE_URL ?>/modules/crad/assets/js/clearance-payment-live.js?v=rcp-stage-1"></script>
+<script src="<?= BASE_URL ?>/modules/crad/assets/js/clearance-payment-live.js?v=rcp-collage-1"></script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>

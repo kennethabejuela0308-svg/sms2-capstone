@@ -22,12 +22,13 @@
     var rejectBtn = root.querySelector('[data-rcp-reject]');
     var gateEl = root.querySelector('[data-rcp-gate]');
     var lockedEl = root.querySelector('[data-rcp-locked]');
+    var uploadPanel = root.querySelector('[data-rcp-upload-panel]');
     var current = null;
     var uploading = false;
     var lastStamp = '';
 
     function rowStamp(row) {
-        return row ? [row.id, row.research_stage, row.status, row.uploaded_url, row.or_number, row.remarks, row.updated_at, row.can_upload].join('|') : '';
+        return row ? [row.id, row.research_stage, row.status, row.uploaded_url, row.or_number, row.remarks, row.updated_at, row.can_upload, row.locked_reason].join('|') : '';
     }
 
     function newestPending(rows) {
@@ -52,21 +53,34 @@
         current = row;
         selectedStage = row && row.research_stage ? row.research_stage : selectedStage;
         root.setAttribute('data-rcp-stage', selectedStage);
+        var locked = !!(row && row.locked_reason);
+        var canUpload = !!(row && row.can_upload && !locked);
         if (statusEl) {
             statusEl.textContent = row
-                ? ((row.stage_label || 'Research') + ' — ' + (row.status_label || row.status || 'No college payment uploaded yet'))
-                : 'No college payment uploaded yet';
+                ? ((row.stage_label || 'Research') + ' — ' + (row.status_label || row.status || 'No collage payment uploaded yet'))
+                : 'No collage payment uploaded yet';
         }
         if (fileNameEl) fileNameEl.textContent = row && row.uploaded_original ? row.uploaded_original : '';
         if (uploadLabel) uploadLabel.textContent = row && row.has_upload ? 'Re-upload' : 'Upload';
-        if (uploadBtn) uploadBtn.disabled = !(row && row.can_upload);
+        if (uploadBtn) uploadBtn.disabled = !canUpload;
+        if (fileInput) {
+            fileInput.disabled = !canUpload;
+            if (!canUpload) fileInput.value = '';
+        }
         if (orInput) orInput.value = row && row.or_number ? row.or_number : '';
         if (gateEl) {
-            gateEl.textContent = 'Upload the ' + ((row && row.stage_label) || 'Research') +
-                ' college payment picture. After Admin approves it, that O.R. number and remarks appear on the matching clearance form.';
+            if (locked) {
+                gateEl.hidden = true;
+                gateEl.classList.add('d-none');
+            } else {
+                gateEl.hidden = false;
+                gateEl.classList.remove('d-none');
+                gateEl.textContent = 'Upload the ' + ((row && row.stage_label) || 'Research') +
+                    ' collage payment picture. After Admin approves it, that O.R. number and remarks appear on the matching clearance form.';
+            }
         }
         if (lockedEl) {
-            if (row && row.locked_reason) {
+            if (locked) {
                 lockedEl.hidden = false;
                 lockedEl.classList.remove('d-none');
                 lockedEl.textContent = row.locked_reason;
@@ -76,10 +90,14 @@
                 lockedEl.textContent = '';
             }
         }
+        if (uploadPanel) {
+            // Hide upload controls entirely while Research 2 (or any stage) is locked.
+            uploadPanel.hidden = locked || !(canUpload || (row && row.has_upload));
+        }
         if (preview) {
-            if (row && row.uploaded_url) {
+            if (!locked && row && row.uploaded_url) {
                 preview.hidden = false;
-                preview.innerHTML = '<img class="rsc-upload-img" alt="College payment" src="' + row.uploaded_url + '">';
+                preview.innerHTML = '<img class="rsc-upload-img" alt="Collage payment" src="' + row.uploaded_url + '">';
             } else {
                 preview.hidden = true;
                 preview.innerHTML = '';
