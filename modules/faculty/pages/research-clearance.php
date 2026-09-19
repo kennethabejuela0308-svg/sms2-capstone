@@ -43,12 +43,12 @@ renderBreadcrumbs($breadcrumbs);
      data-rsc-endpoint="<?= e(BASE_URL . '/modules/crad/api/research-clearance.php') ?>"
      data-rsc-csrf="<?= e(csrfToken()) ?>"
      data-rsc-id="<?= $public ? (int) $public['id'] : '' ?>">
-    <section class="glass-panel p-4 mb-3">
+    <section class="glass-panel p-4 mb-3 rsc-inbox">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="mb-0"><?= smsIcon('inbox', ['class' => 'me-2 text-primary']) ?>Clearance Inbox</h5>
             <small class="text-muted" data-rsc-sync></small>
         </div>
-        <div class="table-responsive">
+        <div class="table-responsive rsc-inbox-scroll">
             <table class="table align-middle mb-0">
                 <thead><tr><th>Group</th><th>Title</th><th>O.R. No.</th><th>Status</th><th></th></tr></thead>
                 <tbody data-rsc-rows>
@@ -70,16 +70,20 @@ renderBreadcrumbs($breadcrumbs);
         </div>
     </section>
 
-    <div class="rsc-toolbar">
-        <div class="rsc-status" data-rsc-status><?= e($public['status_label'] ?? '') ?></div>
-        <div class="d-flex flex-wrap gap-2">
-            <button type="button" class="btn btn-outline-secondary" data-rsc-print <?= $public ? '' : 'hidden' ?>><?= smsIcon('print', ['class' => 'me-1']) ?>Print</button>
-            <button type="button" class="btn btn-success" data-rsc-sign <?= ($public && $public['status'] === 'sent_to_adviser') ? '' : 'hidden' ?>><?= smsIcon('signature', ['class' => 'me-1']) ?>Sign Clearance</button>
+    <div class="rsc-empty" data-rsc-empty <?= $rows ? 'hidden' : '' ?>>Waiting for a student to send a Research Services Clearance form.</div>
+    <div class="rsc-pick" data-rsc-pick <?= ($rows && !$public) ? '' : 'hidden' ?>>Open a row in the inbox to view that student's clearance form.</div>
+    <div data-rsc-detail <?= $public ? '' : 'hidden' ?>>
+        <div class="rsc-toolbar">
+            <div class="rsc-status" data-rsc-status><?= e($public['status_label'] ?? '') ?></div>
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-outline-secondary" data-rsc-close><?= smsIcon('arrow-left', ['class' => 'me-1']) ?>Back to Inbox</button>
+                <button type="button" class="btn btn-outline-secondary" data-rsc-print <?= $public ? '' : 'hidden' ?>><?= smsIcon('print', ['class' => 'me-1']) ?>Print</button>
+                <button type="button" class="btn btn-success" data-rsc-sign <?= ($public && $public['status'] === 'sent_to_adviser') ? '' : 'hidden' ?>><?= smsIcon('signature', ['class' => 'me-1']) ?>Sign Clearance</button>
+            </div>
         </div>
+        <div class="rsc-wrap" data-rsc-form><?= $public['form_html'] ?? '' ?></div>
     </div>
-    <div class="rsc-empty" data-rsc-empty <?= $public ? 'hidden' : '' ?>>Waiting for a student to send a Research Services Clearance form.</div>
-    <div class="rsc-wrap" data-rsc-form><?= $public['form_html'] ?? '' ?></div>
 </div>
 <?php require __DIR__ . '/../../crad/includes/research-clearance-sig-modal.php'; ?>
-<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-or-1"></script>
+<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-inbox-1"></script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>
