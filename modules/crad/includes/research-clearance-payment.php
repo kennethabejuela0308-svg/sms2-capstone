@@ -117,14 +117,24 @@ function rcpOcrImageText(string $path): string
     if ($path === '' || !is_file($path) || !is_file($script)) {
         return '';
     }
-    $cmd = 'powershell -NoProfile -ExecutionPolicy Bypass -File '
+    $outFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'rcp-ocr-' . bin2hex(random_bytes(4)) . '.txt';
+    $cmd = 'powershell -STA -NoProfile -ExecutionPolicy Bypass -File '
         . escapeshellarg($script)
         . ' -ImagePath '
-        . escapeshellarg($path);
+        . escapeshellarg($path)
+        . ' -OutFile '
+        . escapeshellarg($outFile);
     $out = [];
     $code = 0;
     @exec($cmd, $out, $code);
-    return $code === 0 ? trim(implode(' ', $out)) : '';
+    $text = is_file($outFile) ? trim((string) @file_get_contents($outFile)) : '';
+    if (is_file($outFile)) {
+        @unlink($outFile);
+    }
+    if ($text === '') {
+        $text = trim(implode(' ', $out));
+    }
+    return $text;
 }
 
 function rcpExtractReferenceFromImage(string $path): string

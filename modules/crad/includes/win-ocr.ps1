@@ -1,4 +1,7 @@
-param([string]$ImagePath)
+param(
+    [string]$ImagePath,
+    [string]$OutFile = ''
+)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Runtime.WindowsRuntime | Out-Null
 $asTaskGeneric = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {
@@ -22,4 +25,9 @@ if (-not $engine) {
     $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromLanguage((New-Object Windows.Globalization.Language 'en-US'))
 }
 $result = Await-WinRT ($engine.RecognizeAsync($bitmap)) ([Windows.Media.Ocr.OcrResult])
-[string]$result.Text
+$text = [string]$result.Text
+if ($OutFile -ne '') {
+    Set-Content -Path $OutFile -Value $text -Encoding UTF8
+} else {
+    $text
+}
