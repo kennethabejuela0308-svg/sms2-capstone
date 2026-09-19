@@ -191,22 +191,44 @@ function rscEnsureSchema(?PDO $crad = null): void
     rcpEnsureSchema($crad);
 }
 
-function rscApprovedPayment(PDO $crad, int $groupId): ?array
+function rscNormalizeStage(string $stage): string
 {
-    $row = rcpFindByGroup($crad, $groupId);
+    return function_exists('rcpNormalizeStage')
+        ? rcpNormalizeStage($stage)
+        : (strtolower(trim($stage)) === 'research_2' ? 'research_2' : 'research_1');
+}
+
+function rscStageLabel(string $stage): string
+{
+    return function_exists('rcpStageLabel')
+        ? rcpStageLabel($stage)
+        : (rscNormalizeStage($stage) === 'research_2' ? 'Research 2' : 'Research 1');
+}
+
+function rscOrColumnLabel(string $stage): string
+{
+    return rscNormalizeStage($stage) === 'research_2'
+        ? 'Research 2 / Defense O.R. No.'
+        : 'Research 1 / Defense O.R. No.';
+}
+
+function rscApprovedPayment(PDO $crad, int $groupId, string $stage = 'research_1'): ?array
+{
+    $row = rcpFindByGroup($crad, $groupId, $stage);
     if (!$row || (string) ($row['status'] ?? '') !== 'approved') {
         return null;
     }
     return $row;
 }
 
-function rscPaymentUnlocksClearance(PDO $crad, int $groupId, ?array $clearance = null): bool
+function rscPaymentUnlocksClearance(PDO $crad, int $groupId, ?array $clearance = null, string $stage = ''): bool
 {
+    $stage = rscNormalizeStage($stage !== '' ? $stage : (string) ($clearance['research_stage'] ?? 'research_1'));
     $status = (string) ($clearance['status'] ?? '');
     if (in_array($status, ['sent_to_adviser', 'adviser_signed', 'crad_received', 'clearance_done'], true)) {
         return true;
     }
-    return rcpIsApproved($crad, $groupId);
+    return rcpIsApproved($crad, $groupId, $stage);
 }
 
 function rscStudentUrl(): string
@@ -536,16 +558,26 @@ function rscResolveGroupOrNumber(int $groupId, string $groupNumber, array $membe
     return rscGenerateOrNumber($groupId, $groupNumber);
 }
 
-function rscEnsureForReadyGroup(PDO $crad, int $groupId): ?array
+function rscEnsureForReadyGroup(PDO $crad, int $groupId, string $stage = 'research_1'): ?array
 {
     rscEnsureSchema($crad);
+    $stage = rscNormalizeStage($stage);
     if ($groupId <= 0) {
         return null;
     }
 
-    $existing = rscFindByGroup($crad, $groupId);
-    if (!$existing && !rscIsChapterReady($crad, $groupId)) {
-        return null;
+    $existing = rscFindByGroup($crad, $groupId, $stage);
+    if ($stage === 'research_1') {
+        if (!$existing && !rscIsChapterReady($crad, $groupId)) {
+            return null;
+        }
+    } else {
+        if (!rscClearanceDoneExists($crad, $groupId, 'research_1')) {
+            return $existing;
+        }
+        if (!$existing && !rscPaymentUnlocksClearance($crad, $groupId, null, 'research_2')) {
+            return null;
+        }
     }
 
     $ctx = rscLoadGroupContext($crad, $groupId);
@@ -570,7 +602,7 @@ function rscEnsureForReadyGroup(PDO $crad, int $groupId): ?array
     ];
 
     $or = rscResolveGroupOrNumber($groupId, (string) ($ctx['group_number'] ?? ''), $members);
-    $payment = rscApprovedPayment($crad, $groupId);
+    $payment = rscApprovedPayment($crad, $groupId, $stage);
     if ($payment) {
         $payOr = trim((string) ($payment['or_number'] ?? ''));
         if ($payOr !== '') {
@@ -589,16 +621,17 @@ function rscEnsureForReadyGroup(PDO $crad, int $groupId): ?array
     if (!$existing) {
         $stmt = $crad->prepare(
             "INSERT INTO research_services_clearances
-                (research_group_id, title_approval_id, status, or_number, leader_student_no, leader_group_no,
+                (research_group_id, research_stage, title_approval_id, status, or_number, leader_student_no, leader_group_no,
                  program, section, research_title, members_json, grammarian_name, statistician_name, adviser_name,
                  adviser_user_id, adviser_email)
              VALUES
-                (:gid, :tid, 'draft', :or_number, :leader_student_no, :leader_group_no,
+                (:gid, :stage, :tid, 'draft', :or_number, :leader_student_no, :leader_group_no,
                  :program, :section, :research_title, :members_json, :grammarian_name, :statistician_name, :adviser_name,
                  :adviser_user_id, :adviser_email)"
         );
         $stmt->execute([
             ':gid' => $groupId,
+            ':stage' => $stage,
             ':tid' => $payload['title_approval_id'],
             ':or_number' => $or,
             ':leader_student_no' => $payload['leader_student_no'],
@@ -613,12 +646,13 @@ function rscEnsureForReadyGroup(PDO $crad, int $groupId): ?array
             ':adviser_user_id' => $payload['adviser_user_id'],
             ':adviser_email' => $payload['adviser_email'],
         ]);
-        return rscFindByGroup($crad, $groupId);
+        return rscFindByGroup($crad, $groupId, $stage);
     }
 
     $crad->prepare(
         "UPDATE research_services_clearances
          SET title_approval_id = :tid,
+             research_stage = :stage,
              or_number = :or_number,
              leader_student_no = :leader_student_no,
              leader_group_no = :leader_group_no,
@@ -634,6 +668,7 @@ function rscEnsureForReadyGroup(PDO $crad, int $groupId): ?array
          WHERE id = :id"
     )->execute([
         ':tid' => $payload['title_approval_id'],
+        ':stage' => $stage,
         ':or_number' => $or,
         ':leader_student_no' => $payload['leader_student_no'],
         ':leader_group_no' => $payload['leader_group_no'],
