@@ -1062,12 +1062,11 @@ function rscUploadedFormHasPhysicalMarks(array $row): bool
 
 function rscParseFlexibleDate(?string $value): ?int
 {
-    $value = trim(preg_replace('/\s+/', ' ', (string) $value) ?? '');
+    $value = trim((string) preg_replace('/\s+/', ' ', (string) $value));
     if ($value === '') {
         return null;
     }
-    $value = (string) preg_replace('/\bSept\.?\b/i', 'Sep', $value);
-    if (preg_match('#^(\d{1,2})[/\-](\d{1,2})[/\-](\d{2}|\d{4})$#', $value, $m)) {
+    if (preg_match('#^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2}|\d{4})$#', $value, $m)) {
         $year = (int) $m[3];
         if ($year < 100) {
             $year += $year >= 70 ? 1900 : 2000;
@@ -1075,14 +1074,50 @@ function rscParseFlexibleDate(?string $value): ?int
         $ts = mktime(0, 0, 0, (int) $m[1], (int) $m[2], $year);
         return $ts ?: null;
     }
+    $value = (string) preg_replace('/\bSept\.?\b/i', 'Sep', $value);
     $ts = strtotime($value);
     return $ts ?: null;
 }
 
-function rscFormatDate(?string $value): string
+function rscMonthLabel(int $ts): string
+{
+    $months = [
+        1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr',
+        5 => 'May', 6 => 'Jun', 7 => 'Jul', 8 => 'Aug',
+        9 => 'Sept', 10 => 'Oct', 11 => 'Nov', 12 => 'Dec',
+    ];
+    return $months[(int) date('n', $ts)] ?? date('M', $ts);
+}
+
+function rscFormatDateParts(?string $value): array
 {
     $ts = rscParseFlexibleDate($value);
-    return $ts ? date('M j, Y', $ts) : '';
+    if (!$ts) {
+        return ['numeric' => '', 'words' => ''];
+    }
+    return [
+        'numeric' => date('n/j/y', $ts),
+        'words' => rscMonthLabel($ts) . ' ' . date('j, Y', $ts),
+    ];
+}
+
+function rscFormatDate(?string $value): string
+{
+    $parts = rscFormatDateParts($value);
+    if ($parts['numeric'] === '') {
+        return '';
+    }
+    return $parts['numeric'] . ' / ' . $parts['words'];
+}
+
+function rscFormatDateCell(?string $value): string
+{
+    $parts = rscFormatDateParts($value);
+    if ($parts['numeric'] === '') {
+        return '';
+    }
+    $e = static fn($v) => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
+    return $e($parts['numeric']) . '<br>' . $e($parts['words']);
 }
 
 function rscRenderFormHtml(array $row, bool $duplicate = true): string
@@ -1110,10 +1145,10 @@ function rscRenderFormHtml(array $row, bool $duplicate = true): string
         $misImg = $misSig !== '' ? '<img src="' . $e($misSig) . '" alt="MIS signature">' : '';
         $aaImg = $aaSig !== '' ? '<img src="' . $e($aaSig) . '" alt="AA signature">' : '';
         $cradImg = $cradSig !== '' ? '<img src="' . $e($cradSig) . '" alt="CRAD signature">' : '';
-        $adviserDate = rscFormatDate($row['adviser_signed_at'] ?? null);
-        $misDate = rscFormatDate($row['mis_verified_at'] ?? $row['uploaded_at'] ?? null);
-        $aaDate = rscFormatDate($row['aa_verified_at'] ?? $row['uploaded_at'] ?? null);
-        $cradDate = rscFormatDate($row['crad_signed_at'] ?? null);
+        $adviserDate = rscFormatDateCell($row['adviser_signed_at'] ?? null);
+        $misDate = rscFormatDateCell($row['mis_verified_at'] ?? $row['uploaded_at'] ?? null);
+        $aaDate = rscFormatDateCell($row['aa_verified_at'] ?? $row['uploaded_at'] ?? null);
+        $cradDate = rscFormatDateCell($row['crad_signed_at'] ?? null);
 
         return '<div class="rsc-sheet">'
             . '<div class="rsc-meta">Leader Student No.: <strong>' . $e($row['leader_student_no'] ?? '') . '</strong>'
@@ -1141,9 +1176,9 @@ function rscRenderFormHtml(array $row, bool $duplicate = true): string
             . '</tr></thead><tbody>'
             . '<tr><td>1. Submitted OR Copy to Research Adviser</td>'
             . '<td>Adviser: ' . $e($row['adviser_name'] ?? '') . $adviserImg . '</td>'
-            . '<td>' . $e($adviserDate) . '</td></tr>'
-            . '<tr><td>2. OR no. Verified by Accounting / MIS</td><td>MIS: ' . $misImg . '</td><td>' . $e($misDate) . '</td></tr>'
-            . '<tr><td>3. Turnitin username and Password Released by AAI / AA</td><td>AA: ' . $aaImg . '</td><td>' . $e($aaDate) . '</td></tr>'
+            . '<td>' . $adviserDate . '</td></tr>'
+            . '<tr><td>2. OR no. Verified by Accounting / MIS</td><td>MIS: ' . $misImg . '</td><td>' . $misDate . '</td></tr>'
+            . '<tr><td>3. Turnitin username and Password Released by AAI / AA</td><td>AA: ' . $aaImg . '</td><td>' . $aaDate . '</td></tr>'
             . '<tr><td>4. Research Services Personnel Assignment<br>'
             . 'Grammarian: <strong>' . $e($row['grammarian_name'] ?? '') . '</strong><br>'
             . 'Statistician / Technical Adviser: <strong>' . $e(trim((string) ($row['adviser_name'] ?? $row['statistician_name'] ?? ''))) . '</strong></td>'

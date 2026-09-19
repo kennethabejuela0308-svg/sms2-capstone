@@ -207,7 +207,12 @@ function rscDrawFormCopy($im, array $row, int $left, int $top, int $width): int
             imagedestroy($sigIm);
         }
         rscImageCell($im, $x + $t1 + $t2, $y, $t3, $th, $black);
-        rscImageText($im, $x + $t1 + $t2 + 6, $y + 8, $date, 9, $black, false, $t3 - 10);
+        $dateLines = $date === '' ? [] : preg_split('/\s+\/\s+/', $date) ?: [$date];
+        $dateY = $y + 8;
+        foreach ($dateLines as $dateLine) {
+            rscImageText($im, $x + $t1 + $t2 + 6, $dateY, (string) $dateLine, 9, $black, false, $t3 - 10);
+            $dateY += 14;
+        }
         $y += $th;
     }
 
