@@ -137,6 +137,10 @@ function rdPanelReadySql(): string
              INNER JOIN research_services_clearances rsc
                ON rsc.research_group_id = rg.id
               AND rsc.status = 'clearance_done'
+              AND TRIM(COALESCE(rsc.adviser_signature, '')) <> ''
+              AND TRIM(COALESCE(rsc.crad_signature, '')) <> ''
+              AND rsc.mis_verified = 1
+              AND rsc.aa_verified = 1
              LEFT JOIN research_panel_assignments rpa
                ON rpa.research_group_id = rg.id
               AND " . rdPanelActiveAssignmentSql('rpa') . "

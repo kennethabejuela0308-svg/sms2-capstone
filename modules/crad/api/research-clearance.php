@@ -56,6 +56,20 @@ try {
             exit;
         }
 
+        if ($action === 'crad_verify') {
+            if (!rscCanManageAsCrad()) {
+                throw new RuntimeException('Forbidden');
+            }
+            $result = rscCradVerifyMarks(
+                $crad,
+                $row,
+                (string) ($_POST['mis_verified'] ?? '') === '1',
+                (string) ($_POST['aa_verified'] ?? '') === '1'
+            );
+            echo json_encode(['ok' => !empty($result['ok']), 'error' => $result['error'] ?? null, 'clearance' => isset($result['clearance']) ? rscPublicRow($result['clearance']) : null]);
+            exit;
+        }
+
         if ($action === 'crad_sign') {
             if (!rscCanManageAsCrad()) {
                 throw new RuntimeException('Forbidden');
