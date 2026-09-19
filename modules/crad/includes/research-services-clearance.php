@@ -85,9 +85,10 @@ function rscEnsureSchema(?PDO $crad = null): void
         "CREATE TABLE IF NOT EXISTS research_services_clearances (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             research_group_id INT UNSIGNED NOT NULL,
+            research_stage VARCHAR(20) NOT NULL DEFAULT 'research_1',
             title_approval_id INT UNSIGNED DEFAULT NULL,
             status VARCHAR(40) NOT NULL DEFAULT 'draft',
-            or_number VARCHAR(40) NOT NULL DEFAULT '',
+            or_number VARCHAR(80) NOT NULL DEFAULT '',
             leader_student_no VARCHAR(40) NOT NULL DEFAULT '',
             leader_group_no VARCHAR(40) NOT NULL DEFAULT '',
             program VARCHAR(200) NOT NULL DEFAULT '',
@@ -112,7 +113,7 @@ function rscEnsureSchema(?PDO $crad = null): void
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
-            UNIQUE KEY uniq_rsc_group (research_group_id),
+            UNIQUE KEY uniq_rsc_group_stage (research_group_id, research_stage),
             KEY idx_rsc_status (status),
             KEY idx_rsc_adviser (adviser_user_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
@@ -127,6 +128,7 @@ function rscEnsureSchema(?PDO $crad = null): void
         'form_verified' => "ALTER TABLE research_services_clearances ADD COLUMN form_verified TINYINT(1) NOT NULL DEFAULT 0 AFTER export_hash",
         'mis_signature' => "ALTER TABLE research_services_clearances ADD COLUMN mis_signature LONGTEXT DEFAULT NULL AFTER form_verified",
         'aa_signature' => "ALTER TABLE research_services_clearances ADD COLUMN aa_signature LONGTEXT DEFAULT NULL AFTER mis_signature",
+        'research_stage' => "ALTER TABLE research_services_clearances ADD COLUMN research_stage VARCHAR(20) NOT NULL DEFAULT 'research_1' AFTER research_group_id",
     ] as $column => $sql) {
         try {
             if (!$crad->query("SHOW COLUMNS FROM research_services_clearances LIKE " . $crad->quote($column))->fetch()) {
@@ -135,6 +137,36 @@ function rscEnsureSchema(?PDO $crad = null): void
         } catch (Throwable $e) {
             error_log('rsc schema column ' . $column . ': ' . $e->getMessage());
         }
+    }
+
+    try {
+        $crad->exec("UPDATE research_services_clearances SET research_stage = 'research_1' WHERE TRIM(COALESCE(research_stage, '')) = ''");
+        $indexes = $crad->query("SHOW INDEX FROM research_services_clearances")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $hasStageUnique = false;
+        foreach ($indexes as $idx) {
+            if (($idx['Key_name'] ?? '') === 'uniq_rsc_group_stage') {
+                $hasStageUnique = true;
+                break;
+            }
+        }
+        if (!$hasStageUnique) {
+            try {
+                $crad->exec('ALTER TABLE research_services_clearances DROP INDEX uniq_rsc_group');
+            } catch (Throwable $e) {
+                // legacy index name may differ
+            }
+            $crad->exec(
+                'ALTER TABLE research_services_clearances
+                 ADD UNIQUE KEY uniq_rsc_group_stage (research_group_id, research_stage)'
+            );
+        }
+        try {
+            $crad->exec('ALTER TABLE research_services_clearances MODIFY or_number VARCHAR(80) NOT NULL DEFAULT \'\'');
+        } catch (Throwable $e) {
+            // keep existing width if alter fails
+        }
+    } catch (Throwable $e) {
+        error_log('rsc schema stage unique: ' . $e->getMessage());
     }
 
     $crad->exec(
