@@ -703,6 +703,10 @@ function rdScheduleConflictMessages(PDO $pdo, int $groupId, int $venueId, string
 
 require_once __DIR__ . '/../includes/rd-scheduling-optimizer.php';
 
+if (defined('RD_AI_OPTIMIZER_TEST') && RD_AI_OPTIMIZER_TEST) {
+    return;
+}
+
 $requestedDefenseType = trim((string) ($_GET['defense_type'] ?? CRAD_DEFENSE_TYPE_PRE_ORAL));
 if (!in_array($requestedDefenseType, [CRAD_DEFENSE_TYPE_PRE_ORAL, CRAD_DEFENSE_TYPE_FINAL], true)) {
     $requestedDefenseType = CRAD_DEFENSE_TYPE_PRE_ORAL;
