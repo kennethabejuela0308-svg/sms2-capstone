@@ -121,6 +121,19 @@
         });
     }
 
+    function saveVerify() {
+        if (!isCrad || !current) return;
+        post('crad_verify', {
+            mis_verified: checkMis && checkMis.checked ? '1' : '0',
+            aa_verified: checkAa && checkAa.checked ? '1' : '0'
+        }).then(function (data) {
+            if (data && data.ok && data.clearance) applyClearance(data.clearance);
+            else if (data && data.error) alert(data.error);
+        });
+    }
+    if (checkMis) checkMis.addEventListener('change', saveVerify);
+    if (checkAa) checkAa.addEventListener('change', saveVerify);
+
     if (printBtn) {
         printBtn.addEventListener('click', function () { window.print(); });
     }
