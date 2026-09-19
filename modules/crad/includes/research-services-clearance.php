@@ -590,6 +590,20 @@ function rscCradSign(PDO $crad, array $clearance, string $signature, string $sig
             'role_key' => 'student',
             'email' => strtolower(trim((string) ($ctx['leader_email'] ?? ''))),
         ];
+        $sms = function_exists('db') ? db() : null;
+        $leaderId = trim((string) ($ctx['leader_id'] ?? $ctx['title_student_id'] ?? ''));
+        if ($sms instanceof PDO && $leaderId !== '' && (int) ($studentRecipients[0]['id'] ?? 0) <= 0) {
+            try {
+                $uStmt = $sms->prepare("SELECT id, email, role_key FROM users WHERE student_id = ? AND role_key = 'student' LIMIT 1");
+                $uStmt->execute([$leaderId]);
+                $user = $uStmt->fetch() ?: null;
+                if ($user) {
+                    $studentRecipients[0] = $user;
+                }
+            } catch (Throwable $e) {
+                // keep fallback recipient
+            }
+        }
     }
     foreach ($studentRecipients as $recipient) {
         rscNotify(
