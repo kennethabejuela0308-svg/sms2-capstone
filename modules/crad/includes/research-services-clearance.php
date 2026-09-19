@@ -189,6 +189,68 @@ function rscEnsureSchema(?PDO $crad = null): void
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
     rcpEnsureSchema($crad);
+    if (function_exists('rcpPurgeDisconnectedPayments')) {
+        rcpPurgeDisconnectedPayments($crad);
+    }
+    rscPurgeDisconnectedClearances($crad);
+}
+
+/**
+ * Drop clearance rows (and uploads/notifications) when the research group is gone.
+ */
+function rscPurgeDisconnectedClearances(PDO $crad): int
+{
+    $orphans = $crad->query(
+        "SELECT c.id, c.uploaded_file
+         FROM research_services_clearances c
+         LEFT JOIN research_groups rg ON rg.id = c.research_group_id
+         WHERE c.research_group_id IS NULL
+            OR c.research_group_id < 1
+            OR rg.id IS NULL"
+    )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+    if ($orphans === []) {
+        return 0;
+    }
+
+    $dir = ROOT_PATH . '/uploads/research-clearance';
+    $ids = [];
+    foreach ($orphans as $row) {
+        $ids[] = (int) ($row['id'] ?? 0);
+        $file = basename(str_replace('\\', '/', (string) ($row['uploaded_file'] ?? '')));
+        if ($file !== '' && $file !== '.' && $file !== '..') {
+            $path = $dir . '/' . $file;
+            if (is_file($path)) {
+                @unlink($path);
+            }
+        }
+    }
+    $ids = array_values(array_filter($ids, static fn(int $id): bool => $id > 0));
+    if ($ids === []) {
+        return 0;
+    }
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    try {
+        $crad->prepare(
+            "DELETE FROM research_clearance_notifications
+             WHERE clearance_id IN ($placeholders)"
+        )->execute($ids);
+    } catch (Throwable $e) {
+        // older schema may not have clearance_id
+        try {
+            $crad->prepare(
+                "DELETE FROM research_clearance_notifications
+                 WHERE event_key LIKE 'clearance:%'
+                   AND (" . implode(' OR ', array_map(static fn(int $id): string => "event_key LIKE " . $crad->quote('%:' . $id . ':%'), $ids)) . ")"
+            )->execute();
+        } catch (Throwable $e2) {
+            // ignore
+        }
+    }
+    $stmt = $crad->prepare("DELETE FROM research_services_clearances WHERE id IN ($placeholders)");
+    $stmt->execute($ids);
+
+    return $stmt->rowCount();
 }
 
 function rscNormalizeStage(string $stage): string

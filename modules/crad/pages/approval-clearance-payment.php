@@ -36,7 +36,7 @@ renderBreadcrumbs($breadcrumbs);
      data-rcp-csrf="<?= e(csrfToken()) ?>">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
-            <div class="fw-bold">College payment approvals</div>
+            <div class="fw-bold">Collage payment approvals</div>
             <small class="text-muted" data-rcp-sync></small>
         </div>
     </div>
