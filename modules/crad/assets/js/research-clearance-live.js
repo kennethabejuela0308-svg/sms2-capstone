@@ -167,8 +167,17 @@
         var btn = e.target.closest('[data-rsc-open]');
         if (!btn) return;
         selectedId = btn.getAttribute('data-rsc-open') || '';
+        shouldScroll = true;
         refresh();
     });
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function () {
+            selectedId = '';
+            applyClearance(null);
+            refresh();
+        });
+    }
 
     var modal = document.getElementById('rscSigModal');
     var canvas = document.getElementById('rscSigCanvas');
