@@ -394,6 +394,15 @@ function rscExtractPhysicalSignatures(string $path, array $row): array
             break;
         }
     }
+    if ($found['mis'] === '' || $found['aa'] === '') {
+        $fallback = rscSignatureCellBoxes($row, $targetW, 28);
+        if ($found['mis'] === '') {
+            $found['mis'] = rscCropToDataUrl($scaled, (int) $fallback['mis']['x'], (int) $fallback['mis']['y'], (int) $fallback['mis']['w'], (int) $fallback['mis']['h']);
+        }
+        if ($found['aa'] === '') {
+            $found['aa'] = rscCropToDataUrl($scaled, (int) $fallback['aa']['x'], (int) $fallback['aa']['y'], (int) $fallback['aa']['w'], (int) $fallback['aa']['h']);
+        }
+    }
     imagedestroy($scaled);
     return $found;
 }

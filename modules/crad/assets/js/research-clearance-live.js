@@ -64,8 +64,9 @@
 
     function applyClearance(row) {
         current = row;
-        var showUpload = !!(isCrad && row && row.has_upload && row.uploaded_url);
-        var showForm = !showUpload && !!(row && row.form_html) && (!isCrad || !!(row && row.form_verified && row.has_upload));
+        var signedDone = !!(row && row.status === 'clearance_done' && row.form_html);
+        var showUpload = !!(isCrad && row && row.has_upload && row.uploaded_url && !signedDone);
+        var showForm = !showUpload && !!(row && row.form_html) && (!isCrad || signedDone || !!(row && row.form_verified && row.has_upload));
         if (formBox) {
             if (showUpload) {
                 formBox.hidden = false;

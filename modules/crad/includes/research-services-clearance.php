@@ -939,7 +939,7 @@ function rscCradSign(PDO $crad, array $clearance, string $signature, string $sig
         ':id' => (int) $clearance['id'],
     ]);
 
-    $fresh = rscFindById($crad, (int) $clearance['id']);
+    $fresh = rscPersistUploadedSignatures($crad, rscFindById($crad, (int) $clearance['id']) ?: $clearance);
     foreach (rscStudentRecipients($crad, $clearance) as $recipient) {
         rscNotify(
             $crad,
@@ -1012,6 +1012,7 @@ function rscStatusLabel(string $status): string
 
 function rscPublicRow(array $row): array
 {
+    $row = rscApplyUploadedSignatures($row);
     $members = rscDedupeMembers(json_decode((string) ($row['members_json'] ?? ''), true) ?: []);
     return [
         'id' => (int) $row['id'],
@@ -1051,6 +1052,58 @@ function rscPublicRow(array $row): array
         'updated_at' => (string) ($row['updated_at'] ?? ''),
         'form_html' => rscRenderFormHtml($row),
     ];
+}
+
+function rscApplyUploadedSignatures(array $row): array
+{
+    $hasMis = trim((string) ($row['mis_signature'] ?? '')) !== '';
+    $hasAa = trim((string) ($row['aa_signature'] ?? '')) !== '';
+    if ($hasMis && $hasAa) {
+        return $row;
+    }
+    $file = basename(str_replace('\\', '/', trim((string) ($row['uploaded_file'] ?? ''))));
+    if ($file === '' || $file === '.' || $file === '..' || !defined('ROOT_PATH')) {
+        return $row;
+    }
+    $path = ROOT_PATH . '/uploads/research-clearance/' . $file;
+    if (!is_file($path)) {
+        return $row;
+    }
+    try {
+        $extracted = rscExtractPhysicalSignatures($path, $row);
+    } catch (Throwable $e) {
+        return $row;
+    }
+    if (!$hasMis && trim((string) ($extracted['mis'] ?? '')) !== '') {
+        $row['mis_signature'] = $extracted['mis'];
+    }
+    if (!$hasAa && trim((string) ($extracted['aa'] ?? '')) !== '') {
+        $row['aa_signature'] = $extracted['aa'];
+    }
+    return $row;
+}
+
+function rscPersistUploadedSignatures(PDO $crad, array $row): array
+{
+    $hydrated = rscApplyUploadedSignatures($row);
+    $mis = trim((string) ($hydrated['mis_signature'] ?? ''));
+    $aa = trim((string) ($hydrated['aa_signature'] ?? ''));
+    if ($mis === '' && $aa === '') {
+        return $hydrated;
+    }
+    $crad->prepare(
+        "UPDATE research_services_clearances
+         SET mis_signature = CASE WHEN TRIM(COALESCE(mis_signature, '')) = '' THEN :mis ELSE mis_signature END,
+             aa_signature = CASE WHEN TRIM(COALESCE(aa_signature, '')) = '' THEN :aa ELSE aa_signature END,
+             mis_verified = 1,
+             aa_verified = 1
+         WHERE id = :id"
+    )->execute([
+        ':mis' => $mis,
+        ':aa' => $aa,
+        ':id' => (int) ($row['id'] ?? 0),
+    ]);
+    return rscFindById($crad, (int) ($row['id'] ?? 0)) ?: $hydrated;
 }
 
 function rscUploadedFormHasPhysicalMarks(array $row): bool
@@ -1122,6 +1175,7 @@ function rscFormatDateCell(?string $value): string
 
 function rscRenderFormHtml(array $row, bool $duplicate = true): string
 {
+    $row = rscApplyUploadedSignatures($row);
     $copy = static function (array $row): string {
         $e = static fn($v) => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
         $members = rscDedupeMembers(json_decode((string) ($row['members_json'] ?? ''), true) ?: []);
