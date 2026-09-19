@@ -182,6 +182,9 @@ $studentNavGroups = [
         ['slug' => 'submission-status', 'href' => BASE_URL . '/modules/student-portal/pages/submission-status.php', 'icon' => 'fa-chart-line', 'label' => 'Submission Status', 'locked' => false],
         ['slug' => 'submission-history', 'href' => BASE_URL . '/modules/student-portal/pages/submission-history.php', 'icon' => 'fa-history', 'label' => 'Submission History', 'locked' => false],
     ],
+    'Research Clearance' => [
+        ['slug' => 'research-clearance', 'href' => BASE_URL . '/modules/student-portal/pages/research-clearance.php', 'icon' => 'fa-stamp', 'label' => 'Research Services Clearance', 'locked' => false],
+    ],
     'Core System' => [
         ['slug' => 'grant-opportunities', 'href' => BASE_URL . '/modules/crad/pages/grant-opportunities.php', 'icon' => 'fa-hand-holding-usd', 'label' => 'Grant Opportunities', 'locked' => false],
         ['slug' => 'proposals-applications', 'href' => BASE_URL . '/modules/crad/pages/proposals-applications.php', 'icon' => 'fa-file-alt', 'label' => 'Proposals & Applications', 'locked' => false],
@@ -231,6 +234,9 @@ if ($studentHasResearchGroup && !isset($studentNavGroups['Research Development']
 }
 
 $facultyAccountNavGroups = [
+    'Research Clearance' => [
+        ['slug' => 'research-clearance', 'href' => BASE_URL . '/modules/faculty/pages/research-clearance.php', 'icon' => 'fa-stamp', 'label' => 'Research Services Clearance'],
+    ],
     'Approved Research' => [
         ['slug' => 'approved-research', 'href' => BASE_URL . '/modules/faculty/pages/approved-research.php', 'icon' => 'fa-check-square', 'label' => 'View Approved Research'],
     ],
