@@ -645,10 +645,18 @@ function getVisibleModules(array $modules): array
         $visible['crad'] = smsRemoveModuleNavSlug($visible['crad'], 'dashboard-analytics');
         $visible['crad'] = smsRemoveModuleNavSlug($visible['crad'], 'grant-opportunities');
         $visible['crad'] = smsRemoveModuleNavSlug($visible['crad'], 'proposals-applications');
-        $visible['crad'] = smsMergeModuleNav([
-            'groups' => ['Research Clearance' => ['research-clearance']],
-            'pages' => [['slug' => 'research-clearance', 'title' => 'Research Services Clearance']],
-        ], $visible['crad']);
+        $cradGroups = isset($visible['crad']['groups']) && is_array($visible['crad']['groups']) ? $visible['crad']['groups'] : [];
+        $visible['crad']['groups'] = ['Research Clearance' => ['research-clearance']] + $cradGroups;
+        $hasClearancePage = false;
+        foreach ((array) ($visible['crad']['pages'] ?? []) as $cradPage) {
+            if (($cradPage['slug'] ?? '') === 'research-clearance') {
+                $hasClearancePage = true;
+                break;
+            }
+        }
+        if (!$hasClearancePage) {
+            $visible['crad']['pages'][] = ['slug' => 'research-clearance', 'title' => 'Research Services Clearance'];
+        }
     }
 
     if (getCurrentUserRoleKey() === 'research_coordinator' && isset($visible['crad'])) {
