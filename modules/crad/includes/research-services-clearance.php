@@ -122,6 +122,8 @@ function rscEnsureSchema(?PDO $crad = null): void
         'aa_verified' => "ALTER TABLE research_services_clearances ADD COLUMN aa_verified TINYINT(1) NOT NULL DEFAULT 0 AFTER mis_verified",
         'mis_verified_at' => "ALTER TABLE research_services_clearances ADD COLUMN mis_verified_at DATETIME DEFAULT NULL AFTER aa_verified",
         'aa_verified_at' => "ALTER TABLE research_services_clearances ADD COLUMN aa_verified_at DATETIME DEFAULT NULL AFTER mis_verified_at",
+        'export_hash' => "ALTER TABLE research_services_clearances ADD COLUMN export_hash VARCHAR(64) NOT NULL DEFAULT '' AFTER aa_verified_at",
+        'form_verified' => "ALTER TABLE research_services_clearances ADD COLUMN form_verified TINYINT(1) NOT NULL DEFAULT 0 AFTER export_hash",
     ] as $column => $sql) {
         try {
             if (!$crad->query("SHOW COLUMNS FROM research_services_clearances LIKE " . $crad->quote($column))->fetch()) {
