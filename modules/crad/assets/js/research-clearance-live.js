@@ -13,6 +13,7 @@
     var acceptBtn = root.querySelector('[data-rsc-accept]');
     var signBtn = root.querySelector('[data-rsc-sign]');
     var printBtn = root.querySelector('[data-rsc-print]');
+    var downloadBtn = root.querySelector('[data-rsc-download]');
     var fileInput = root.querySelector('[data-rsc-file]');
     var emptyEl = root.querySelector('[data-rsc-empty]');
     var checkWrap = root.querySelector('[data-rsc-check-wrap]');
@@ -65,6 +66,7 @@
             signBtn.hidden = !(canAdviser || canCrad);
         }
         if (printBtn) printBtn.hidden = !row || (isCrad && !(row && row.has_upload));
+        if (downloadBtn) downloadBtn.hidden = !row;
         if (detailEl) detailEl.hidden = !row;
         if (pickEl) pickEl.hidden = !isInboxRole || !!row;
         if (emptyEl) emptyEl.hidden = role === 'student' ? !!row : true;

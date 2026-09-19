@@ -77,7 +77,7 @@ renderBreadcrumbs($breadcrumbs);
             <div class="rsc-status" data-rsc-status><?= e($public['status_label'] ?? '') ?></div>
             <div class="d-flex flex-wrap gap-2">
                 <button type="button" class="btn btn-outline-secondary" data-rsc-close><?= smsIcon('arrow-left', ['class' => 'me-1']) ?>Back to Inbox</button>
-                <button type="button" class="btn btn-outline-secondary" data-rsc-print <?= $public ? '' : 'hidden' ?>><?= smsIcon('print', ['class' => 'me-1']) ?>Print</button>
+                <button type="button" class="btn btn-outline-secondary" data-rsc-download <?= $public ? '' : 'hidden' ?>><?= smsIcon('download', ['class' => 'me-1']) ?>Download Image</button>
                 <button type="button" class="btn btn-success" data-rsc-sign <?= ($public && $public['status'] === 'sent_to_adviser') ? '' : 'hidden' ?>><?= smsIcon('signature', ['class' => 'me-1']) ?>Sign Clearance</button>
             </div>
         </div>
@@ -85,5 +85,5 @@ renderBreadcrumbs($breadcrumbs);
     </div>
 </div>
 <?php require __DIR__ . '/../../crad/includes/research-clearance-sig-modal.php'; ?>
-<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-crad-sign-1"></script>
+<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-dl-1"></script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>
