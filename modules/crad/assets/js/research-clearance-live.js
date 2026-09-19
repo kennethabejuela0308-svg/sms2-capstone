@@ -20,6 +20,9 @@
     var checkMis = root.querySelector('[data-rsc-check-mis]');
     var checkAa = root.querySelector('[data-rsc-check-aa]');
     var uploadName = root.querySelector('[data-rsc-upload-name]');
+    var uploadGate = root.querySelector('[data-rsc-upload-gate]');
+    var uploadPreview = root.querySelector('[data-rsc-upload-preview]');
+    var uploadView = root.querySelector('[data-rsc-upload-view]');
     var detailEl = root.querySelector('[data-rsc-detail]');
     var pickEl = root.querySelector('[data-rsc-pick]');
     var closeBtn = root.querySelector('[data-rsc-close]');

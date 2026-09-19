@@ -844,6 +844,15 @@ function rscCradSign(PDO $crad, array $clearance, string $signature, string $sig
     return ['ok' => true, 'clearance' => $fresh];
 }
 
+function rscUploadPublicUrl(array $row): string
+{
+    $file = basename(str_replace('\\', '/', trim((string) ($row['uploaded_file'] ?? ''))));
+    if ($file === '' || $file === '.' || $file === '..') {
+        return '';
+    }
+    return BASE_URL . '/uploads/research-clearance/' . rawurlencode($file);
+}
+
 function rscStoreUpload(int $clearanceId, array $file): array
 {
     if ((int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
