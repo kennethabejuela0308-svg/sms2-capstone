@@ -900,6 +900,27 @@ function rscCanManageAsCrad(): bool
     return $role === 'crad_officer' || smsIsGrantedAdminRole($role);
 }
 
+function rscRefreshExisting(PDO $crad, ?array $row): ?array
+{
+    if (!$row) {
+        return null;
+    }
+    $fresh = rscEnsureForReadyGroup($crad, (int) ($row['research_group_id'] ?? 0));
+    return $fresh ?: $row;
+}
+
+function rscRefreshRows(PDO $crad, array $rows): array
+{
+    $out = [];
+    foreach ($rows as $row) {
+        $fresh = rscRefreshExisting($crad, is_array($row) ? $row : null);
+        if ($fresh) {
+            $out[] = $fresh;
+        }
+    }
+    return $out;
+}
+
 function rscListForAdviser(PDO $crad): array
 {
     rscEnsureSchema($crad);
@@ -924,7 +945,7 @@ function rscListForAdviser(PDO $crad): array
         ':name' => $name,
         ':name_match' => $name,
     ]);
-    return $stmt->fetchAll() ?: [];
+    return rscRefreshRows($crad, $stmt->fetchAll() ?: []);
 }
 
 function rscListForCrad(PDO $crad): array
@@ -935,7 +956,7 @@ function rscListForCrad(PDO $crad): array
          WHERE status IN ('adviser_signed','crad_received','clearance_done')
          ORDER BY FIELD(status,'adviser_signed','crad_received','clearance_done'), updated_at DESC"
     );
-    return $stmt->fetchAll() ?: [];
+    return rscRefreshRows($crad, $stmt->fetchAll() ?: []);
 }
 
 function rscClearanceDoneExists(PDO $crad, int $groupId): bool

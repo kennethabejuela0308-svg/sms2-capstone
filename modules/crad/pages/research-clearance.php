@@ -25,14 +25,14 @@ $crad = rscDb();
 rscEnsureSchema($crad);
 $rows = rscListForCrad($crad);
 $selectedId = (int) ($_GET['id'] ?? 0);
-$current = $selectedId > 0 ? rscFindById($crad, $selectedId) : ($rows[0] ?? null);
+$current = $selectedId > 0 ? rscRefreshExisting($crad, rscFindById($crad, $selectedId)) : ($rows[0] ?? null);
 $public = $current ? rscPublicRow($current) : null;
 $rscSigPadLabel = 'CRAD Signature Pad (Draw Below)';
 
 require_once ROOT_PATH . '/includes/layout-start.php';
 renderBreadcrumbs($breadcrumbs);
 ?>
-<link rel="stylesheet" href="<?= BASE_URL ?>/modules/crad/assets/css/research-clearance.css?v=rsc-logo-1">
+<link rel="stylesheet" href="<?= BASE_URL ?>/modules/crad/assets/css/research-clearance.css?v=rsc-or-1">
 
 <div class="glass-dashboard rsc-print-root"
      data-rsc-live
