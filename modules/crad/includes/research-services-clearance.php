@@ -1302,8 +1302,8 @@ function rscRenderFormHtml(array $row, bool $duplicate = true): string
         $aaSig = trim((string) ($row['aa_signature'] ?? ''));
         $cradSig = trim((string) ($row['crad_signature'] ?? ''));
         $adviserImg = $adviserSig !== '' ? '<img src="' . $e($adviserSig) . '" alt="Adviser signature">' : '';
-        $misImg = $misSig !== '' ? '<img src="' . $e($misSig) . '" alt="MIS signature">' : '';
-        $aaImg = $aaSig !== '' ? '<img src="' . $e($aaSig) . '" alt="AA signature">' : '';
+        $misImg = $misSig !== '' ? '<img class="rsc-sig-ink" src="' . $e($misSig) . '" alt="MIS signature">' : '';
+        $aaImg = $aaSig !== '' ? '<img class="rsc-sig-ink" src="' . $e($aaSig) . '" alt="AA signature">' : '';
         $cradImg = $cradSig !== '' ? '<img src="' . $e($cradSig) . '" alt="CRAD signature">' : '';
         $adviserDate = rscFormatDateCell($row['adviser_signed_at'] ?? null);
         $misDate = rscFormatDateCell(rscDateIfSigned($misSig, $row['mis_verified_at'] ?? null, $row['uploaded_at'] ?? null));

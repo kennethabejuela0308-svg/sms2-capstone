@@ -334,53 +334,51 @@ function rscRemoveFormLines($im): void
     $w = imagesx($im);
     $h = imagesy($im);
     $white = imagecolorallocate($im, 255, 255, 255);
-    $ruleRows = [];
+    $isRule = [];
     for ($y = 0; $y < $h; $y++) {
         $run = 0;
         $maxRun = 0;
-        $dark = 0;
+        $marked = 0;
         for ($x = 0; $x < $w; $x++) {
-            if (rscPixelLuma((int) imagecolorat($im, $x, $y)) < 168) {
+            if (rscPixelLuma((int) imagecolorat($im, $x, $y)) < 232) {
                 $run++;
-                $dark++;
+                $marked++;
                 $maxRun = max($maxRun, $run);
             } else {
                 $run = 0;
             }
         }
-        if ($w >= 20 && $maxRun >= (int) ($w * 0.62) && $dark >= (int) ($w * 0.52)) {
-            $ruleRows[] = $y;
+        $isRule[$y] = $w >= 16 && $maxRun >= (int) ($w * 0.38) && $marked >= (int) ($w * 0.26);
+    }
+    $groups = [];
+    $start = null;
+    for ($y = 0; $y <= $h; $y++) {
+        $on = $y < $h && !empty($isRule[$y]);
+        if ($on && $start === null) {
+            $start = $y;
+        }
+        if (!$on && $start !== null) {
+            $groups[] = [$start, $y - 1];
+            $start = null;
         }
     }
-    $start = null;
-    $prev = null;
-    $flush = static function () use ($im, $w, $white, &$start, &$prev): void {
-        if ($start === null || $prev === null) {
-            return;
-        }
-        if (($prev - $start + 1) <= 5) {
-            for ($y = $start; $y <= $prev; $y++) {
+    foreach ($groups as $group) {
+        $a = $group[0];
+        $b = $group[1];
+        $gh = $b - $a + 1;
+        $mid = ($a + $b) / 2;
+        if ($gh <= 7 && ($mid <= $h * 0.28 || $mid >= $h * 0.42)) {
+            for ($y = $a; $y <= $b; $y++) {
                 imageline($im, 0, $y, $w - 1, $y, $white);
             }
         }
-        $start = null;
-        $prev = null;
-    };
-    foreach ($ruleRows as $y) {
-        if ($start === null || $y !== $prev + 1) {
-            $flush();
-            $start = $y;
-        }
-        $prev = $y;
     }
-    $flush();
-
     for ($x = 0; $x < $w; $x++) {
         $run = 0;
         $maxRun = 0;
         $dark = 0;
         for ($y = 0; $y < $h; $y++) {
-            if (rscPixelLuma((int) imagecolorat($im, $x, $y)) < 168) {
+            if (rscPixelLuma((int) imagecolorat($im, $x, $y)) < 220) {
                 $run++;
                 $dark++;
                 $maxRun = max($maxRun, $run);
@@ -405,7 +403,7 @@ function rscInkBounds($im): ?array
     $count = 0;
     for ($y = 0; $y < $h; $y++) {
         for ($x = 0; $x < $w; $x++) {
-            if (rscPixelLuma((int) imagecolorat($im, $x, $y)) < 155) {
+            if (rscPixelLuma((int) imagecolorat($im, $x, $y)) < 128) {
                 $count++;
                 $minX = min($minX, $x);
                 $minY = min($minY, $y);
@@ -457,7 +455,7 @@ function rscIsolateSignatureImage($src, int $x, int $y, int $w, int $h): string
     for ($yy = 0; $yy < $box['h']; $yy++) {
         for ($xx = 0; $xx < $box['w']; $xx++) {
             $rgb = (int) imagecolorat($crop, $box['x'] + $xx, $box['y'] + $yy);
-            if (rscPixelLuma($rgb) >= 160) {
+            if (rscPixelLuma($rgb) >= 132) {
                 continue;
             }
             $color = imagecolorallocatealpha($out, ($rgb >> 16) & 255, ($rgb >> 8) & 255, $rgb & 255, 0);

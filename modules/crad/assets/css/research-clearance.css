@@ -51,7 +51,8 @@
 .rsc-table--members td { height:22px; }
 .rsc-table--tasks td { min-height:42px; }
 .rsc-table--tasks td:last-child { font-size:10pt; line-height:1.25; white-space:nowrap; }
-.rsc-table--tasks img { display:block; max-height:36px; max-width:170px; margin-top:2px; background:transparent; mix-blend-mode:multiply; }
+.rsc-table--tasks img { display:block; max-height:36px; max-width:170px; margin-top:2px; background:transparent; mix-blend-mode:multiply; border:0; box-shadow:none; }
+.rsc-table--tasks img.rsc-sig-ink { max-height:28px; margin-top:6px; }
 .rsc-empty, .rsc-pick { padding:1.25rem 1rem; text-align:center; color:#64748b; }
 .rsc-inbox-scroll { max-height: 420px; overflow: auto; }
 .rsc-inbox tr[data-rsc-open] { cursor: pointer; }
