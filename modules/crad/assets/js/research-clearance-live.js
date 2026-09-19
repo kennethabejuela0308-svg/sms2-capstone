@@ -26,8 +26,13 @@
         if (extra && !(extra instanceof FormData)) {
             Object.keys(extra).forEach(function (key) { fd.append(key, extra[key]); });
         }
-        return fetch(endpoint, { method: 'POST', body: fd, credentials: 'same-origin', cache: 'no-store' })
-            .then(function (r) { return r.json(); });
+        return fetch(endpoint, {
+            method: 'POST',
+            body: fd,
+            credentials: 'same-origin',
+            cache: 'no-store',
+            headers: { 'Accept': 'application/json' }
+        }).then(function (r) { return r.json(); });
     }
 
     function applyClearance(row) {
