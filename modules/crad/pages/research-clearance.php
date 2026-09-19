@@ -58,8 +58,8 @@ renderBreadcrumbs($breadcrumbs);
                         <?php endforeach; ?>
                     </select>
                 <?php endif; ?>
-                <input type="file" class="form-control form-control-sm" style="max-width:260px;" data-rsc-file accept=".png,.jpg,.jpeg,image/png,image/jpeg">
-                <button type="button" class="btn btn-outline-primary" data-rsc-accept <?= ($public && in_array($public['status'], ['adviser_signed', 'crad_received', 'clearance_done'], true)) ? '' : 'hidden' ?>><?= smsIcon('upload', ['class' => 'me-1']) ?><span data-rsc-upload-label><?= !empty($public['has_upload']) ? 'Re-upload Image' : 'Upload Image' ?></span></button>
+                <input type="file" id="rscClearanceFile" class="form-control form-control-sm" style="max-width:260px;" data-rsc-file accept=".png,.jpg,.jpeg,image/png,image/jpeg">
+                <label for="rscClearanceFile" class="btn btn-outline-primary mb-0" data-rsc-accept <?= ($public && in_array($public['status'], ['adviser_signed', 'crad_received', 'clearance_done'], true)) ? '' : 'hidden' ?>><?= smsIcon('upload', ['class' => 'me-1']) ?><span data-rsc-upload-label><?= !empty($public['has_upload']) ? 'Re-upload Image' : 'Upload Image' ?></span></label>
                 <button type="button" class="btn btn-outline-secondary" data-rsc-print hidden><?= smsIcon('print', ['class' => 'me-1']) ?>Print</button>
                 <button type="button" class="btn btn-success" data-rsc-sign hidden><?= smsIcon('signature', ['class' => 'me-1']) ?>Sign Clearance</button>
             </div>
@@ -75,9 +75,10 @@ renderBreadcrumbs($breadcrumbs);
                 <?= smsIcon('info-circle', ['class' => 'me-2']) ?>
                 <strong>Note:</strong> CRAD cannot sign until the Adviser, MIS, and AA signatures are on the uploaded clearance form.
             </div>
-            <button type="button" class="btn btn-sm btn-outline-primary" data-rsc-accept-again><?= smsIcon('upload', ['class' => 'me-1']) ?>Re-upload Image</button>
+            <label for="rscClearanceFile" class="btn btn-sm btn-outline-primary mb-0"><?= smsIcon('upload', ['class' => 'me-1']) ?>Re-upload Image</label>
         </div>
 
+        <div class="alert alert-success" data-rsc-upload-ok hidden></div>
         <div data-rsc-upload-preview hidden></div>
         <div class="rsc-wrap" data-rsc-form hidden></div>
     </div>

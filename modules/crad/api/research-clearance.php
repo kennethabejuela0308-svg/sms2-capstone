@@ -67,15 +67,25 @@ try {
             }
             $file = is_array($_FILES['clearance_file'] ?? null) ? $_FILES['clearance_file'] : [];
             $result = rscCradReceive($crad, $row, $file);
-            $public = isset($result['clearance']) ? rscPublicRow($result['clearance']) : null;
-            $payload = ['ok' => !empty($result['ok']), 'error' => $result['error'] ?? null, 'clearance' => $public];
-            $json = json_encode($payload, JSON_INVALID_UTF8_SUBSTITUTE);
-            if ($json === false && $public) {
-                $public['form_html'] = '';
-                $payload['clearance'] = $public;
-                $json = json_encode($payload, JSON_INVALID_UTF8_SUBSTITUTE);
-            }
-            echo $json !== false ? $json : json_encode(['ok' => !empty($result['ok']), 'error' => $result['error'] ?? 'Uploaded. Refresh to see the form.', 'clearance' => null]);
+            $fresh = $result['clearance'] ?? null;
+            echo json_encode([
+                'ok' => !empty($result['ok']),
+                'error' => $result['error'] ?? null,
+                'clearance' => $fresh ? [
+                    'id' => (int) ($fresh['id'] ?? 0),
+                    'status' => (string) ($fresh['status'] ?? ''),
+                    'status_label' => rscStatusLabel((string) ($fresh['status'] ?? '')),
+                    'has_upload' => trim((string) ($fresh['uploaded_file'] ?? '')) !== '',
+                    'form_verified' => (int) ($fresh['form_verified'] ?? 0) === 1,
+                    'uploaded_original' => (string) ($fresh['uploaded_original'] ?? ''),
+                    'uploaded_at' => (string) ($fresh['uploaded_at'] ?? ''),
+                    'has_adviser_signature' => trim((string) ($fresh['adviser_signature'] ?? '')) !== '',
+                    'has_mis_signature' => trim((string) ($fresh['mis_signature'] ?? '')) !== '',
+                    'has_aa_signature' => trim((string) ($fresh['aa_signature'] ?? '')) !== '',
+                    'has_crad_signature' => trim((string) ($fresh['crad_signature'] ?? '')) !== '',
+                    'form_html' => '',
+                ] : null,
+            ], JSON_INVALID_UTF8_SUBSTITUTE);
             exit;
         }
 
