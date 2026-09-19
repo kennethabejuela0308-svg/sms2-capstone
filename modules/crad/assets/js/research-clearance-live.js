@@ -79,7 +79,10 @@
                 formBox.innerHTML = showForm ? row.form_html : '';
             }
         }
-        if (statusEl) statusEl.textContent = row ? (row.status_label || row.status) : '';
+        if (statusEl) {
+            var stageBit = row && row.stage_label ? (row.stage_label + ' — ') : '';
+            statusEl.textContent = row ? (stageBit + (row.status_label || row.status)) : '';
+        }
         if (sendBtn) sendBtn.hidden = !(row && row.status === 'draft' && role === 'student');
         var canUpload = !!(row && isCrad && (row.status === 'adviser_signed' || row.status === 'crad_received' || row.status === 'clearance_done'));
         if (acceptBtn) {
@@ -102,8 +105,21 @@
         if (printBtn) printBtn.hidden = !row || (isCrad && !(row && row.form_verified && row.has_upload));
         if (downloadBtn) downloadBtn.hidden = !row;
         if (detailEl) detailEl.hidden = !row;
-        if (pickEl) pickEl.hidden = !isInboxRole || !!row;
-        if (emptyEl) emptyEl.hidden = role === 'student' ? !!row : true;
+        if (pickEl) pickEl.hidden = !(role === 'adviser') || !!row;
+        if (emptyEl) {
+            if (role === 'student') {
+                emptyEl.hidden = !!(row && row.form_html);
+                if (emptyText) {
+                    emptyText.textContent = (row && row.locked_reason)
+                        ? row.locked_reason
+                        : 'Open a clearance in the inbox. Research 1 is for Pre-Oral. Research 2 opens after Research 1 is finished and its payment is approved.';
+                }
+            } else if (role === 'adviser') {
+                emptyEl.hidden = true;
+            } else {
+                emptyEl.hidden = true;
+            }
+        }
         if (uploadGate) uploadGate.hidden = !(isCrad && row && !(row.form_verified && row.has_upload));
         if (misAaNote) {
             misAaNote.hidden = true;
@@ -120,14 +136,26 @@
 
     function renderRows(rows) {
         if (!listBody) return;
+        var isStudent = role === 'student';
         if (!rows || !rows.length) {
-            listBody.innerHTML = '<tr><td colspan="5" class="text-muted">No clearance forms yet.</td></tr>';
+            listBody.innerHTML = '<tr><td colspan="' + (isStudent ? 4 : 6) + '" class="text-muted">No clearance forms yet.</td></tr>';
             return;
         }
         listBody.innerHTML = rows.map(function (row) {
-            var active = current && String(current.id) === String(row.id) ? ' class="table-active"' : '';
+            var active = '';
+            if (current && row.id && String(current.id) === String(row.id)) active = ' class="table-active"';
+            else if (!current && selectedStage && row.research_stage === selectedStage) active = ' class="table-active"';
+            if (isStudent) {
+                return '<tr' + active + ' data-rsc-open="' + (row.id || 0) + '" data-rsc-stage="' + (row.research_stage || 'research_1') + '">'
+                    + '<td><strong>' + (row.stage_label || '') + '</strong></td>'
+                    + '<td>' + (row.or_number || '—') + '</td>'
+                    + '<td>' + (row.status_label || row.status || 'Not available yet') + '</td>'
+                    + '<td><button type="button" class="btn btn-sm btn-outline-primary" data-rsc-open="' + (row.id || 0) + '" data-rsc-stage="' + (row.research_stage || 'research_1') + '">Open</button></td>'
+                    + '</tr>';
+            }
             return '<tr' + active + ' data-rsc-open="' + row.id + '">'
                 + '<td>' + (row.leader_group_no || '') + '</td>'
+                + '<td><strong>' + (row.stage_label || 'Research 1') + '</strong></td>'
                 + '<td>' + (row.research_title || '') + '</td>'
                 + '<td>' + (row.or_number || '') + '</td>'
                 + '<td>' + (row.status_label || row.status) + '</td>'
@@ -138,7 +166,11 @@
 
     function refresh() {
         if (uploading) return;
-        var url = endpoint + (selectedId ? ((endpoint.indexOf('?') >= 0 ? '&' : '?') + 'id=' + encodeURIComponent(selectedId)) : '');
+        var url = endpoint;
+        var q = [];
+        if (selectedId) q.push('id=' + encodeURIComponent(selectedId));
+        if (role === 'student' && selectedStage) q.push('stage=' + encodeURIComponent(selectedStage));
+        if (q.length) url += (endpoint.indexOf('?') >= 0 ? '&' : '?') + q.join('&');
         fetch(url, { credentials: 'same-origin', cache: 'no-store', headers: { 'Accept': 'application/json' } })
             .then(function (r) {
                 return r.text().then(function (text) {
@@ -150,11 +182,18 @@
                 if (!data || !data.ok) return;
                 if (syncEl) syncEl.textContent = data.last_sync || '';
                 if (role === 'student') {
+                    if (data.rows) renderRows(data.rows);
                     if (data.clearance) {
                         selectedId = String(data.clearance.id);
+                        selectedStage = data.clearance.research_stage || selectedStage;
                         applyClearance(data.clearance);
                     } else {
-                        applyClearance(null);
+                        var locked = null;
+                        if (data.rows && selectedStage) {
+                            locked = data.rows.filter(function (row) { return row.research_stage === selectedStage; })[0] || null;
+                        }
+                        applyClearance(locked && locked.locked_reason ? locked : null);
+                        if (locked && emptyText) emptyText.textContent = locked.locked_reason || emptyText.textContent;
                     }
                 } else if (isCrad) {
                     var cradRow = data.clearance;
@@ -173,23 +212,26 @@
                         var gid = selectedId;
                         groupSelect.innerHTML = data.rows.map(function (row) {
                             return '<option value="' + row.id + '"' + (String(row.id) === String(gid) ? ' selected' : '') + '>'
-                                + (row.leader_group_no || ('#' + row.id)) + '</option>';
+                                + ((row.stage_label ? row.stage_label + ' · ' : '') + (row.leader_group_no || ('#' + row.id))) + '</option>';
                         }).join('');
                         groupSelect.hidden = data.rows.length < 2;
                     }
+                    if (data.rows) renderRows(data.rows);
                 } else if (selectedId && data.clearance) {
                     selectedId = String(data.clearance.id);
                     applyClearance(data.clearance);
+                    if (data.rows) renderRows(data.rows);
+                    if (emptyEl && role === 'adviser') emptyEl.hidden = !!(data.rows && data.rows.length);
+                    if (pickEl && role === 'adviser') pickEl.hidden = !!(selectedId || !(data.rows && data.rows.length));
                 } else if (!selectedId) {
                     applyClearance(null);
+                    if (data.rows) renderRows(data.rows);
+                    if (emptyEl && role === 'adviser') emptyEl.hidden = !!(data.rows && data.rows.length);
+                    if (pickEl && role === 'adviser') pickEl.hidden = !!(selectedId || !(data.rows && data.rows.length));
                 } else {
                     selectedId = '';
                     applyClearance(null);
-                }
-                if (data.rows) {
-                    renderRows(data.rows);
-                    if (emptyEl && isInboxRole) emptyEl.hidden = !!(data.rows && data.rows.length);
-                    if (pickEl && isInboxRole) pickEl.hidden = !!(selectedId || !(data.rows && data.rows.length));
+                    if (data.rows) renderRows(data.rows);
                 }
             })
             .catch(function () {});
