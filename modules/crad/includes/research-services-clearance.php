@@ -1057,8 +1057,6 @@ function rscPublicRow(array $row): array
         'has_mis_signature' => trim((string) ($row['mis_signature'] ?? '')) !== '',
         'has_aa_signature' => trim((string) ($row['aa_signature'] ?? '')) !== '',
         'has_crad_signature' => trim((string) ($row['crad_signature'] ?? '')) !== '',
-        'mis_signature' => (string) ($row['mis_signature'] ?? ''),
-        'aa_signature' => (string) ($row['aa_signature'] ?? ''),
         'mis_verified' => (int) ($row['mis_verified'] ?? 0) === 1,
         'aa_verified' => (int) ($row['aa_verified'] ?? 0) === 1,
         'can_crad_sign' => rscCanCradSign($row),
