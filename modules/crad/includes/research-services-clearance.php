@@ -57,6 +57,21 @@ function rscEnsureSchema(?PDO $crad = null): void
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
 
+    foreach ([
+        'mis_verified' => "ALTER TABLE research_services_clearances ADD COLUMN mis_verified TINYINT(1) NOT NULL DEFAULT 0 AFTER uploaded_at",
+        'aa_verified' => "ALTER TABLE research_services_clearances ADD COLUMN aa_verified TINYINT(1) NOT NULL DEFAULT 0 AFTER mis_verified",
+        'mis_verified_at' => "ALTER TABLE research_services_clearances ADD COLUMN mis_verified_at DATETIME DEFAULT NULL AFTER aa_verified",
+        'aa_verified_at' => "ALTER TABLE research_services_clearances ADD COLUMN aa_verified_at DATETIME DEFAULT NULL AFTER mis_verified_at",
+    ] as $column => $sql) {
+        try {
+            if (!$crad->query("SHOW COLUMNS FROM research_services_clearances LIKE " . $crad->quote($column))->fetch()) {
+                $crad->exec($sql);
+            }
+        } catch (Throwable $e) {
+            error_log('rsc schema column ' . $column . ': ' . $e->getMessage());
+        }
+    }
+
     $crad->exec(
         "CREATE TABLE IF NOT EXISTS research_clearance_notifications (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -511,7 +526,7 @@ function rscAdviserSign(PDO $crad, array $clearance, string $signature, string $
                 $officer,
                 'adviser_signed',
                 'Clearance ready for CRAD',
-                'An adviser signed a Research Services Clearance. Accept the form and sign.',
+                'An adviser signed a Research Services Clearance. Upload the form and confirm the MIS and AA signatures before signing.',
                 rscCradUrl((int) $clearance['id'])
             );
         }
@@ -526,15 +541,19 @@ function rscCradReceive(PDO $crad, array $clearance, array $file = []): array
         return ['ok' => false, 'error' => 'The adviser must sign first before CRAD can accept this clearance.'];
     }
 
+    $hasNewFile = $file !== [] && (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK;
     $stored = (string) ($clearance['uploaded_file'] ?? '');
     $original = (string) ($clearance['uploaded_original'] ?? '');
-    if ($file !== [] && (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+    if ($hasNewFile) {
         $saved = rscStoreUpload((int) $clearance['id'], $file);
         if (empty($saved['ok'])) {
             return $saved;
         }
         $stored = (string) $saved['file'];
         $original = (string) $saved['original'];
+    }
+    if ($stored === '') {
+        return ['ok' => false, 'error' => 'Upload the signed clearance form first so you can check the MIS and AA signatures.'];
     }
 
     $crad->prepare(
@@ -545,26 +564,57 @@ function rscCradReceive(PDO $crad, array $clearance, array $file = []): array
              uploaded_at = NOW()
          WHERE id = :id"
     )->execute([
-        ':file' => $stored !== '' ? $stored : null,
+        ':file' => $stored,
         ':original' => $original !== '' ? $original : null,
         ':id' => (int) $clearance['id'],
     ]);
     return ['ok' => true, 'clearance' => rscFindById($crad, (int) $clearance['id'])];
 }
 
-function rscCradSign(PDO $crad, array $clearance, string $signature, string $signerName): array
+function rscCradVerifyMarks(PDO $crad, array $clearance, bool $mis, bool $aa): array
 {
     $status = (string) ($clearance['status'] ?? '');
-    if (!in_array($status, ['crad_received', 'adviser_signed'], true)) {
-        return ['ok' => false, 'error' => 'Accept the student clearance first before signing.'];
+    if (!in_array($status, ['adviser_signed', 'crad_received'], true)) {
+        return ['ok' => false, 'error' => 'Upload the adviser-signed clearance first.'];
+    }
+    if (trim((string) ($clearance['adviser_signature'] ?? '')) === '') {
+        return ['ok' => false, 'error' => 'The adviser signature is missing.'];
+    }
+    $crad->prepare(
+        "UPDATE research_services_clearances
+         SET mis_verified = :mis,
+             aa_verified = :aa,
+             mis_verified_at = CASE WHEN :mis2 = 1 THEN COALESCE(mis_verified_at, NOW()) ELSE NULL END,
+             aa_verified_at = CASE WHEN :aa2 = 1 THEN COALESCE(aa_verified_at, NOW()) ELSE NULL END,
+             status = CASE WHEN status = 'adviser_signed' THEN 'crad_received' ELSE status END
+         WHERE id = :id"
+    )->execute([
+        ':mis' => $mis ? 1 : 0,
+        ':aa' => $aa ? 1 : 0,
+        ':mis2' => $mis ? 1 : 0,
+        ':aa2' => $aa ? 1 : 0,
+        ':id' => (int) $clearance['id'],
+    ]);
+    return ['ok' => true, 'clearance' => rscFindById($crad, (int) $clearance['id'])];
+}
+
+function rscCanCradSign(array $clearance): bool
+{
+    return trim((string) ($clearance['adviser_signature'] ?? '')) !== ''
+        && (int) ($clearance['mis_verified'] ?? 0) === 1
+        && (int) ($clearance['aa_verified'] ?? 0) === 1
+        && trim((string) ($clearance['uploaded_file'] ?? '')) !== ''
+        && in_array((string) ($clearance['status'] ?? ''), ['adviser_signed', 'crad_received'], true);
+}
+
+function rscCradSign(PDO $crad, array $clearance, string $signature, string $signerName): array
+{
+    if (!rscCanCradSign($clearance)) {
+        return ['ok' => false, 'error' => 'Confirm the Adviser, MIS, and AA signatures on the uploaded form before CRAD can sign.'];
     }
     $sig = rscNormalizeSignature($signature);
     if ($sig === '') {
         return ['ok' => false, 'error' => 'Please provide your signature before approving.'];
-    }
-    if ($status === 'adviser_signed') {
-        $crad->prepare("UPDATE research_services_clearances SET status = 'crad_received', uploaded_at = COALESCE(uploaded_at, NOW()) WHERE id = ?")
-            ->execute([(int) $clearance['id']]);
     }
     $crad->prepare(
         "UPDATE research_services_clearances
@@ -685,6 +735,11 @@ function rscPublicRow(array $row): array
         'crad_signature' => (string) ($row['crad_signature'] ?? ''),
         'crad_signed_at' => (string) ($row['crad_signed_at'] ?? ''),
         'uploaded_original' => (string) ($row['uploaded_original'] ?? ''),
+        'has_upload' => trim((string) ($row['uploaded_file'] ?? '')) !== '',
+        'has_adviser_signature' => trim((string) ($row['adviser_signature'] ?? '')) !== '',
+        'mis_verified' => (int) ($row['mis_verified'] ?? 0) === 1,
+        'aa_verified' => (int) ($row['aa_verified'] ?? 0) === 1,
+        'can_crad_sign' => rscCanCradSign($row),
         'updated_at' => (string) ($row['updated_at'] ?? ''),
         'form_html' => rscRenderFormHtml($row),
     ];
