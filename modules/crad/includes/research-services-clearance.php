@@ -1146,6 +1146,8 @@ function rscApplyUploadedSignatures(array $row): array
     if (!$hasAa && trim((string) ($extracted['aa'] ?? '')) !== '') {
         $row['aa_signature'] = $extracted['aa'];
     }
+    $row['mis_signature'] = rscCleanSignatureDataUrl((string) ($row['mis_signature'] ?? ''));
+    $row['aa_signature'] = rscCleanSignatureDataUrl((string) ($row['aa_signature'] ?? ''));
     return $row;
 }
 

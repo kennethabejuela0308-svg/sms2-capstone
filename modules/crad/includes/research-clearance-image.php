@@ -324,10 +324,90 @@ function rscCropHasInk($im, int $x, int $y, int $w, int $h): bool
     return rscInkRatio($im, $x, $y, $w, $h) >= 0.004;
 }
 
-function rscCropToDataUrl($im, int $x, int $y, int $w, int $h): string
+function rscPixelLuma(int $rgb): float
 {
-    $maxX = imagesx($im);
-    $maxY = imagesy($im);
+    return ((($rgb >> 16) & 255) * 0.299) + ((($rgb >> 8) & 255) * 0.587) + (($rgb & 255) * 0.114);
+}
+
+function rscRemoveFormLines($im): void
+{
+    $w = imagesx($im);
+    $h = imagesy($im);
+    $white = imagecolorallocate($im, 255, 255, 255);
+    for ($y = 0; $y < $h; $y++) {
+        $run = 0;
+        $maxRun = 0;
+        $dark = 0;
+        for ($x = 0; $x < $w; $x++) {
+            if (rscPixelLuma((int) imagecolorat($im, $x, $y)) < 168) {
+                $run++;
+                $dark++;
+                $maxRun = max($maxRun, $run);
+            } else {
+                $run = 0;
+            }
+        }
+        if ($w >= 20 && $maxRun >= (int) ($w * 0.48) && $dark >= (int) ($w * 0.38)) {
+            imageline($im, 0, $y, $w - 1, $y, $white);
+        }
+    }
+    for ($x = 0; $x < $w; $x++) {
+        $run = 0;
+        $maxRun = 0;
+        $dark = 0;
+        for ($y = 0; $y < $h; $y++) {
+            if (rscPixelLuma((int) imagecolorat($im, $x, $y)) < 168) {
+                $run++;
+                $dark++;
+                $maxRun = max($maxRun, $run);
+            } else {
+                $run = 0;
+            }
+        }
+        if ($h >= 16 && $maxRun >= (int) ($h * 0.55) && $dark >= (int) ($h * 0.40)) {
+            imageline($im, $x, 0, $x, $h - 1, $white);
+        }
+    }
+}
+
+function rscInkBounds($im): ?array
+{
+    $w = imagesx($im);
+    $h = imagesy($im);
+    $minX = $w;
+    $minY = $h;
+    $maxX = -1;
+    $maxY = -1;
+    $count = 0;
+    for ($y = 0; $y < $h; $y++) {
+        for ($x = 0; $x < $w; $x++) {
+            if (rscPixelLuma((int) imagecolorat($im, $x, $y)) < 155) {
+                $count++;
+                $minX = min($minX, $x);
+                $minY = min($minY, $y);
+                $maxX = max($maxX, $x);
+                $maxY = max($maxY, $y);
+            }
+        }
+    }
+    if ($count < 18 || $maxX < 0) {
+        return null;
+    }
+    $bw = $maxX - $minX + 1;
+    $bh = $maxY - $minY + 1;
+    if ($bh <= 4 && $bw >= max(24, (int) ($w * 0.42))) {
+        return null;
+    }
+    if ($bw <= 3 && $bh >= max(16, (int) ($h * 0.42))) {
+        return null;
+    }
+    return ['x' => $minX, 'y' => $minY, 'w' => $bw, 'h' => $bh, 'ink' => $count];
+}
+
+function rscIsolateSignatureImage($src, int $x, int $y, int $w, int $h): string
+{
+    $maxX = imagesx($src);
+    $maxY = imagesy($src);
     $x = max(0, min($x, $maxX - 2));
     $y = max(0, min($y, $maxY - 2));
     $w = max(8, min($w, $maxX - $x));
@@ -335,12 +415,61 @@ function rscCropToDataUrl($im, int $x, int $y, int $w, int $h): string
     $crop = imagecreatetruecolor($w, $h);
     $white = imagecolorallocate($crop, 255, 255, 255);
     imagefilledrectangle($crop, 0, 0, $w, $h, $white);
-    imagecopy($crop, $im, 0, 0, $x, $y, $w, $h);
-    ob_start();
-    imagepng($crop);
-    $bin = (string) ob_get_clean();
+    imagecopy($crop, $src, 0, 0, $x, $y, $w, $h);
+    rscRemoveFormLines($crop);
+    $box = rscInkBounds($crop);
+    if (!$box) {
+        imagedestroy($crop);
+        return '';
+    }
+    $pad = 2;
+    $outW = $box['w'] + ($pad * 2);
+    $outH = $box['h'] + ($pad * 2);
+    $out = imagecreatetruecolor($outW, $outH);
+    imagealphablending($out, false);
+    imagesavealpha($out, true);
+    $clear = imagecolorallocatealpha($out, 255, 255, 255, 127);
+    imagefilledrectangle($out, 0, 0, $outW, $outH, $clear);
+    for ($yy = 0; $yy < $box['h']; $yy++) {
+        for ($xx = 0; $xx < $box['w']; $xx++) {
+            $rgb = (int) imagecolorat($crop, $box['x'] + $xx, $box['y'] + $yy);
+            if (rscPixelLuma($rgb) >= 160) {
+                continue;
+            }
+            $color = imagecolorallocatealpha($out, ($rgb >> 16) & 255, ($rgb >> 8) & 255, $rgb & 255, 0);
+            imagesetpixel($out, $xx + $pad, $yy + $pad, $color);
+        }
+    }
     imagedestroy($crop);
+    ob_start();
+    imagepng($out);
+    $bin = (string) ob_get_clean();
+    imagedestroy($out);
     return $bin !== '' ? ('data:image/png;base64,' . base64_encode($bin)) : '';
+}
+
+function rscCleanSignatureDataUrl(string $dataUrl): string
+{
+    $dataUrl = trim($dataUrl);
+    if ($dataUrl === '' || !preg_match('#^data:image/[^;]+;base64,(.+)$#s', $dataUrl, $m)) {
+        return '';
+    }
+    $bin = base64_decode($m[1], true);
+    if ($bin === false || $bin === '') {
+        return '';
+    }
+    $im = @imagecreatefromstring($bin);
+    if (!$im) {
+        return '';
+    }
+    $clean = rscIsolateSignatureImage($im, 0, 0, imagesx($im), imagesy($im));
+    imagedestroy($im);
+    return $clean;
+}
+
+function rscCropToDataUrl($im, int $x, int $y, int $w, int $h): string
+{
+    return rscIsolateSignatureImage($im, $x, $y, $w, $h);
 }
 
 function rscBestInkBand($im, int $x, int $w, int $centerY, int $h, int $search): array
@@ -397,13 +526,6 @@ function rscExtractPhysicalSignatures(string $path, array $row): array
         if ($found['mis'] !== '' && $found['aa'] !== '') {
             break;
         }
-    }
-
-    if ($found['mis'] === '') {
-        $found['mis'] = rscCropToDataUrl($src, $x, (int) ($copyH * 0.58), $sigW, $bandH);
-    }
-    if ($found['aa'] === '') {
-        $found['aa'] = rscCropToDataUrl($src, $x, (int) ($copyH * 0.70), $sigW, $bandH);
     }
 
     imagedestroy($src);
