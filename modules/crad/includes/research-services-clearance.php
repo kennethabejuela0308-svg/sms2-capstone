@@ -863,11 +863,16 @@ function rscCanCradSign(array $clearance): bool
     return trim((string) ($clearance['adviser_signature'] ?? '')) !== ''
         && trim((string) ($clearance['uploaded_file'] ?? '')) !== ''
         && (int) ($clearance['form_verified'] ?? 0) === 1
+        && (int) ($clearance['mis_verified'] ?? 0) === 1
+        && (int) ($clearance['aa_verified'] ?? 0) === 1
         && in_array((string) ($clearance['status'] ?? ''), ['adviser_signed', 'crad_received'], true);
 }
 
 function rscCradSign(PDO $crad, array $clearance, string $signature, string $signerName): array
 {
+    if ((int) ($clearance['mis_verified'] ?? 0) !== 1 || (int) ($clearance['aa_verified'] ?? 0) !== 1) {
+        return ['ok' => false, 'error' => 'Note: CRAD cannot sign if the MIS and AA physical signatures are missing.'];
+    }
     if (!rscCanCradSign($clearance)) {
         return ['ok' => false, 'error' => 'Upload the official adviser-signed clearance image first. Other files cannot be signed.'];
     }

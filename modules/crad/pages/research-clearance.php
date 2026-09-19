@@ -70,10 +70,26 @@ renderBreadcrumbs($breadcrumbs);
             Upload the Research Services Clearance picture that already has the adviser signature. Other photos cannot be signed.
         </div>
 
+        <div class="alert alert-info" data-rsc-mis-aa-note <?= ($public && !empty($public['form_verified']) && ($public['status'] ?? '') !== 'clearance_done') ? '' : 'hidden' ?>>
+            <?= smsIcon('info-circle', ['class' => 'me-2']) ?>
+            <strong>Note:</strong> CRAD cannot sign if the MIS and AA physical signatures are missing.
+            Confirm both signatures on the uploaded form first.
+            <div class="d-flex flex-wrap gap-3 mt-2" data-rsc-check-wrap>
+                <label class="form-check mb-0">
+                    <input class="form-check-input" type="checkbox" data-rsc-check-mis <?= !empty($public['mis_verified']) ? 'checked' : '' ?>>
+                    <span class="form-check-label">MIS physical signature is on the form</span>
+                </label>
+                <label class="form-check mb-0">
+                    <input class="form-check-input" type="checkbox" data-rsc-check-aa <?= !empty($public['aa_verified']) ? 'checked' : '' ?>>
+                    <span class="form-check-label">AA physical signature is on the form</span>
+                </label>
+            </div>
+        </div>
+
         <div data-rsc-upload-preview hidden></div>
         <div class="rsc-wrap" data-rsc-form <?= ($public && !empty($public['form_verified'])) ? '' : 'hidden' ?>><?= ($public && !empty($public['form_verified'])) ? ($public['form_html'] ?? '') : '' ?></div>
     </div>
 </div>
 <?php require __DIR__ . '/../includes/research-clearance-sig-modal.php'; ?>
-<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-reupload-1"></script>
+<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-mis-aa-note-1"></script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>

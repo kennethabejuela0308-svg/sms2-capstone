@@ -22,6 +22,7 @@
     var checkAa = root.querySelector('[data-rsc-check-aa]');
     var uploadName = root.querySelector('[data-rsc-upload-name]');
     var uploadGate = root.querySelector('[data-rsc-upload-gate]');
+    var misAaNote = root.querySelector('[data-rsc-mis-aa-note]');
     var uploadPreview = root.querySelector('[data-rsc-upload-preview]');
     var uploadView = root.querySelector('[data-rsc-upload-view]');
     var detailEl = root.querySelector('[data-rsc-detail]');
@@ -70,6 +71,15 @@
             var canAdviser = role === 'adviser' && row && row.status === 'sent_to_adviser';
             var canCrad = isCrad && row && row.form_verified && row.has_adviser_signature && row.status !== 'clearance_done';
             signBtn.hidden = !(canAdviser || canCrad);
+            if (isCrad && canCrad) {
+                signBtn.disabled = !(row.mis_verified && row.aa_verified);
+                signBtn.title = row.mis_verified && row.aa_verified
+                    ? ''
+                    : 'Note: CRAD cannot sign if the MIS and AA physical signatures are missing.';
+            } else {
+                signBtn.disabled = false;
+                signBtn.title = '';
+            }
         }
         if (printBtn) printBtn.hidden = !row || (isCrad && !(row && row.form_verified));
         if (downloadBtn) downloadBtn.hidden = !row;
@@ -77,6 +87,7 @@
         if (pickEl) pickEl.hidden = !isInboxRole || !!row;
         if (emptyEl) emptyEl.hidden = role === 'student' ? !!row : true;
         if (uploadGate) uploadGate.hidden = !(isCrad && row && !row.form_verified);
+        if (misAaNote) misAaNote.hidden = !(isCrad && row && row.form_verified && row.status !== 'clearance_done');
         if (uploadPreview) uploadPreview.hidden = true;
         if (uploadView) uploadView.innerHTML = '';
         if (checkWrap) checkWrap.hidden = !(isCrad && row && row.has_upload);
@@ -269,6 +280,10 @@
     }
 
     function openSig() {
+        if (isCrad && (!current || !current.mis_verified || !current.aa_verified)) {
+            alert('Note: CRAD cannot sign if the MIS and AA physical signatures are missing.');
+            return;
+        }
         if (!modal) return;
         modal.style.display = 'block';
         sizeCanvas();
