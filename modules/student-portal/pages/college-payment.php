@@ -76,5 +76,5 @@ renderBreadcrumbs($breadcrumbs);
     <?php endif; ?>
 </div>
 <link rel="stylesheet" href="<?= BASE_URL ?>/modules/crad/assets/css/research-clearance.css?v=rsc-date-1">
-<script src="<?= BASE_URL ?>/modules/crad/assets/js/clearance-payment-live.js?v=rcp-1"></script>
+<script src="<?= BASE_URL ?>/modules/crad/assets/js/clearance-payment-live.js?v=rcp-live-2"></script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>

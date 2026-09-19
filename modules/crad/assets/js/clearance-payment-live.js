@@ -20,6 +20,17 @@
     var rejectBtn = root.querySelector('[data-rcp-reject]');
     var current = null;
     var uploading = false;
+    var lastStamp = '';
+
+    function rowStamp(row) {
+        return row ? [row.id, row.status, row.uploaded_url, row.or_number, row.remarks, row.updated_at].join('|') : '';
+    }
+
+    function newestPending(rows) {
+        if (!rows || !rows.length) return null;
+        var pending = rows.filter(function (row) { return row.status === 'pending'; });
+        return pending[0] || rows[0];
+    }
 
     function post(action, extra, file) {
         var fd = extra instanceof FormData ? extra : new FormData();
@@ -51,17 +62,21 @@
         }
     }
 
-    function applyAdmin(row) {
+    function applyAdmin(row, forceFields) {
         current = row;
         if (!detail) return;
         if (!row) {
             detail.hidden = true;
+            lastStamp = '';
             return;
         }
         detail.hidden = false;
         if (statusEl) statusEl.textContent = row.status_label || row.status;
-        if (adminOr) adminOr.value = row.or_number || '';
-        if (adminRemarks) adminRemarks.value = row.remarks || 'HMA';
+        var typing = document.activeElement === adminOr || document.activeElement === adminRemarks;
+        if (forceFields || !typing) {
+            if (adminOr && (forceFields || adminOr.value !== (row.or_number || ''))) adminOr.value = row.or_number || '';
+            if (adminRemarks && (forceFields || !adminRemarks.value)) adminRemarks.value = row.remarks || 'HMA';
+        }
         if (preview) {
             preview.innerHTML = row.uploaded_url
                 ? '<img class="rsc-upload-img" alt="College payment" src="' + row.uploaded_url + '">'
@@ -69,22 +84,22 @@
         }
         if (approveBtn) approveBtn.disabled = row.status === 'approved';
         if (rejectBtn) rejectBtn.disabled = row.status === 'approved';
+        lastStamp = rowStamp(row);
     }
 
     function renderList(rows) {
         if (!listBody) return;
         if (!rows || !rows.length) {
-            listBody.innerHTML = '<tr><td colspan="5" class="text-muted">No college payment uploads yet.</td></tr>';
+            listBody.innerHTML = '<tr><td colspan="4" class="text-muted">Waiting for a student college payment upload.</td></tr>';
             return;
         }
         listBody.innerHTML = rows.map(function (row) {
             var active = current && String(current.id) === String(row.id) ? ' class="table-active"' : '';
-            return '<tr' + active + ' data-rcp-open="' + row.id + '">'
+            return '<tr' + active + '>'
                 + '<td>' + (row.group_number || '') + '</td>'
                 + '<td>' + (row.research_title || '') + '</td>'
                 + '<td>' + (row.or_number || '') + '</td>'
                 + '<td>' + (row.status_label || row.status) + '</td>'
-                + '<td><button type="button" class="btn btn-sm btn-outline-primary" data-rcp-open="' + row.id + '">Open</button></td>'
                 + '</tr>';
         }).join('');
     }
@@ -99,13 +114,12 @@
                 if (role === 'student') {
                     applyStudent(data.payment);
                 } else {
-                    renderList(data.rows || []);
-                    if (current && data.rows) {
-                        var next = data.rows.filter(function (row) { return String(row.id) === String(current.id); })[0];
-                        if (next) applyAdmin(next);
-                    } else if (!current && data.rows && data.rows.length) {
-                        applyAdmin(data.rows[0]);
-                    }
+                    var rows = data.rows || [];
+                    var incoming = newestPending(rows);
+                    var changed = !current || (incoming && String(incoming.id) !== String(current.id)) || rowStamp(incoming) !== lastStamp;
+                    renderList(rows);
+                    if (changed) applyAdmin(incoming, !!(incoming && (!current || String(incoming.id) !== String(current.id))));
+                    else renderList(rows);
                 }
             })
             .catch(function () {});
@@ -128,20 +142,6 @@
                     uploading = false;
                     fileInput.value = '';
                     refresh();
-                });
-        });
-    }
-
-    if (listBody) {
-        listBody.addEventListener('click', function (ev) {
-            var btn = ev.target.closest('[data-rcp-open]');
-            if (!btn) return;
-            var id = btn.getAttribute('data-rcp-open');
-            fetch(endpoint, { credentials: 'same-origin', cache: 'no-store' })
-                .then(function (r) { return r.json(); })
-                .then(function (data) {
-                    var row = ((data && data.rows) || []).filter(function (item) { return String(item.id) === String(id); })[0];
-                    if (row) applyAdmin(row);
                 });
         });
     }

@@ -49,12 +49,11 @@ renderBreadcrumbs($breadcrumbs);
                     <th>Research Title</th>
                     <th>O.R. No.</th>
                     <th>Status</th>
-                    <th></th>
                 </tr>
             </thead>
             <tbody data-rcp-list>
                 <?php if (!$rows): ?>
-                    <tr><td colspan="5" class="text-muted">No college payment uploads yet.</td></tr>
+                    <tr><td colspan="4" class="text-muted">Waiting for a student college payment upload.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
@@ -83,5 +82,5 @@ renderBreadcrumbs($breadcrumbs);
         </div>
     </div>
 </div>
-<script src="<?= BASE_URL ?>/modules/crad/assets/js/clearance-payment-live.js?v=rcp-1"></script>
+<script src="<?= BASE_URL ?>/modules/crad/assets/js/clearance-payment-live.js?v=rcp-live-2"></script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>
