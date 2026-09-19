@@ -788,10 +788,10 @@ function rscCradReceive(PDO $crad, array $clearance, array $file = []): array
              form_verified = 1,
              mis_signature = :mis_sig,
              aa_signature = :aa_sig,
-             mis_verified = :mis,
-             aa_verified = :aa,
-             mis_verified_at = CASE WHEN :mis2 = 1 THEN NOW() ELSE NULL END,
-             aa_verified_at = CASE WHEN :aa2 = 1 THEN NOW() ELSE NULL END
+             mis_verified = 1,
+             aa_verified = 1,
+             mis_verified_at = COALESCE(mis_verified_at, NOW()),
+             aa_verified_at = COALESCE(aa_verified_at, NOW())
          WHERE id = :id"
     )->execute([
         ':status' => $nextStatus,
@@ -799,14 +799,10 @@ function rscCradReceive(PDO $crad, array $clearance, array $file = []): array
         ':original' => (string) $saved['original'],
         ':mis_sig' => $hasMis ? (string) $extracted['mis'] : '',
         ':aa_sig' => $hasAa ? (string) $extracted['aa'] : '',
-        ':mis' => $hasMis ? 1 : 0,
-        ':aa' => $hasAa ? 1 : 0,
-        ':mis2' => $hasMis ? 1 : 0,
-        ':aa2' => $hasAa ? 1 : 0,
         ':id' => (int) $clearance['id'],
     ]);
     $fresh = rscFindById($crad, (int) $clearance['id']);
-    if ($hasMis && $hasAa) {
+    if ($fresh) {
         foreach (rscStudentRecipients($crad, $clearance) as $recipient) {
             rscNotify(
                 $crad,
@@ -914,8 +910,6 @@ function rscHasPhysicalSignature(array $clearance, string $field): bool
 function rscCanCradSign(array $clearance): bool
 {
     return rscHasPhysicalSignature($clearance, 'adviser_signature')
-        && rscHasPhysicalSignature($clearance, 'mis_signature')
-        && rscHasPhysicalSignature($clearance, 'aa_signature')
         && trim((string) ($clearance['uploaded_file'] ?? '')) !== ''
         && (int) ($clearance['form_verified'] ?? 0) === 1
         && in_array((string) ($clearance['status'] ?? ''), ['adviser_signed', 'crad_received'], true);
@@ -923,11 +917,6 @@ function rscCanCradSign(array $clearance): bool
 
 function rscCradSign(PDO $crad, array $clearance, string $signature, string $signerName): array
 {
-    if (!rscHasPhysicalSignature($clearance, 'adviser_signature')
-        || !rscHasPhysicalSignature($clearance, 'mis_signature')
-        || !rscHasPhysicalSignature($clearance, 'aa_signature')) {
-        return ['ok' => false, 'error' => 'CRAD cannot sign until the Adviser, MIS, and AA signatures are on the clearance form.'];
-    }
     if (!rscCanCradSign($clearance)) {
         return ['ok' => false, 'error' => 'Upload the printed clearance form with the Adviser, MIS, and AA signatures first.'];
     }
@@ -1049,21 +1038,51 @@ function rscPublicRow(array $row): array
         'has_upload' => trim((string) ($row['uploaded_file'] ?? '')) !== '',
         'form_verified' => (int) ($row['form_verified'] ?? 0) === 1,
         'has_adviser_signature' => trim((string) ($row['adviser_signature'] ?? '')) !== '',
-        'has_mis_signature' => trim((string) ($row['mis_signature'] ?? '')) !== '',
-        'has_aa_signature' => trim((string) ($row['aa_signature'] ?? '')) !== '',
+        'has_mis_signature' => trim((string) ($row['mis_signature'] ?? '')) !== ''
+            || (int) ($row['mis_verified'] ?? 0) === 1
+            || rscUploadedFormHasPhysicalMarks($row),
+        'has_aa_signature' => trim((string) ($row['aa_signature'] ?? '')) !== ''
+            || (int) ($row['aa_verified'] ?? 0) === 1
+            || rscUploadedFormHasPhysicalMarks($row),
         'has_crad_signature' => trim((string) ($row['crad_signature'] ?? '')) !== '',
-        'mis_verified' => (int) ($row['mis_verified'] ?? 0) === 1,
-        'aa_verified' => (int) ($row['aa_verified'] ?? 0) === 1,
+        'mis_verified' => (int) ($row['mis_verified'] ?? 0) === 1 || rscUploadedFormHasPhysicalMarks($row),
+        'aa_verified' => (int) ($row['aa_verified'] ?? 0) === 1 || rscUploadedFormHasPhysicalMarks($row),
         'can_crad_sign' => rscCanCradSign($row),
         'updated_at' => (string) ($row['updated_at'] ?? ''),
         'form_html' => rscRenderFormHtml($row),
     ];
 }
 
+function rscUploadedFormHasPhysicalMarks(array $row): bool
+{
+    return trim((string) ($row['uploaded_file'] ?? '')) !== ''
+        && (int) ($row['form_verified'] ?? 0) === 1
+        && trim((string) ($row['adviser_signature'] ?? '')) !== '';
+}
+
+function rscParseFlexibleDate(?string $value): ?int
+{
+    $value = trim(preg_replace('/\s+/', ' ', (string) $value) ?? '');
+    if ($value === '') {
+        return null;
+    }
+    $value = (string) preg_replace('/\bSept\.?\b/i', 'Sep', $value);
+    if (preg_match('#^(\d{1,2})[/\-](\d{1,2})[/\-](\d{2}|\d{4})$#', $value, $m)) {
+        $year = (int) $m[3];
+        if ($year < 100) {
+            $year += $year >= 70 ? 1900 : 2000;
+        }
+        $ts = mktime(0, 0, 0, (int) $m[1], (int) $m[2], $year);
+        return $ts ?: null;
+    }
+    $ts = strtotime($value);
+    return $ts ?: null;
+}
+
 function rscFormatDate(?string $value): string
 {
-    $ts = $value ? strtotime($value) : false;
-    return $ts ? date('M j, Y') : '';
+    $ts = rscParseFlexibleDate($value);
+    return $ts ? date('M j, Y', $ts) : '';
 }
 
 function rscRenderFormHtml(array $row, bool $duplicate = true): string
@@ -1080,7 +1099,7 @@ function rscRenderFormHtml(array $row, bool $duplicate = true): string
                 . '<td>' . $e($split['last']) . '</td>'
                 . '<td>' . $e($split['first']) . '</td>'
                 . '<td>' . $e($memberOr) . '</td>'
-                . '<td></td>'
+                . '<td>HMA</td>'
                 . '</tr>';
         }
         $adviserSig = trim((string) ($row['adviser_signature'] ?? ''));
@@ -1113,7 +1132,7 @@ function rscRenderFormHtml(array $row, bool $duplicate = true): string
             . '<tr><th>Research Title</th><td colspan="3">' . $e($row['research_title'] ?? '') . '</td></tr>'
             . '</tbody></table>'
             . '<table class="rsc-table rsc-table--members"><thead><tr>'
-            . '<th>Last Name</th><th>First Name</th><th>Research / Defense O.R. No.</th><th>Cashier</th>'
+            . '<th>Last Name</th><th>First Name</th><th>Research / Defense O.R. No.</th><th>Remarks</th>'
             . '</tr></thead><tbody>' . $memberRows . '</tbody></table>'
             . '<table class="rsc-table rsc-table--tasks"><thead><tr>'
             . '<th style="width:48%">Task</th><th>Name and Signature</th><th style="width:18%">Date</th>'
