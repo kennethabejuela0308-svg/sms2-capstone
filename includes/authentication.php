@@ -551,6 +551,8 @@ function smsAdminCoordinatorWorkflowPaths(): array
     return [
         '/modules/crad/pages/research-coordinator-management.php',
         '/modules/crad/pages/dashboard-analytics.php',
+        '/modules/crad/pages/approval-clearance-payment.php',
+        '/modules/crad/api/clearance-payment.php',
         '/modules/crad/pages/grant-opportunities.php',
         '/modules/crad/pages/proposals-applications.php',
         '/modules/crad/api/grant-management.php',

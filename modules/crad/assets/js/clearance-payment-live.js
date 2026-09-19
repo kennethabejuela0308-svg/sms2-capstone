@@ -90,7 +90,7 @@
     function renderList(rows) {
         if (!listBody) return;
         if (!rows || !rows.length) {
-            listBody.innerHTML = '<tr><td colspan="4" class="text-muted">Waiting for a student college payment upload.</td></tr>';
+            listBody.innerHTML = '<tr><td colspan="4" class="text-muted">No clearance payment has been sent to admin yet.</td></tr>';
             return;
         }
         listBody.innerHTML = rows.map(function (row) {
