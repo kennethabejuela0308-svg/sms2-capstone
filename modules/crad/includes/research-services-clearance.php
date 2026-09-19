@@ -200,10 +200,26 @@ function rscMemberKeys(string $name, string $studentId = ''): array
     return $keys;
 }
 
-function rscAddUniqueMember(array &$roster, string $name, string $studentId = ''): void
+function rscExtractOrNumber(string $value): string
+{
+    $value = strtoupper(trim($value));
+    return preg_match('/^OR-[\w-]+$/', $value) ? $value : '';
+}
+
+function rscExtractStudentId(string $value): string
+{
+    $value = trim($value);
+    if ($value === '' || rscExtractOrNumber($value) !== '') {
+        return '';
+    }
+    return preg_match('/^S?\d+/i', $value) ? $value : '';
+}
+
+function rscAddUniqueMember(array &$roster, string $name, string $studentId = '', string $orNumber = ''): void
 {
     $name = trim(preg_replace('/\s+/', ' ', $name) ?? '');
-    $studentId = trim($studentId);
+    $studentId = rscExtractStudentId($studentId);
+    $orNumber = rscExtractOrNumber($orNumber);
     if ($name === '' || preg_match('/^(n\/?a|none|tbd|-)$/i', $name)) {
         return;
     }
@@ -217,10 +233,13 @@ function rscAddUniqueMember(array &$roster, string $name, string $studentId = ''
             if ($studentId !== '' && trim((string) $row['student_id']) === '') {
                 $roster[$i]['student_id'] = $studentId;
             }
+            if ($orNumber !== '' && rscExtractOrNumber((string) $row['or_number']) === '') {
+                $roster[$i]['or_number'] = $orNumber;
+            }
             return;
         }
     }
-    $roster[] = ['name' => $name, 'student_id' => $studentId];
+    $roster[] = ['name' => $name, 'student_id' => $studentId, 'or_number' => $orNumber];
 }
 
 function rscDedupeMembers(array $members): array
@@ -230,10 +249,12 @@ function rscDedupeMembers(array $members): array
         if (!is_array($member)) {
             continue;
         }
+        $third = trim((string) ($member['or_number'] ?? $member['student_id'] ?? $member[2] ?? ''));
         rscAddUniqueMember(
             $roster,
             (string) ($member['name'] ?? $member[0] ?? ''),
-            (string) ($member['student_id'] ?? $member[2] ?? '')
+            (string) ($member['student_id'] ?? (rscExtractStudentId($third) !== '' ? $third : '')),
+            (string) ($member['or_number'] ?? (rscExtractOrNumber($third) !== '' ? $third : ''))
         );
     }
     return $roster;
@@ -267,11 +288,13 @@ function rscMembersFromGroup(PDO $crad, array $group): array
                     continue;
                 }
                 $name = trim((string) ($entry[0] ?? $entry['name'] ?? ''));
-                $id = trim((string) ($entry['student_id'] ?? $entry[2] ?? ''));
-                if ($id !== '' && !preg_match('/^s?\d+/i', $id)) {
-                    $id = '';
-                }
-                rscAddUniqueMember($roster, $name, $id);
+                $third = trim((string) ($entry[2] ?? $entry['student_id'] ?? $entry['or_number'] ?? ''));
+                rscAddUniqueMember(
+                    $roster,
+                    $name,
+                    (string) ($entry['student_id'] ?? ''),
+                    (string) ($entry['or_number'] ?? $third)
+                );
             }
         }
     }
@@ -366,10 +389,18 @@ function rscGenerateOrNumber(int $groupId, string $groupNumber = ''): string
     return 'OR-' . date('y') . str_pad((string) max(1, $groupId), 5, '0', STR_PAD_LEFT);
 }
 
-function rscNeedsOrRefresh(string $orNumber): bool
+function rscResolveGroupOrNumber(int $groupId, string $groupNumber, array $members): string
 {
-    $orNumber = trim($orNumber);
-    return $orNumber === '' || str_starts_with($orNumber, 'RSC-');
+    foreach ($members as $member) {
+        if (!is_array($member)) {
+            continue;
+        }
+        $or = rscExtractOrNumber((string) ($member['or_number'] ?? ''));
+        if ($or !== '') {
+            return $or;
+        }
+    }
+    return rscGenerateOrNumber($groupId, $groupNumber);
 }
 
 function rscEnsureForReadyGroup(PDO $crad, int $groupId): ?array
@@ -404,7 +435,7 @@ function rscEnsureForReadyGroup(PDO $crad, int $groupId): ?array
         'adviser_email' => strtolower(trim((string) ($ctx['adviser_email'] ?? ''))),
     ];
 
-    $or = rscGenerateOrNumber($groupId, (string) ($ctx['group_number'] ?? ''));
+    $or = rscResolveGroupOrNumber($groupId, (string) ($ctx['group_number'] ?? ''), $members);
     $payload['or_number'] = $or;
 
     if (!$existing) {
@@ -435,9 +466,6 @@ function rscEnsureForReadyGroup(PDO $crad, int $groupId): ?array
         ]);
         return rscFindByGroup($crad, $groupId);
     }
-
-    $keepOr = trim((string) ($existing['or_number'] ?? ''));
-    $orNumber = rscNeedsOrRefresh($keepOr) ? $or : $keepOr;
 
     $crad->prepare(
         "UPDATE research_services_clearances
