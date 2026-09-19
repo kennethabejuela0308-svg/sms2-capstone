@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 require_once ROOT_PATH . '/modules/crad/config/config.php';
 require_once ROOT_PATH . '/modules/crad/includes/chapter-evaluation-workflow.php';
+require_once ROOT_PATH . '/modules/crad/includes/research-clearance-image.php';
 
 function rscDb(): ?PDO
 {

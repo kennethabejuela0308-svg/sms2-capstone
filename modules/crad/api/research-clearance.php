@@ -7,17 +7,32 @@ require_once ROOT_PATH . '/includes/security.php';
 require_once ROOT_PATH . '/modules/crad/includes/research-services-clearance.php';
 
 requireAuth();
-header('Content-Type: application/json; charset=utf-8');
 
 $crad = rscDb();
 if (!$crad instanceof PDO) {
     http_response_code(500);
+    header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['ok' => false, 'error' => 'Database unavailable']);
     exit;
 }
 rscEnsureSchema($crad);
 $role = getCurrentUserRoleKey();
 $action = trim((string) ($_POST['action'] ?? $_GET['action'] ?? ''));
+
+if ($action === 'download_image') {
+    $id = (int) ($_GET['id'] ?? $_POST['id'] ?? 0);
+    $row = rscFindById($crad, $id);
+    if (!$row || !rscCanDownloadFormImage($crad, $row)) {
+        http_response_code(403);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['ok' => false, 'error' => 'Forbidden']);
+        exit;
+    }
+    rscSendFormPngDownload($crad, $row);
+    exit;
+}
+
+header('Content-Type: application/json; charset=utf-8');
 
 try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
