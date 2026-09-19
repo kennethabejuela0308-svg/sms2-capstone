@@ -134,8 +134,12 @@ try {
         }
         $payload['ready'] = $rows !== [];
         $payload['clearance'] = $current ? rscPublicRow($current) : null;
-        $payload['rows'] = array_map('rscPublicRow', $rows);
-        echo json_encode($payload);
+        $payload['rows'] = array_map(static function (array $row): array {
+            $public = rscPublicRow($row);
+            $public['form_html'] = '';
+            return $public;
+        }, $rows);
+        echo json_encode($payload, JSON_INVALID_UTF8_SUBSTITUTE);
         exit;
     }
 
@@ -148,8 +152,12 @@ try {
         }
         $payload['ready'] = $rows !== [];
         $payload['clearance'] = $current ? rscPublicRow($current) : null;
-        $payload['rows'] = array_map('rscPublicRow', $rows);
-        echo json_encode($payload);
+        $payload['rows'] = array_map(static function (array $row): array {
+            $public = rscPublicRow($row);
+            $public['form_html'] = '';
+            return $public;
+        }, $rows);
+        echo json_encode($payload, JSON_INVALID_UTF8_SUBSTITUTE);
         exit;
     }
 
