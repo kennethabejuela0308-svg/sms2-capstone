@@ -1,0 +1,206 @@
+(function () {
+    var root = document.querySelector('[data-rsc-live]');
+    if (!root) return;
+
+    var endpoint = root.getAttribute('data-rsc-endpoint') || '';
+    var csrf = root.getAttribute('data-rsc-csrf') || '';
+    var role = root.getAttribute('data-rsc-role') || '';
+    var formBox = root.querySelector('[data-rsc-form]');
+    var statusEl = root.querySelector('[data-rsc-status]');
+    var syncEl = root.querySelector('[data-rsc-sync]');
+    var listBody = root.querySelector('[data-rsc-rows]');
+    var sendBtn = root.querySelector('[data-rsc-send]');
+    var acceptBtn = root.querySelector('[data-rsc-accept]');
+    var signBtn = root.querySelector('[data-rsc-sign]');
+    var printBtn = root.querySelector('[data-rsc-print]');
+    var fileInput = root.querySelector('[data-rsc-file]');
+    var emptyEl = root.querySelector('[data-rsc-empty]');
+    var current = null;
+    var selectedId = root.getAttribute('data-rsc-id') || '';
+
+    function post(action, extra) {
+        var fd = extra instanceof FormData ? extra : new FormData();
+        fd.append('action', action);
+        fd.append('csrf_token', csrf);
+        fd.append('id', current && current.id ? String(current.id) : selectedId);
+        if (extra && !(extra instanceof FormData)) {
+            Object.keys(extra).forEach(function (key) { fd.append(key, extra[key]); });
+        }
+        return fetch(endpoint, { method: 'POST', body: fd, credentials: 'same-origin', cache: 'no-store' })
+            .then(function (r) { return r.json(); });
+    }
+
+    function applyClearance(row) {
+        current = row;
+        if (formBox) formBox.innerHTML = row && row.form_html ? row.form_html : '';
+        if (statusEl) statusEl.textContent = row ? (row.status_label || row.status) : '';
+        if (sendBtn) sendBtn.hidden = !(row && row.status === 'draft' && role === 'student');
+        if (acceptBtn) acceptBtn.hidden = !(row && (row.status === 'adviser_signed') && (role === 'crad_officer' || role === 'admin' || role === 'sms_admin' || role === 'superadmin'));
+        if (signBtn) {
+            var canAdviser = role === 'adviser' && row && row.status === 'sent_to_adviser';
+            var canCrad = (role === 'crad_officer' || role === 'admin' || role === 'sms_admin' || role === 'superadmin')
+                && row && (row.status === 'crad_received' || row.status === 'adviser_signed');
+            signBtn.hidden = !(canAdviser || canCrad);
+        }
+        if (printBtn) printBtn.hidden = !row;
+        if (emptyEl) emptyEl.hidden = !!row;
+    }
+
+    function renderRows(rows) {
+        if (!listBody) return;
+        if (!rows || !rows.length) {
+            listBody.innerHTML = '<tr><td colspan="5" class="text-muted">No clearance forms yet.</td></tr>';
+            return;
+        }
+        listBody.innerHTML = rows.map(function (row) {
+            var active = current && String(current.id) === String(row.id) ? ' class="table-active"' : '';
+            return '<tr' + active + ' data-rsc-open="' + row.id + '">'
+                + '<td>' + (row.leader_group_no || '') + '</td>'
+                + '<td>' + (row.research_title || '') + '</td>'
+                + '<td>' + (row.or_number || '') + '</td>'
+                + '<td>' + (row.status_label || row.status) + '</td>'
+                + '<td><button type="button" class="btn btn-sm btn-outline-primary" data-rsc-open="' + row.id + '">Open</button></td>'
+                + '</tr>';
+        }).join('');
+    }
+
+    function refresh() {
+        var url = endpoint + (selectedId ? ((endpoint.indexOf('?') >= 0 ? '&' : '?') + 'id=' + encodeURIComponent(selectedId)) : '');
+        fetch(url, { credentials: 'same-origin', cache: 'no-store', headers: { 'Accept': 'application/json' } })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data || !data.ok) return;
+                if (syncEl) syncEl.textContent = data.last_sync || '';
+                if (data.clearance) {
+                    selectedId = String(data.clearance.id);
+                    applyClearance(data.clearance);
+                } else if (role === 'student') {
+                    applyClearance(null);
+                }
+                if (data.rows) renderRows(data.rows);
+            })
+            .catch(function () {});
+    }
+
+    if (sendBtn) {
+        sendBtn.addEventListener('click', function () {
+            sendBtn.disabled = true;
+            post('send_to_adviser').then(function (data) {
+                if (data && data.ok && data.clearance) applyClearance(data.clearance);
+                else if (data && data.error) alert(data.error);
+            }).finally(function () { sendBtn.disabled = false; });
+        });
+    }
+
+    if (acceptBtn) {
+        acceptBtn.addEventListener('click', function () {
+            var fd = new FormData();
+            if (fileInput && fileInput.files && fileInput.files[0]) {
+                fd.append('clearance_file', fileInput.files[0]);
+            }
+            acceptBtn.disabled = true;
+            post('crad_receive', fd).then(function (data) {
+                if (data && data.ok && data.clearance) applyClearance(data.clearance);
+                else if (data && data.error) alert(data.error);
+            }).finally(function () { acceptBtn.disabled = false; });
+        });
+    }
+
+    if (printBtn) {
+        printBtn.addEventListener('click', function () { window.print(); });
+    }
+
+    root.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-rsc-open]');
+        if (!btn) return;
+        selectedId = btn.getAttribute('data-rsc-open') || '';
+        refresh();
+    });
+
+    var modal = document.getElementById('rscSigModal');
+    var canvas = document.getElementById('rscSigCanvas');
+    var ctx = canvas ? canvas.getContext('2d') : null;
+    var drawing = false;
+    var dirty = false;
+
+    function sizeCanvas() {
+        if (!canvas) return;
+        var ratio = window.devicePixelRatio || 1;
+        var w = canvas.clientWidth || 460;
+        var h = canvas.clientHeight || 160;
+        canvas.width = Math.floor(w * ratio);
+        canvas.height = Math.floor(h * ratio);
+        if (ctx) {
+            ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#111';
+        }
+        dirty = false;
+    }
+
+    function pos(ev) {
+        var rect = canvas.getBoundingClientRect();
+        var t = ev.touches ? ev.touches[0] : ev;
+        return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+    }
+
+    function openSig() {
+        if (!modal) return;
+        modal.style.display = 'block';
+        sizeCanvas();
+    }
+
+    function closeSig() {
+        if (modal) modal.style.display = 'none';
+    }
+
+    if (signBtn) signBtn.addEventListener('click', openSig);
+    document.querySelectorAll('[data-rsc-sig-close]').forEach(function (el) {
+        el.addEventListener('click', closeSig);
+    });
+    var clearBtn = document.getElementById('rscSigClear');
+    if (clearBtn) clearBtn.addEventListener('click', sizeCanvas);
+    var confirmBtn = document.getElementById('rscSigConfirm');
+    if (confirmBtn) {
+        confirmBtn.addEventListener('click', function () {
+            if (!dirty) {
+                var err = document.getElementById('rscSigError');
+                if (err) err.style.display = 'block';
+                return;
+            }
+            var action = role === 'adviser' ? 'adviser_sign' : 'crad_sign';
+            confirmBtn.disabled = true;
+            post(action, { signature: canvas.toDataURL('image/png') }).then(function (data) {
+                if (data && data.ok && data.clearance) {
+                    applyClearance(data.clearance);
+                    closeSig();
+                } else if (data && data.error) {
+                    alert(data.error);
+                }
+            }).finally(function () { confirmBtn.disabled = false; });
+        });
+    }
+
+    if (canvas && ctx) {
+        canvas.addEventListener('pointerdown', function (ev) {
+            drawing = true;
+            var p = pos(ev);
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            canvas.setPointerCapture(ev.pointerId);
+        });
+        canvas.addEventListener('pointermove', function (ev) {
+            if (!drawing) return;
+            var p = pos(ev);
+            ctx.lineTo(p.x, p.y);
+            ctx.stroke();
+            dirty = true;
+        });
+        canvas.addEventListener('pointerup', function () { drawing = false; });
+        canvas.addEventListener('pointerleave', function () { drawing = false; });
+    }
+
+    refresh();
+    window.setInterval(refresh, 2000);
+})();
