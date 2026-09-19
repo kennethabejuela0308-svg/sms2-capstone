@@ -629,6 +629,34 @@ function rscNotify(PDO $crad, string $eventKey, int $clearanceId, array $recipie
     ]);
 }
 
+function rscStudentRecipients(PDO $crad, array $clearance): array
+{
+    $ctx = rscLoadGroupContext($crad, (int) ($clearance['research_group_id'] ?? 0));
+    if (!$ctx) {
+        return [];
+    }
+    $recipients = [[
+        'id' => (int) ($ctx['student_user_id'] ?? 0),
+        'role_key' => 'student',
+        'email' => strtolower(trim((string) ($ctx['leader_email'] ?? ''))),
+    ]];
+    $sms = function_exists('db') ? db() : null;
+    $leaderId = trim((string) ($ctx['leader_id'] ?? $ctx['title_student_id'] ?? ''));
+    if ($sms instanceof PDO && $leaderId !== '' && (int) ($recipients[0]['id'] ?? 0) <= 0) {
+        try {
+            $uStmt = $sms->prepare("SELECT id, email, role_key FROM users WHERE student_id = ? AND role_key = 'student' LIMIT 1");
+            $uStmt->execute([$leaderId]);
+            $user = $uStmt->fetch() ?: null;
+            if ($user) {
+                $recipients[0] = $user;
+            }
+        } catch (Throwable $e) {
+            // keep fallback recipient
+        }
+    }
+    return $recipients;
+}
+
 function rscNormalizeSignature(string $signature): string
 {
     $signature = trim($signature);
@@ -742,6 +770,9 @@ function rscCradReceive(PDO $crad, array $clearance, array $file = []): array
         }
     }
 
+    $extracted = rscExtractPhysicalSignatures((string) $saved['path'], $clearance);
+    $hasMis = trim((string) ($extracted['mis'] ?? '')) !== '';
+    $hasAa = trim((string) ($extracted['aa'] ?? '')) !== '';
     $nextStatus = $status === 'clearance_done' ? 'clearance_done' : 'crad_received';
     $crad->prepare(
         "UPDATE research_services_clearances
@@ -749,15 +780,42 @@ function rscCradReceive(PDO $crad, array $clearance, array $file = []): array
              uploaded_file = :file,
              uploaded_original = :original,
              uploaded_at = NOW(),
-             form_verified = 1
+             form_verified = 1,
+             mis_signature = :mis_sig,
+             aa_signature = :aa_sig,
+             mis_verified = :mis,
+             aa_verified = :aa,
+             mis_verified_at = CASE WHEN :mis2 = 1 THEN NOW() ELSE NULL END,
+             aa_verified_at = CASE WHEN :aa2 = 1 THEN NOW() ELSE NULL END
          WHERE id = :id"
     )->execute([
         ':status' => $nextStatus,
         ':file' => (string) $saved['file'],
         ':original' => (string) $saved['original'],
+        ':mis_sig' => $hasMis ? (string) $extracted['mis'] : '',
+        ':aa_sig' => $hasAa ? (string) $extracted['aa'] : '',
+        ':mis' => $hasMis ? 1 : 0,
+        ':aa' => $hasAa ? 1 : 0,
+        ':mis2' => $hasMis ? 1 : 0,
+        ':aa2' => $hasAa ? 1 : 0,
         ':id' => (int) $clearance['id'],
     ]);
-    return ['ok' => true, 'clearance' => rscFindById($crad, (int) $clearance['id'])];
+    $fresh = rscFindById($crad, (int) $clearance['id']);
+    if ($hasMis && $hasAa) {
+        foreach (rscStudentRecipients($crad, $clearance) as $recipient) {
+            rscNotify(
+                $crad,
+                'clearance-mis-aa:' . (int) $clearance['id'],
+                (int) $clearance['id'],
+                $recipient,
+                'mis_aa_signed',
+                'MIS and AA signatures added',
+                'The MIS and AA signatures from your printed clearance are now on your Research Services Clearance form.',
+                rscStudentUrl()
+            );
+        }
+    }
+    return ['ok' => true, 'clearance' => $fresh];
 }
 
 function rscVerifyOfficialFormImage(array $clearance, string $path, string $originalName = ''): array
@@ -860,23 +918,30 @@ function rscCradVerifyMarks(PDO $crad, array $clearance, bool $mis, bool $aa): a
     return ['ok' => true, 'clearance' => rscFindById($crad, (int) $clearance['id'])];
 }
 
+function rscHasPhysicalSignature(array $clearance, string $field): bool
+{
+    return trim((string) ($clearance[$field] ?? '')) !== '';
+}
+
 function rscCanCradSign(array $clearance): bool
 {
-    return trim((string) ($clearance['adviser_signature'] ?? '')) !== ''
+    return rscHasPhysicalSignature($clearance, 'adviser_signature')
+        && rscHasPhysicalSignature($clearance, 'mis_signature')
+        && rscHasPhysicalSignature($clearance, 'aa_signature')
         && trim((string) ($clearance['uploaded_file'] ?? '')) !== ''
         && (int) ($clearance['form_verified'] ?? 0) === 1
-        && (int) ($clearance['mis_verified'] ?? 0) === 1
-        && (int) ($clearance['aa_verified'] ?? 0) === 1
         && in_array((string) ($clearance['status'] ?? ''), ['adviser_signed', 'crad_received'], true);
 }
 
 function rscCradSign(PDO $crad, array $clearance, string $signature, string $signerName): array
 {
-    if ((int) ($clearance['mis_verified'] ?? 0) !== 1 || (int) ($clearance['aa_verified'] ?? 0) !== 1) {
-        return ['ok' => false, 'error' => 'Note: CRAD cannot sign if the MIS and AA physical signatures are missing.'];
+    if (!rscHasPhysicalSignature($clearance, 'adviser_signature')
+        || !rscHasPhysicalSignature($clearance, 'mis_signature')
+        || !rscHasPhysicalSignature($clearance, 'aa_signature')) {
+        return ['ok' => false, 'error' => 'CRAD cannot sign until the Adviser, MIS, and AA signatures are on the clearance form.'];
     }
     if (!rscCanCradSign($clearance)) {
-        return ['ok' => false, 'error' => 'Upload the official adviser-signed clearance image first. Other files cannot be signed.'];
+        return ['ok' => false, 'error' => 'Upload the printed clearance form with the Adviser, MIS, and AA signatures first.'];
     }
     $sig = rscNormalizeSignature($signature);
     if ($sig === '') {
