@@ -186,7 +186,7 @@ function rcpStudentUpload(PDO $crad, int $groupId, array $file, string $orNumber
             "UPDATE research_clearance_payments
              SET uploaded_file = :file,
                  uploaded_original = :original,
-                 or_number = CASE WHEN :or <> '' THEN :or2 ELSE or_number END,
+                 or_number = :or_number,
                  status = 'pending',
                  approved_by_user_id = NULL,
                  approved_by_name = '',
@@ -195,8 +195,7 @@ function rcpStudentUpload(PDO $crad, int $groupId, array $file, string $orNumber
         )->execute([
             ':file' => (string) $saved['file'],
             ':original' => (string) $saved['original'],
-            ':or' => $or,
-            ':or2' => $or,
+            ':or_number' => $or,
             ':id' => (int) $existing['id'],
         ]);
         if ($old !== '' && $old !== (string) $saved['file']) {

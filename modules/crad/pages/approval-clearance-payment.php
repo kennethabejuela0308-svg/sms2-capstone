@@ -67,8 +67,8 @@ renderBreadcrumbs($breadcrumbs);
             <div class="col-lg-5">
                 <div class="mb-2 fw-bold" data-rcp-status></div>
                 <div class="mb-3">
-                    <label class="form-label">O.R. Number</label>
-                    <input type="text" class="form-control" data-rcp-or>
+                    <label class="form-label">Reference / O.R. Number</label>
+                    <input type="text" class="form-control" data-rcp-or readonly>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Remarks</label>
@@ -82,5 +82,5 @@ renderBreadcrumbs($breadcrumbs);
         </div>
     </div>
 </div>
-<script src="<?= BASE_URL ?>/modules/crad/assets/js/clearance-payment-live.js?v=rcp-live-3"></script>
+<script src="<?= BASE_URL ?>/modules/crad/assets/js/clearance-payment-live.js?v=rcp-or-1"></script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>

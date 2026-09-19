@@ -56,8 +56,8 @@ renderBreadcrumbs($breadcrumbs);
                     <input type="file" id="rcpFile" class="form-control" accept=".png,.jpg,.jpeg,image/png,image/jpeg">
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label fw-bold" for="rcpOr">O.R. Number (if shown)</label>
-                    <input type="text" id="rcpOr" class="form-control" value="<?= e($public['or_number'] ?? '') ?>" placeholder="OR-2653610">
+                    <label class="form-label fw-bold" for="rcpOr">Reference / O.R. Number</label>
+                    <input type="text" id="rcpOr" class="form-control" value="<?= e($public['or_number'] ?? '') ?>" placeholder="Taken from the payment picture" readonly>
                 </div>
                 <div class="col-md-2">
                     <button type="button" class="btn btn-sms-primary w-100" id="rcpUploadBtn" <?= !empty($public['status']) && $public['status'] === 'approved' ? 'disabled' : '' ?>>
@@ -76,5 +76,5 @@ renderBreadcrumbs($breadcrumbs);
     <?php endif; ?>
 </div>
 <link rel="stylesheet" href="<?= BASE_URL ?>/modules/crad/assets/css/research-clearance.css?v=rsc-date-1">
-<script src="<?= BASE_URL ?>/modules/crad/assets/js/clearance-payment-live.js?v=rcp-live-3"></script>
+<script src="<?= BASE_URL ?>/modules/crad/assets/js/clearance-payment-live.js?v=rcp-or-1"></script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>

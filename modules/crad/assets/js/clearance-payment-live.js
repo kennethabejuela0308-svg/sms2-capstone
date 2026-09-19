@@ -50,7 +50,7 @@
         if (fileNameEl) fileNameEl.textContent = row && row.uploaded_original ? row.uploaded_original : '';
         if (uploadLabel) uploadLabel.textContent = row && row.has_upload ? 'Re-upload' : 'Upload';
         if (uploadBtn) uploadBtn.disabled = !!(row && row.status === 'approved');
-        if (orInput && row && row.or_number && !orInput.value) orInput.value = row.or_number;
+        if (orInput) orInput.value = row && row.or_number ? row.or_number : '';
         if (preview) {
             if (row && row.uploaded_url) {
                 preview.hidden = false;
@@ -73,9 +73,11 @@
         detail.hidden = false;
         if (statusEl) statusEl.textContent = row.status_label || row.status;
         var typing = document.activeElement === adminOr || document.activeElement === adminRemarks;
+        if (adminOr) adminOr.value = row.or_number || '';
         if (forceFields || !typing) {
-            if (adminOr && (forceFields || adminOr.value !== (row.or_number || ''))) adminOr.value = row.or_number || '';
-            if (adminRemarks && (forceFields || !adminRemarks.value)) adminRemarks.value = row.remarks || 'HMA';
+            if (adminRemarks && (forceFields || !adminRemarks.value || adminRemarks.value === 'HMA')) {
+                adminRemarks.value = row.remarks || 'HMA';
+            }
         }
         if (preview) {
             preview.innerHTML = row.uploaded_url
