@@ -2445,7 +2445,7 @@ renderBreadcrumbs($breadcrumbs);
                     <?php if ($view === 'manual-scheduling-optimizer'): ?>
                     <div class="director-ai-scheduler" id="directorAiScheduler">
                         <h3><?= smsIcon('magic', ['class' => 'me-1']) ?> AI Scheduling Optimizer</h3>
-                        <p>Set your defense period (e.g. one month). AI will pick conflict-free slots with comfortable venue capacity for adviser, panel, and venue availability.</p>
+                        <p>Set your defense period. AI checks live free schedules and picks different dates, times, and venues where the adviser, panel, and rooms are free.</p>
                         <label>
                             <span>Period Start</span>
                             <input type="date" id="aiPeriodStart" min="<?= htmlspecialchars(date('Y-m-d')) ?>" value="<?= htmlspecialchars(date('Y-m-d')) ?>">
@@ -3396,6 +3396,14 @@ document.addEventListener('DOMContentLoaded', function () {
         const expectedAttendees = document.getElementById('aiExpectedAttendees');
         if (!schedulerForm || !generateBtn || !summaryEl) return;
 
+        const normalizeTime = function (value) {
+            const raw = String(value || '').trim();
+            if (!raw) return '';
+            const match = raw.match(/^(\d{1,2}):(\d{2})/);
+            if (!match) return raw;
+            return String(match[1]).padStart(2, '0') + ':' + match[2];
+        };
+
         generateBtn.addEventListener('click', async function () {
             const groupId = parseInt(schedulerForm.getAttribute('data-group-id') || '0', 10);
             if (groupId < 1) {
@@ -3404,11 +3412,29 @@ document.addEventListener('DOMContentLoaded', function () {
                 summaryEl.textContent = 'Select a defense-ready research group first.';
                 return;
             }
+            if (periodStart && periodEnd && periodStart.value && periodEnd.value && periodEnd.value < periodStart.value) {
+                summaryEl.style.display = '';
+                summaryEl.classList.add('is-error');
+                summaryEl.textContent = 'Period End must be on or after Period Start.';
+                return;
+            }
 
+            const originalLabel = generateBtn.innerHTML;
             generateBtn.disabled = true;
-            summaryEl.style.display = 'none';
+            generateBtn.innerHTML = 'Scanning free schedules…';
+            summaryEl.style.display = '';
             summaryEl.classList.remove('is-error');
+            summaryEl.textContent = 'Checking live venue, adviser, and panel availability…';
             if (hintsEl) hintsEl.innerHTML = '';
+
+            const dates = schedulerForm.querySelectorAll('.js-defense-date');
+            const venues = schedulerForm.querySelectorAll('.js-venue-id');
+            const starts = schedulerForm.querySelectorAll('.js-start-time');
+            const ends = schedulerForm.querySelectorAll('.js-end-time');
+            dates.forEach(function (el) { el.value = ''; });
+            venues.forEach(function (el) { el.value = ''; });
+            starts.forEach(function (el) { el.value = ''; });
+            ends.forEach(function (el) { el.value = ''; });
 
             const body = new URLSearchParams();
             body.set('schedule_action', 'ai_generate_slots');
@@ -3424,33 +3450,34 @@ document.addEventListener('DOMContentLoaded', function () {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
-                        'Accept': 'application/json'
+                        'Accept': 'application/json',
+                        'Cache-Control': 'no-store'
                     },
                     credentials: 'same-origin',
+                    cache: 'no-store',
                     body: body.toString()
                 });
-                const data = await res.json();
-                if (!data.ok) throw new Error(data.message || 'AI scheduling failed.');
-
-                const dates = schedulerForm.querySelectorAll('.js-defense-date');
-                const venues = schedulerForm.querySelectorAll('.js-venue-id');
-                const starts = schedulerForm.querySelectorAll('.js-start-time');
-                const ends = schedulerForm.querySelectorAll('.js-end-time');
+                const text = await res.text();
+                let data = null;
+                try { data = JSON.parse(text); } catch (e) { data = null; }
+                if (!data || !data.ok) {
+                    throw new Error((data && data.message) || 'AI scheduling failed.');
+                }
 
                 (data.slots || []).forEach(function (slot, index) {
                     if (dates[index]) dates[index].value = slot.date || '';
                     if (venues[index]) venues[index].value = String(slot.venue_id || '');
-                    if (starts[index]) starts[index].value = slot.start_time || '';
-                    if (ends[index]) ends[index].value = slot.end_time || '';
+                    if (starts[index]) starts[index].value = normalizeTime(slot.start_time);
+                    if (ends[index]) ends[index].value = normalizeTime(slot.end_time);
                 });
 
                 summaryEl.style.display = '';
-                summaryEl.textContent = data.summary || 'AI generated optimal slots. Review and save when ready.';
+                summaryEl.textContent = data.summary || 'AI generated varied free slots. Review and save when ready.';
 
                 if (hintsEl && Array.isArray(data.slots)) {
                     hintsEl.innerHTML = data.slots.map(function (slot, index) {
                         return '<div class="director-ai-slot-hint"><strong>Slot ' + (index + 1) + ':</strong> '
-                            + esc(slot.date) + ' · ' + esc(slot.start_time) + '–' + esc(slot.end_time)
+                            + esc(slot.date) + ' · ' + esc(normalizeTime(slot.start_time)) + '–' + esc(normalizeTime(slot.end_time))
                             + ' · ' + esc(slot.venue_name) + ' (' + esc(slot.capacity) + ' cap) — '
                             + esc(slot.reason || '') + '</div>';
                     }).join('');
@@ -3462,6 +3489,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             generateBtn.disabled = false;
+            generateBtn.innerHTML = originalLabel;
         });
     };
 
