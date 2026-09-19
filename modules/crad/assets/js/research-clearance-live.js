@@ -35,7 +35,9 @@
     var shouldScroll = false;
     var uploading = false;
     var isCrad = role === 'crad_officer' || role === 'admin' || role === 'sms_admin' || role === 'superadmin';
-    var isInboxRole = role === 'adviser';
+    var selectedStage = root.getAttribute('data-rsc-stage') || '';
+    var emptyText = root.querySelector('[data-rsc-empty-text]');
+    var isInboxRole = role === 'adviser' || role === 'student';
 
     function post(action, extra) {
         var fd = extra instanceof FormData ? extra : new FormData();

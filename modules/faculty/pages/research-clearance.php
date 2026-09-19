@@ -35,7 +35,7 @@ $rscSigPadLabel = 'Adviser Signature Pad (Draw Below)';
 require_once ROOT_PATH . '/includes/layout-start.php';
 renderBreadcrumbs($breadcrumbs);
 ?>
-<link rel="stylesheet" href="<?= BASE_URL ?>/modules/crad/assets/css/research-clearance.css?v=rsc-sig-ink-2">
+<link rel="stylesheet" href="<?= BASE_URL ?>/modules/crad/assets/css/research-clearance.css?v=rsc-stage-1">
 
 <div class="glass-dashboard rsc-print-root"
      data-rsc-live
@@ -50,14 +50,15 @@ renderBreadcrumbs($breadcrumbs);
         </div>
         <div class="table-responsive rsc-inbox-scroll">
             <table class="table align-middle mb-0">
-                <thead><tr><th>Group</th><th>Title</th><th>O.R. No.</th><th>Status</th><th></th></tr></thead>
+                <thead><tr><th>Group</th><th>Clearance</th><th>Title</th><th>O.R. No.</th><th>Status</th><th></th></tr></thead>
                 <tbody data-rsc-rows>
                     <?php if (!$rows): ?>
-                        <tr><td colspan="5" class="text-muted">No clearance forms yet.</td></tr>
+                        <tr><td colspan="6" class="text-muted">No clearance forms yet.</td></tr>
                     <?php else: ?>
                         <?php foreach ($rows as $item): $itemPublic = rscPublicRow($item); ?>
                             <tr<?= $public && (int) $public['id'] === (int) $itemPublic['id'] ? ' class="table-active"' : '' ?> data-rsc-open="<?= (int) $itemPublic['id'] ?>">
                                 <td><?= e($itemPublic['leader_group_no']) ?></td>
+                                <td><strong><?= e($itemPublic['stage_label'] ?? 'Research 1') ?></strong></td>
                                 <td><?= e($itemPublic['research_title']) ?></td>
                                 <td><?= e($itemPublic['or_number']) ?></td>
                                 <td><?= e($itemPublic['status_label']) ?></td>
