@@ -176,6 +176,38 @@ function rscSplitName(string $fullName): array
     return ['last' => implode(' ', $lastParts), 'first' => implode(' ', $parts)];
 }
 
+function rscMemberKey(string $name, string $studentId = ''): string
+{
+    $id = strtoupper(preg_replace('/\s+/', '', $studentId) ?? '');
+    if ($id !== '' && !preg_match('/^(BSIT|BSCS|BSOA|BSA|SECTION)/i', $id)) {
+        return 'id:' . $id;
+    }
+    $compact = strtolower(preg_replace('/[^a-z0-9]/', '', $name) ?? '');
+    return $compact !== '' ? 'name:' . $compact : '';
+}
+
+function rscAddUniqueMember(array &$roster, string $name, string $studentId = ''): void
+{
+    $name = trim(preg_replace('/\s+/', ' ', $name) ?? '');
+    $studentId = trim($studentId);
+    if ($name === '') {
+        return;
+    }
+    $key = rscMemberKey($name, $studentId);
+    if ($key === '') {
+        return;
+    }
+    foreach ($roster as $row) {
+        if (rscMemberKey((string) $row['name'], (string) $row['student_id']) === $key) {
+            if ($studentId !== '' && trim((string) $row['student_id']) === '') {
+                $row['student_id'] = $studentId;
+            }
+            return;
+        }
+    }
+    $roster[] = ['name' => $name, 'student_id' => $studentId];
+}
+
 function rscMembersFromGroup(PDO $crad, array $group): array
 {
     $roster = [];
@@ -188,54 +220,36 @@ function rscMembersFromGroup(PDO $crad, array $group): array
             );
             $stmt->execute([$proposalId]);
             foreach ($stmt->fetchAll() ?: [] as $m) {
-                $name = trim((string) ($m['student_name'] ?? ''));
-                if ($name === '') {
-                    continue;
-                }
-                $roster[] = [
-                    'name' => $name,
-                    'student_id' => trim((string) ($m['student_id'] ?? '')),
-                ];
+                rscAddUniqueMember($roster, (string) ($m['student_name'] ?? ''), (string) ($m['student_id'] ?? ''));
             }
         } catch (Throwable $e) {
             $roster = [];
         }
     }
 
-    if ($roster === []) {
-        $json = trim((string) ($group['members_json'] ?? ''));
-        if ($json !== '') {
-            $decoded = json_decode($json, true);
-            if (is_array($decoded)) {
-                foreach ($decoded as $entry) {
-                    if (!is_array($entry)) {
-                        continue;
-                    }
-                    $name = trim((string) ($entry[0] ?? $entry['name'] ?? ''));
-                    if ($name === '') {
-                        continue;
-                    }
-                    $id = trim((string) ($entry[2] ?? $entry['student_id'] ?? $entry[1] ?? ''));
-                    $roster[] = ['name' => $name, 'student_id' => is_string($id) ? $id : ''];
+    $json = trim((string) ($group['members_json'] ?? ''));
+    if ($json !== '') {
+        $decoded = json_decode($json, true);
+        if (is_array($decoded)) {
+            foreach ($decoded as $entry) {
+                if (!is_array($entry)) {
+                    continue;
                 }
+                $name = trim((string) ($entry[0] ?? $entry['name'] ?? ''));
+                $id = trim((string) ($entry['student_id'] ?? $entry[2] ?? ''));
+                if ($id !== '' && !preg_match('/^s?\d+/i', $id)) {
+                    $id = '';
+                }
+                rscAddUniqueMember($roster, $name, $id);
             }
         }
     }
 
-    $leaderName = trim((string) ($group['leader_name'] ?? ''));
-    $leaderId = trim((string) ($group['leader_id'] ?? ''));
-    if ($leaderName !== '') {
-        $hasLeader = false;
-        foreach ($roster as $row) {
-            if (strcasecmp($row['name'], $leaderName) === 0) {
-                $hasLeader = true;
-                break;
-            }
-        }
-        if (!$hasLeader) {
-            array_unshift($roster, ['name' => $leaderName, 'student_id' => $leaderId]);
-        }
-    }
+    rscAddUniqueMember(
+        $roster,
+        (string) ($group['leader_name'] ?? $group['title_student_name'] ?? ''),
+        (string) ($group['leader_id'] ?? $group['title_student_id'] ?? '')
+    );
 
     return $roster;
 }
@@ -311,9 +325,13 @@ function rscLoadGroupContext(PDO $crad, int $groupId): ?array
     return $group;
 }
 
-function rscGenerateOrNumber(int $groupId): string
+function rscGenerateOrNumber(int $groupId, string $groupNumber = ''): string
 {
-    return 'RSC-' . date('y') . str_pad((string) $groupId, 5, '0', STR_PAD_LEFT);
+    $fromGroup = strtoupper(preg_replace('/[^A-Z0-9]/', '', $groupNumber) ?? '');
+    if ($fromGroup !== '') {
+        return 'OR-' . $fromGroup;
+    }
+    return 'OR-' . date('y') . str_pad((string) max(1, $groupId), 5, '0', STR_PAD_LEFT);
 }
 
 function rscEnsureForReadyGroup(PDO $crad, int $groupId): ?array
@@ -344,8 +362,10 @@ function rscEnsureForReadyGroup(PDO $crad, int $groupId): ?array
         'adviser_email' => strtolower(trim((string) ($ctx['adviser_email'] ?? ''))),
     ];
 
+    $or = rscGenerateOrNumber($groupId, (string) ($ctx['group_number'] ?? ''));
+    $payload['or_number'] = $or;
+
     if (!$existing) {
-        $or = rscGenerateOrNumber($groupId);
         $stmt = $crad->prepare(
             "INSERT INTO research_services_clearances
                 (research_group_id, title_approval_id, status, or_number, leader_student_no, leader_group_no,
