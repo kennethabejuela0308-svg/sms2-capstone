@@ -443,16 +443,66 @@ function rcpAdminReject(PDO $crad, array $payment): array
     return ['ok' => true, 'payment' => rcpFindById($crad, (int) $payment['id'])];
 }
 
+function rcpCanApprove(): bool
+{
+    return function_exists('smsIsGrantedAdminRole') && smsIsGrantedAdminRole(getCurrentUserRoleKey());
+}
+
+/**
+ * Remove collage-payment rows whose research group no longer exists.
+ * Also deletes stored payment images. Safe to call on every live poll.
+ */
+function rcpPurgeDisconnectedPayments(PDO $crad): int
+{
+    rcpEnsureSchema($crad);
+    $orphans = $crad->query(
+        "SELECT p.id, p.uploaded_file
+         FROM research_clearance_payments p
+         LEFT JOIN research_groups rg ON rg.id = p.research_group_id
+         WHERE p.research_group_id IS NULL
+            OR p.research_group_id < 1
+            OR rg.id IS NULL"
+    )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+    if ($orphans === []) {
+        return 0;
+    }
+
+    $dir = ROOT_PATH . '/uploads/college-payment';
+    $ids = [];
+    foreach ($orphans as $row) {
+        $ids[] = (int) ($row['id'] ?? 0);
+        $file = basename(str_replace('\\', '/', (string) ($row['uploaded_file'] ?? '')));
+        if ($file !== '' && $file !== '.' && $file !== '..') {
+            $path = $dir . '/' . $file;
+            if (is_file($path)) {
+                @unlink($path);
+            }
+        }
+    }
+    $ids = array_values(array_filter($ids, static fn(int $id): bool => $id > 0));
+    if ($ids === []) {
+        return 0;
+    }
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $stmt = $crad->prepare("DELETE FROM research_clearance_payments WHERE id IN ($placeholders)");
+    $stmt->execute($ids);
+
+    return $stmt->rowCount();
+}
+
 function rcpListForAdmin(PDO $crad): array
 {
     rcpEnsureSchema($crad);
+    rcpPurgeDisconnectedPayments($crad);
+
     return $crad->query(
         "SELECT p.*,
                 rg.group_number,
                 rg.research_title,
                 rg.group_name
          FROM research_clearance_payments p
-         LEFT JOIN research_groups rg ON rg.id = p.research_group_id
+         INNER JOIN research_groups rg ON rg.id = p.research_group_id
          ORDER BY FIELD(p.status, 'pending', 'rejected', 'approved'), p.updated_at DESC"
     )->fetchAll(PDO::FETCH_ASSOC) ?: [];
 }
@@ -490,9 +540,4 @@ function rcpStudentInbox(PDO $crad, int $groupId): array
         $rows[] = $public;
     }
     return $rows;
-}
-
-function rcpCanApprove(): bool
-{
-    return function_exists('smsIsGrantedAdminRole') && smsIsGrantedAdminRole(getCurrentUserRoleKey());
 }
