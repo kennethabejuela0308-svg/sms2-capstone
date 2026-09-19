@@ -76,6 +76,7 @@ renderBreadcrumbs($breadcrumbs);
                 <button type="button" class="btn btn-outline-secondary" data-rsc-close><?= smsIcon('arrow-left', ['class' => 'me-1']) ?>Back to Inbox</button>
                 <input type="file" class="form-control form-control-sm" style="max-width:240px;" data-rsc-file accept=".pdf,.png,.jpg,.jpeg">
                 <button type="button" class="btn btn-outline-primary" data-rsc-accept <?= ($public && in_array($public['status'], ['adviser_signed', 'crad_received'], true)) ? '' : 'hidden' ?>><?= smsIcon('upload', ['class' => 'me-1']) ?>Upload Form</button>
+                <button type="button" class="btn btn-outline-secondary" data-rsc-print <?= ($public && !empty($public['has_upload'])) ? '' : 'hidden' ?>><?= smsIcon('print', ['class' => 'me-1']) ?>Print</button>
                 <button type="button" class="btn btn-success" data-rsc-sign <?= ($public && !empty($public['can_crad_sign'])) ? '' : 'hidden' ?>><?= smsIcon('signature', ['class' => 'me-1']) ?>Sign Clearance</button>
             </div>
         </div>
