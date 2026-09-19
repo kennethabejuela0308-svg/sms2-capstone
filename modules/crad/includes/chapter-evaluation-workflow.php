@@ -967,6 +967,12 @@ function chapterSubmitEvaluation(PDO $crad, array $submission, array $data): arr
             chapterLabel((int) $submission['chapter_number']) . ' Version ' . (int) $submission['version_number'] . ' is now ' . $studentStatus . '.'
         );
         $crad->commit();
+        try {
+            require_once __DIR__ . '/research-services-clearance.php';
+            rscEnsureForReadyGroup($crad, (int) $submission['research_group_id']);
+        } catch (Throwable $clearanceError) {
+            error_log('Clearance draft after evaluation: ' . $clearanceError->getMessage());
+        }
         logActivity('update', 'Submitted evaluation for ' . chapterLabel((int) $submission['chapter_number']) . ' Version ' . (int) $submission['version_number'], 'faculty');
         return ['ok' => true, 'status' => $studentStatus];
     } catch (PDOException $e) {

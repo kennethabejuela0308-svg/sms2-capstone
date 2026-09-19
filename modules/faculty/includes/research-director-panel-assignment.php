@@ -134,6 +134,9 @@ function rdPanelReadySql(): string
                     OR (raa2.group_number IS NOT NULL AND raa2.group_number <> '' AND raa2.group_number = rg.group_number))
                 ORDER BY (raa2.assignment_status = 'Confirmed') DESC, raa2.updated_at DESC, raa2.id DESC LIMIT 1
              )
+             INNER JOIN research_services_clearances rsc
+               ON rsc.research_group_id = rg.id
+              AND rsc.status = 'clearance_done'
              LEFT JOIN research_panel_assignments rpa
                ON rpa.research_group_id = rg.id
               AND " . rdPanelActiveAssignmentSql('rpa') . "
@@ -155,6 +158,7 @@ function rdPanelReadyRows(): array
         return [];
     }
     try {
+        rscEnsureSchema($crad);
         return $crad->query(rdPanelReadySql() . " ORDER BY updated_at DESC, research_group_id DESC")->fetchAll() ?: [];
     } catch (Throwable $e) {
         error_log('RD panel ready rows failed: ' . $e->getMessage());
