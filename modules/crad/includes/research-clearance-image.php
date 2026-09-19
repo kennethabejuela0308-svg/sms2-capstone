@@ -373,7 +373,7 @@ function rscExtractPhysicalSignatures(string $path, array $row): array
     $h = imagesy($src);
     $copyH = (int) max(200, round($h * 0.5));
     $x = (int) ($w * 0.54);
-    $sigW = (int) ($w * 0.28);
+    $sigW = (int) ($w * 0.22);
     $bandH = max(28, (int) ($copyH * 0.10));
     $search = max(16, (int) ($copyH * 0.06));
 
