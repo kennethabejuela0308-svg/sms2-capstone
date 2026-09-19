@@ -354,7 +354,13 @@ function rscExtractPhysicalSignatures(string $path, array $row): array
 
     $attempts = [];
     foreach ([28, 16, 8, 0] as $pad) {
-        $attempts[] = rscSignatureCellBoxes($row, $targetW, $pad);
+        $boxes = rscSignatureCellBoxes($row, $targetW, $pad);
+        $attempts[] = $boxes;
+        $copyGap = (int) ($boxes['aa']['y'] + $boxes['aa']['h'] + 90);
+        $second = $boxes;
+        $second['mis']['y'] += $copyGap;
+        $second['aa']['y'] += $copyGap;
+        $attempts[] = $second;
     }
     $fw = imagesx($scaled);
     $fh = imagesy($scaled);
