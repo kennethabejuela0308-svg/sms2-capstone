@@ -32,7 +32,7 @@ $rscSigPadLabel = 'CRAD Signature Pad (Draw Below)';
 require_once ROOT_PATH . '/includes/layout-start.php';
 renderBreadcrumbs($breadcrumbs);
 ?>
-<link rel="stylesheet" href="<?= BASE_URL ?>/modules/crad/assets/css/research-clearance.css?v=rsc-crad-upload-1">
+<link rel="stylesheet" href="<?= BASE_URL ?>/modules/crad/assets/css/research-clearance.css?v=rsc-crad-sign-1">
 
 <div class="glass-dashboard rsc-print-root"
      data-rsc-live
@@ -84,9 +84,11 @@ renderBreadcrumbs($breadcrumbs);
             The digital student form is hidden. Upload the printed Research Services Clearance that already has the adviser signature. After you upload it, you can check MIS / AA and sign.
         </div>
         <div data-rsc-upload-preview <?= ($public && !empty($public['has_upload'])) ? '' : 'hidden' ?>>
-            <div class="fw-semibold mb-2">Uploaded adviser-signed clearance</div>
-            <div data-rsc-upload-view></div>
-            <small class="text-muted" data-rsc-upload-name><?= e($public['uploaded_original'] ?? '') ?></small>
+            <div class="fw-semibold mb-2">Uploaded file — you can now edit and sign the form below, even if this is a PDF.</div>
+            <details class="rsc-upload-file">
+                <summary>View uploaded file <small class="text-muted" data-rsc-upload-name><?= e($public['uploaded_original'] ?? '') ?></small></summary>
+                <div data-rsc-upload-view></div>
+            </details>
         </div>
         <section class="glass-panel p-3 mb-3" data-rsc-check-wrap <?= ($public && !empty($public['has_upload'])) ? '' : 'hidden' ?>>
             <div class="fw-semibold mb-2">CRAD signature check — MIS and AA are physical signatures, not computerized.</div>
@@ -94,9 +96,9 @@ renderBreadcrumbs($breadcrumbs);
             <label class="d-block mb-1"><input type="checkbox" data-rsc-check-mis <?= !empty($public['mis_verified']) ? 'checked' : '' ?>> MIS signature (physical)</label>
             <label class="d-block mb-1"><input type="checkbox" data-rsc-check-aa <?= !empty($public['aa_verified']) ? 'checked' : '' ?>> AA signature (physical)</label>
         </section>
-        <div class="rsc-wrap" data-rsc-form hidden></div>
+        <div class="rsc-wrap" data-rsc-form <?= ($public && !empty($public['has_upload'])) ? '' : 'hidden' ?>><?= ($public && !empty($public['has_upload'])) ? ($public['form_html'] ?? '') : '' ?></div>
     </div>
 </div>
 <?php require __DIR__ . '/../includes/research-clearance-sig-modal.php'; ?>
-<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-crad-upload-1"></script>
+<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-crad-sign-1"></script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>

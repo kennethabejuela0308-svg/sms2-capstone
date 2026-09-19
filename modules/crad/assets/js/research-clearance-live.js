@@ -51,7 +51,7 @@
 
     function applyClearance(row) {
         current = row;
-        var showForm = !!(row && row.form_html) && !isCrad;
+        var showForm = !!(row && row.form_html) && (!isCrad || !!(row && row.has_upload));
         if (formBox) {
             formBox.hidden = !showForm;
             formBox.innerHTML = showForm ? row.form_html : '';
@@ -64,7 +64,7 @@
             var canCrad = isCrad && row && row.can_crad_sign;
             signBtn.hidden = !(canAdviser || canCrad);
         }
-        if (printBtn) printBtn.hidden = isCrad || !row;
+        if (printBtn) printBtn.hidden = !row || (isCrad && !(row && row.has_upload));
         if (detailEl) detailEl.hidden = !row;
         if (pickEl) pickEl.hidden = !isInboxRole || !!row;
         if (emptyEl) emptyEl.hidden = role === 'student' ? !!row : true;
