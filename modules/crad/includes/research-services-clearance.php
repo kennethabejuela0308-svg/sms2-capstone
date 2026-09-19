@@ -775,11 +775,11 @@ function rscVerifyOfficialFormImage(array $clearance, string $path, string $orig
 
     $name = strtolower($originalName !== '' ? $originalName : basename($path));
     $looksNamed = (bool) preg_match('/research[-_ ]?clearance|clearance|rg-\d{4}-\d+/i', $name);
-    $looksOfficialSize = $width >= 1000 && $width <= 1800 && $height >= 800;
-    $looksDocument = $height >= 700 && $width >= 700 && ($height >= (int) ($width * 0.7));
+    $looksOfficialSize = $width >= 1000 && $width <= 2000 && $height >= 700;
+    $looksDocument = $width >= 700 && $height >= 700;
     $looksPaper = rscImageLooksLikePaperForm($path);
 
-    if ($looksNamed || $looksOfficialSize || ($looksDocument && $looksPaper)) {
+    if (($looksNamed && $looksDocument) || ($looksOfficialSize && $looksPaper) || ($looksDocument && $looksPaper)) {
         return ['ok' => true];
     }
 
