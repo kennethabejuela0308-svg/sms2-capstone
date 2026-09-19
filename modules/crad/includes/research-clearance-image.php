@@ -334,6 +334,7 @@ function rscRemoveFormLines($im): void
     $w = imagesx($im);
     $h = imagesy($im);
     $white = imagecolorallocate($im, 255, 255, 255);
+    $ruleRows = [];
     for ($y = 0; $y < $h; $y++) {
         $run = 0;
         $maxRun = 0;
@@ -347,10 +348,33 @@ function rscRemoveFormLines($im): void
                 $run = 0;
             }
         }
-        if ($w >= 20 && $maxRun >= (int) ($w * 0.48) && $dark >= (int) ($w * 0.38)) {
-            imageline($im, 0, $y, $w - 1, $y, $white);
+        if ($w >= 20 && $maxRun >= (int) ($w * 0.62) && $dark >= (int) ($w * 0.52)) {
+            $ruleRows[] = $y;
         }
     }
+    $start = null;
+    $prev = null;
+    $flush = static function () use ($im, $w, $white, &$start, &$prev): void {
+        if ($start === null || $prev === null) {
+            return;
+        }
+        if (($prev - $start + 1) <= 5) {
+            for ($y = $start; $y <= $prev; $y++) {
+                imageline($im, 0, $y, $w - 1, $y, $white);
+            }
+        }
+        $start = null;
+        $prev = null;
+    };
+    foreach ($ruleRows as $y) {
+        if ($start === null || $y !== $prev + 1) {
+            $flush();
+            $start = $y;
+        }
+        $prev = $y;
+    }
+    $flush();
+
     for ($x = 0; $x < $w; $x++) {
         $run = 0;
         $maxRun = 0;
@@ -364,7 +388,7 @@ function rscRemoveFormLines($im): void
                 $run = 0;
             }
         }
-        if ($h >= 16 && $maxRun >= (int) ($h * 0.55) && $dark >= (int) ($h * 0.40)) {
+        if ($h >= 16 && $maxRun >= (int) ($h * 0.62) && $dark >= (int) ($h * 0.50)) {
             imageline($im, $x, 0, $x, $h - 1, $white);
         }
     }

@@ -33,7 +33,7 @@ $public = $row ? rscPublicRow($row) : null;
 require_once ROOT_PATH . '/includes/layout-start.php';
 renderBreadcrumbs($breadcrumbs);
 ?>
-<link rel="stylesheet" href="<?= BASE_URL ?>/modules/crad/assets/css/research-clearance.css?v=rsc-date-1">
+<link rel="stylesheet" href="<?= BASE_URL ?>/modules/crad/assets/css/research-clearance.css?v=rsc-sig-ink-1">
 
 <div class="glass-dashboard rsc-print-root"
      data-rsc-live
