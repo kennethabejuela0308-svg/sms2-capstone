@@ -62,17 +62,10 @@
 
     function applyClearance(row) {
         current = row;
-        var showUpload = !!(isCrad && row && row.has_upload && row.uploaded_url);
-        var showForm = !showUpload && !!(row && row.form_html) && (!isCrad || !!(row && row.form_verified && row.has_upload));
+        var showForm = !!(row && row.form_html) && (!isCrad || !!(row && row.form_verified && row.has_upload));
         if (formBox) {
-            if (showUpload) {
-                formBox.hidden = false;
-                formBox.innerHTML = '<img class="rsc-upload-img" alt="Uploaded clearance form" src="'
-                    + row.uploaded_url + '">';
-            } else {
-                formBox.hidden = !showForm;
-                formBox.innerHTML = showForm ? row.form_html : '';
-            }
+            formBox.hidden = !showForm;
+            formBox.innerHTML = showForm ? row.form_html : '';
         }
         if (statusEl) statusEl.textContent = row ? (row.status_label || row.status) : '';
         if (sendBtn) sendBtn.hidden = !(row && row.status === 'draft' && role === 'student');
