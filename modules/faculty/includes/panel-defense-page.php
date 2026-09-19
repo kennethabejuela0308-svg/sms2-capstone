@@ -680,6 +680,7 @@ function panelRenderHistoryRows(array $rows): void
 function renderPanelDefensePage(string $mode, string $message = '', string $error = ''): void
 {
     panelRequirePanelMember();
+    panelEnsureEvaluationSchema();
     $id = (int) ($_GET['id'] ?? 0);
     $defense = $id > 0 ? panelDefenseById($id, true) : null;
     if ($mode === 'details' && $id <= 0) {
