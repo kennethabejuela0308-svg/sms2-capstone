@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../../config/config.php';
 require_once ROOT_PATH . '/config/database.php';
+require_once ROOT_PATH . '/modules/crad/config/config.php';
 
 $sms = db();
 $crad = function_exists('cradDb') ? cradDb() : getCradDatabaseConnection();
