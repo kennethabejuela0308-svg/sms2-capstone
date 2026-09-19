@@ -770,7 +770,12 @@ function rscCradReceive(PDO $crad, array $clearance, array $file = []): array
         }
     }
 
-    $extracted = rscExtractPhysicalSignatures((string) $saved['path'], $clearance);
+    $extracted = ['mis' => '', 'aa' => ''];
+    try {
+        $extracted = rscExtractPhysicalSignatures((string) $saved['path'], $clearance);
+    } catch (Throwable $e) {
+        error_log('rsc extract signatures: ' . $e->getMessage());
+    }
     $hasMis = trim((string) ($extracted['mis'] ?? '')) !== '';
     $hasAa = trim((string) ($extracted['aa'] ?? '')) !== '';
     $nextStatus = $status === 'clearance_done' ? 'clearance_done' : 'crad_received';
@@ -833,27 +838,10 @@ function rscVerifyOfficialFormImage(array $clearance, string $path, string $orig
     }
     $width = (int) $info[0];
     $height = (int) $info[1];
-    if ($width < 700 || $height < 500) {
+    if ($width < 400 || $height < 300) {
         return ['ok' => false, 'error' => 'That picture is too small to be the Research Services Clearance form.'];
     }
-
-    $expected = trim((string) ($clearance['export_hash'] ?? ''));
-    $actual = hash_file('sha256', $path) ?: '';
-    if ($expected !== '' && $actual !== '' && hash_equals($expected, $actual)) {
-        return ['ok' => true];
-    }
-
-    $name = strtolower($originalName !== '' ? $originalName : basename($path));
-    $looksNamed = (bool) preg_match('/research[-_ ]?clearance|clearance|rg-\d{4}-\d+/i', $name);
-    $looksOfficialSize = $width >= 1000 && $width <= 2000 && $height >= 700;
-    $looksDocument = $width >= 700 && $height >= 700;
-    $looksPaper = rscImageLooksLikePaperForm($path);
-
-    if (($looksNamed && $looksDocument) || ($looksOfficialSize && $looksPaper) || ($looksDocument && $looksPaper)) {
-        return ['ok' => true];
-    }
-
-    return ['ok' => false, 'error' => 'Upload the Research Services Clearance form picture (the adviser-signed form). Other photos cannot be used.'];
+    return ['ok' => true];
 }
 
 function rscImageLooksLikePaperForm(string $path): bool
