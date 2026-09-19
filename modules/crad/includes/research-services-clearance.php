@@ -1085,7 +1085,24 @@ function rscApplyUploadedSignatures(array $row): array
 
 function rscPersistUploadedSignatures(PDO $crad, array $row): array
 {
-    $hydrated = rscApplyUploadedSignatures($row);
+    $file = basename(str_replace('\\', '/', trim((string) ($row['uploaded_file'] ?? ''))));
+    $hydrated = $row;
+    if ($file !== '' && $file !== '.' && $file !== '..' && defined('ROOT_PATH')) {
+        $path = ROOT_PATH . '/uploads/research-clearance/' . $file;
+        if (is_file($path)) {
+            try {
+                $extracted = rscExtractPhysicalSignatures($path, $row);
+                if (trim((string) ($extracted['mis'] ?? '')) !== '') {
+                    $hydrated['mis_signature'] = $extracted['mis'];
+                }
+                if (trim((string) ($extracted['aa'] ?? '')) !== '') {
+                    $hydrated['aa_signature'] = $extracted['aa'];
+                }
+            } catch (Throwable $e) {
+                $hydrated = rscApplyUploadedSignatures($row);
+            }
+        }
+    }
     $mis = trim((string) ($hydrated['mis_signature'] ?? ''));
     $aa = trim((string) ($hydrated['aa_signature'] ?? ''));
     if ($mis === '' && $aa === '') {
@@ -1093,14 +1110,14 @@ function rscPersistUploadedSignatures(PDO $crad, array $row): array
     }
     $crad->prepare(
         "UPDATE research_services_clearances
-         SET mis_signature = CASE WHEN TRIM(COALESCE(mis_signature, '')) = '' THEN :mis ELSE mis_signature END,
-             aa_signature = CASE WHEN TRIM(COALESCE(aa_signature, '')) = '' THEN :aa ELSE aa_signature END,
+         SET mis_signature = :mis,
+             aa_signature = :aa,
              mis_verified = 1,
              aa_verified = 1
          WHERE id = :id"
     )->execute([
-        ':mis' => $mis,
-        ':aa' => $aa,
+        ':mis' => $mis !== '' ? $mis : (string) ($row['mis_signature'] ?? ''),
+        ':aa' => $aa !== '' ? $aa : (string) ($row['aa_signature'] ?? ''),
         ':id' => (int) ($row['id'] ?? 0),
     ]);
     return rscFindById($crad, (int) ($row['id'] ?? 0)) ?: $hydrated;
