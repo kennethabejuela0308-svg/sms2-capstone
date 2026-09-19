@@ -130,14 +130,34 @@ try {
 
     if ($role === 'student') {
         $group = chapterRegisteredStudentGroup($crad);
-        $paymentOk = $group ? rscPaymentUnlocksClearance($crad, (int) $group['id']) : false;
-        $payload['payment_approved'] = $paymentOk;
-        if ($group && rscIsChapterReady($crad, (int) $group['id']) && $paymentOk) {
-            $row = rscEnsureForReadyGroup($crad, (int) $group['id']);
-            $payload['ready'] = true;
-            $payload['clearance'] = $row ? rscPublicRow($row) : null;
+        $stage = rscNormalizeStage((string) ($_GET['stage'] ?? ''));
+        $id = (int) ($_GET['id'] ?? 0);
+        $inbox = $group ? rscStudentInbox($crad, (int) $group['id']) : [];
+        $payload['rows'] = array_map(static function (array $row): array {
+            $lite = $row;
+            $lite['form_html'] = '';
+            return $lite;
+        }, $inbox);
+        $current = null;
+        if ($id > 0) {
+            $found = rscFindById($crad, $id);
+            if ($found && rscStudentCanAccess($crad, $found)) {
+                $current = rscRefreshExisting($crad, $found);
+            }
+        } elseif ($stage !== '') {
+            foreach ($inbox as $item) {
+                if (($item['research_stage'] ?? '') === $stage && !empty($item['id'])) {
+                    $current = rscFindById($crad, (int) $item['id']);
+                    break;
+                }
+            }
         }
-        echo json_encode($payload);
+        $payload['ready'] = $inbox !== [];
+        $payload['clearance'] = $current ? rscPublicRow($current) : null;
+        $payload['payment_approved'] = $current
+            ? rscPaymentUnlocksClearance($crad, (int) ($current['research_group_id'] ?? 0), $current)
+            : false;
+        echo json_encode($payload, JSON_INVALID_UTF8_SUBSTITUTE);
         exit;
     }
 

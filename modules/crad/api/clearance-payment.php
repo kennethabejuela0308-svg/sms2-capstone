@@ -33,11 +33,19 @@ try {
                 throw new InvalidArgumentException('No research group is registered yet.');
             }
             $file = is_array($_FILES['payment_file'] ?? null) ? $_FILES['payment_file'] : [];
-            $result = rcpStudentUpload($crad, (int) $group['id'], $file, (string) ($_POST['or_number'] ?? ''));
+            $stage = rcpNormalizeStage((string) ($_POST['research_stage'] ?? 'research_1'));
+            $result = rcpStudentUpload(
+                $crad,
+                (int) $group['id'],
+                $file,
+                (string) ($_POST['or_number'] ?? ''),
+                $stage
+            );
             echo json_encode([
                 'ok' => !empty($result['ok']),
                 'error' => $result['error'] ?? null,
                 'payment' => isset($result['payment']) ? rcpPublicRow($result['payment']) : null,
+                'rows' => rcpStudentInbox($crad, (int) $group['id']),
             ], JSON_INVALID_UTF8_SUBSTITUTE);
             exit;
         }
@@ -66,15 +74,22 @@ try {
 
     if ($role === 'student') {
         $group = chapterRegisteredStudentGroup($crad);
-        $row = $group ? rcpFindByGroup($crad, (int) $group['id']) : null;
-        if ($row) {
-            $row = rcpEnsureOrFromImage($crad, $row);
+        $stage = rcpNormalizeStage((string) ($_GET['stage'] ?? 'research_1'));
+        $rows = $group ? rcpStudentInbox($crad, (int) $group['id']) : [];
+        $row = null;
+        foreach ($rows as $item) {
+            if (($item['research_stage'] ?? '') === $stage) {
+                $row = $item;
+                break;
+            }
         }
         echo json_encode([
             'ok' => true,
             'last_sync' => date('M j, Y g:i:s A'),
             'has_group' => (bool) $group,
-            'payment' => $row ? rcpPublicRow($row) : null,
+            'stage' => $stage,
+            'payment' => $row,
+            'rows' => $rows,
         ]);
         exit;
     }
