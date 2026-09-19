@@ -882,7 +882,7 @@ function rscRenderFormHtml(array $row, bool $duplicate = true): string
             . '<tr><th>Research Title</th><td colspan="3">' . $e($row['research_title'] ?? '') . '</td></tr>'
             . '</tbody></table>'
             . '<table class="rsc-table rsc-table--members"><thead><tr>'
-            . '<th>Last Name</th><th>First Name</th><th>Research / Defense O.R. No.</th><th>Remarks</th>'
+            . '<th>Last Name</th><th>First Name</th><th>Research / Defense O.R. No.</th><th>Cashier</th>'
             . '</tr></thead><tbody>' . $memberRows . '</tbody></table>'
             . '<table class="rsc-table rsc-table--tasks"><thead><tr>'
             . '<th style="width:48%">Task</th><th>Name and Signature</th><th style="width:18%">Date</th>'
