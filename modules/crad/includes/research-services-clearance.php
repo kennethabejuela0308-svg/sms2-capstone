@@ -1262,6 +1262,19 @@ function rscFormatDateCell(?string $value): string
     return $e($parts['numeric']) . '<br>' . $e($parts['words']);
 }
 
+function rscDateIfSigned(string $signature, ?string ...$dates): ?string
+{
+    if (trim($signature) === '') {
+        return null;
+    }
+    foreach ($dates as $date) {
+        if (trim((string) $date) !== '') {
+            return $date;
+        }
+    }
+    return null;
+}
+
 function rscRenderFormHtml(array $row, bool $duplicate = true): string
 {
     $row = rscAttachPaymentFields($row);
@@ -1291,8 +1304,8 @@ function rscRenderFormHtml(array $row, bool $duplicate = true): string
         $aaImg = $aaSig !== '' ? '<img src="' . $e($aaSig) . '" alt="AA signature">' : '';
         $cradImg = $cradSig !== '' ? '<img src="' . $e($cradSig) . '" alt="CRAD signature">' : '';
         $adviserDate = rscFormatDateCell($row['adviser_signed_at'] ?? null);
-        $misDate = rscFormatDateCell($row['mis_verified_at'] ?? $row['uploaded_at'] ?? $row['adviser_signed_at'] ?? null);
-        $aaDate = rscFormatDateCell($row['aa_verified_at'] ?? $row['uploaded_at'] ?? $row['adviser_signed_at'] ?? null);
+        $misDate = rscFormatDateCell(rscDateIfSigned($misSig, $row['mis_verified_at'] ?? null, $row['uploaded_at'] ?? null));
+        $aaDate = rscFormatDateCell(rscDateIfSigned($aaSig, $row['aa_verified_at'] ?? null, $row['uploaded_at'] ?? null));
         $cradDate = rscFormatDateCell($row['crad_signed_at'] ?? null);
 
         return '<div class="rsc-sheet">'
