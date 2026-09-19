@@ -4,8 +4,9 @@ require_once __DIR__ . '/../../config/config.php';
 require_once ROOT_PATH . '/modules/crad/includes/research-services-clearance.php';
 
 $crad = rscDb();
-$g = $crad->query('SELECT rg.id, rg.group_number, rg.leader_name, rg.leader_id, rg.proposal_id, t.members_json, t.student_name, t.student_id FROM research_groups rg LEFT JOIN title_approvals t ON t.id = rg.title_approval_id WHERE rg.id = 70')->fetch();
-echo json_encode($g, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), PHP_EOL;
-if ($g) {
-    echo "resolved=", json_encode(rscMembersFromGroup($crad, $g), JSON_UNESCAPED_UNICODE), PHP_EOL;
-}
+$fresh = rscEnsureForReadyGroup($crad, 70);
+echo json_encode([
+    'or_number' => $fresh['or_number'] ?? null,
+    'members' => $fresh['members_json'] ?? null,
+    'group' => $fresh['leader_group_no'] ?? null,
+], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT), PHP_EOL;
