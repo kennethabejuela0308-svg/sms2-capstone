@@ -40,12 +40,12 @@ renderBreadcrumbs($breadcrumbs);
      data-rsc-endpoint="<?= e(BASE_URL . '/modules/crad/api/research-clearance.php') ?>"
      data-rsc-csrf="<?= e(csrfToken()) ?>"
      data-rsc-id="<?= $public ? (int) $public['id'] : '' ?>">
-    <section class="glass-panel p-4 mb-3">
+    <section class="glass-panel p-4 mb-3 rsc-inbox">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="mb-0"><?= smsIcon('stamp', ['class' => 'me-2 text-primary']) ?>Clearance for CRAD</h5>
+            <h5 class="mb-0"><?= smsIcon('stamp', ['class' => 'me-2 text-primary']) ?>Clearance Inbox</h5>
             <small class="text-muted" data-rsc-sync></small>
         </div>
-        <div class="table-responsive">
+        <div class="table-responsive rsc-inbox-scroll">
             <table class="table align-middle mb-0">
                 <thead><tr><th>Group</th><th>Title</th><th>O.R. No.</th><th>Status</th><th></th></tr></thead>
                 <tbody data-rsc-rows>
@@ -67,25 +67,29 @@ renderBreadcrumbs($breadcrumbs);
         </div>
     </section>
 
-    <div class="rsc-toolbar">
-        <div class="rsc-status" data-rsc-status><?= e($public['status_label'] ?? '') ?></div>
-        <div class="d-flex flex-wrap gap-2 align-items-center">
-            <input type="file" class="form-control form-control-sm" style="max-width:240px;" data-rsc-file accept=".pdf,.png,.jpg,.jpeg">
-            <button type="button" class="btn btn-outline-primary" data-rsc-accept <?= ($public && in_array($public['status'], ['adviser_signed', 'crad_received'], true)) ? '' : 'hidden' ?>><?= smsIcon('upload', ['class' => 'me-1']) ?>Upload Form</button>
-            <button type="button" class="btn btn-outline-secondary" data-rsc-print <?= $public ? '' : 'hidden' ?>><?= smsIcon('print', ['class' => 'me-1']) ?>Print</button>
-            <button type="button" class="btn btn-success" data-rsc-sign <?= ($public && !empty($public['can_crad_sign'])) ? '' : 'hidden' ?>><?= smsIcon('signature', ['class' => 'me-1']) ?>Sign Clearance</button>
+    <div class="rsc-empty" data-rsc-empty <?= $rows ? 'hidden' : '' ?>>Waiting for an adviser-signed Research Services Clearance.</div>
+    <div class="rsc-pick" data-rsc-pick <?= ($rows && !$public) ? '' : 'hidden' ?>>Open a row in the inbox to view that student's clearance form.</div>
+    <div data-rsc-detail <?= $public ? '' : 'hidden' ?>>
+        <div class="rsc-toolbar">
+            <div class="rsc-status" data-rsc-status><?= e($public['status_label'] ?? '') ?></div>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <button type="button" class="btn btn-outline-secondary" data-rsc-close><?= smsIcon('arrow-left', ['class' => 'me-1']) ?>Back to Inbox</button>
+                <input type="file" class="form-control form-control-sm" style="max-width:240px;" data-rsc-file accept=".pdf,.png,.jpg,.jpeg">
+                <button type="button" class="btn btn-outline-primary" data-rsc-accept <?= ($public && in_array($public['status'], ['adviser_signed', 'crad_received'], true)) ? '' : 'hidden' ?>><?= smsIcon('upload', ['class' => 'me-1']) ?>Upload Form</button>
+                <button type="button" class="btn btn-outline-secondary" data-rsc-print <?= $public ? '' : 'hidden' ?>><?= smsIcon('print', ['class' => 'me-1']) ?>Print</button>
+                <button type="button" class="btn btn-success" data-rsc-sign <?= ($public && !empty($public['can_crad_sign'])) ? '' : 'hidden' ?>><?= smsIcon('signature', ['class' => 'me-1']) ?>Sign Clearance</button>
+            </div>
         </div>
+        <section class="glass-panel p-3 mb-3" data-rsc-check-wrap <?= $public ? '' : 'hidden' ?>>
+            <div class="fw-semibold mb-2">CRAD signature check — MIS and AA are physical signatures, not computerized.</div>
+            <label class="d-block mb-1"><input type="checkbox" data-rsc-check-adviser disabled <?= !empty($public['has_adviser_signature']) ? 'checked' : '' ?>> Adviser signature (from the system)</label>
+            <label class="d-block mb-1"><input type="checkbox" data-rsc-check-mis <?= !empty($public['mis_verified']) ? 'checked' : '' ?>> MIS signature (physical)</label>
+            <label class="d-block mb-1"><input type="checkbox" data-rsc-check-aa <?= !empty($public['aa_verified']) ? 'checked' : '' ?>> AA signature (physical)</label>
+            <small class="text-muted" data-rsc-upload-name><?= e($public['uploaded_original'] ?? '') ?></small>
+        </section>
+        <div class="rsc-wrap" data-rsc-form><?= $public['form_html'] ?? '' ?></div>
     </div>
-    <section class="glass-panel p-3 mb-3" data-rsc-check-wrap <?= $public ? '' : 'hidden' ?>>
-        <div class="fw-semibold mb-2">CRAD signature check — MIS and AA are physical signatures, not computerized.</div>
-        <label class="d-block mb-1"><input type="checkbox" data-rsc-check-adviser disabled <?= !empty($public['has_adviser_signature']) ? 'checked' : '' ?>> Adviser signature (from the system)</label>
-        <label class="d-block mb-1"><input type="checkbox" data-rsc-check-mis <?= !empty($public['mis_verified']) ? 'checked' : '' ?>> MIS signature (physical)</label>
-        <label class="d-block mb-1"><input type="checkbox" data-rsc-check-aa <?= !empty($public['aa_verified']) ? 'checked' : '' ?>> AA signature (physical)</label>
-        <small class="text-muted" data-rsc-upload-name><?= e($public['uploaded_original'] ?? '') ?></small>
-    </section>
-    <div class="rsc-empty" data-rsc-empty <?= $public ? 'hidden' : '' ?>>Waiting for an adviser-signed Research Services Clearance.</div>
-    <div class="rsc-wrap" data-rsc-form><?= $public['form_html'] ?? '' ?></div>
 </div>
 <?php require __DIR__ . '/../includes/research-clearance-sig-modal.php'; ?>
-<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-or-1"></script>
+<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-inbox-1"></script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>

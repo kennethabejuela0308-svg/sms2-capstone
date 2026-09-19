@@ -20,9 +20,14 @@
     var checkMis = root.querySelector('[data-rsc-check-mis]');
     var checkAa = root.querySelector('[data-rsc-check-aa]');
     var uploadName = root.querySelector('[data-rsc-upload-name]');
+    var detailEl = root.querySelector('[data-rsc-detail]');
+    var pickEl = root.querySelector('[data-rsc-pick]');
+    var closeBtn = root.querySelector('[data-rsc-close]');
     var current = null;
     var selectedId = root.getAttribute('data-rsc-id') || '';
+    var shouldScroll = false;
     var isCrad = role === 'crad_officer' || role === 'admin' || role === 'sms_admin' || role === 'superadmin';
+    var isInboxRole = role === 'adviser' || isCrad;
 
     function post(action, extra) {
         var fd = extra instanceof FormData ? extra : new FormData();
@@ -53,12 +58,18 @@
             signBtn.hidden = !(canAdviser || canCrad);
         }
         if (printBtn) printBtn.hidden = !row;
-        if (emptyEl) emptyEl.hidden = !!row;
+        if (detailEl) detailEl.hidden = !row;
+        if (pickEl) pickEl.hidden = !isInboxRole || !!row;
+        if (emptyEl) emptyEl.hidden = role === 'student' ? !!row : true;
         if (checkWrap) checkWrap.hidden = !(isCrad && row);
         if (checkAdviser) checkAdviser.checked = !!(row && row.has_adviser_signature);
         if (checkMis) checkMis.checked = !!(row && row.mis_verified);
         if (checkAa) checkAa.checked = !!(row && row.aa_verified);
         if (uploadName) uploadName.textContent = row && row.uploaded_original ? row.uploaded_original : '';
+        if (shouldScroll && row && detailEl) {
+            detailEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            shouldScroll = false;
+        }
     }
 
     function renderRows(rows) {
@@ -86,13 +97,27 @@
             .then(function (data) {
                 if (!data || !data.ok) return;
                 if (syncEl) syncEl.textContent = data.last_sync || '';
-                if (data.clearance) {
+                if (role === 'student') {
+                    if (data.clearance) {
+                        selectedId = String(data.clearance.id);
+                        applyClearance(data.clearance);
+                    } else {
+                        applyClearance(null);
+                    }
+                } else if (selectedId && data.clearance) {
                     selectedId = String(data.clearance.id);
                     applyClearance(data.clearance);
-                } else if (role === 'student') {
+                } else if (!selectedId) {
+                    applyClearance(null);
+                } else {
+                    selectedId = '';
                     applyClearance(null);
                 }
-                if (data.rows) renderRows(data.rows);
+                if (data.rows) {
+                    renderRows(data.rows);
+                    if (emptyEl && isInboxRole) emptyEl.hidden = !!(data.rows && data.rows.length);
+                    if (pickEl && isInboxRole) pickEl.hidden = !!(selectedId || !(data.rows && data.rows.length));
+                }
             })
             .catch(function () {});
     }
