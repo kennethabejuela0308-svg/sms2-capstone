@@ -45,6 +45,8 @@
 .rsc-inbox tr[data-rsc-open] { cursor: pointer; }
 .rsc-inbox tr[data-rsc-open]:hover { background: #f1f5f9; }
 .rsc-physical { display:inline-block; font-size:8.5pt; font-weight:700; color:#047857; }
+.rsc-upload-img { display:block; max-width:100%; height:auto; border:1px solid #cbd5e1; background:#fff; }
+.rsc-upload-frame { width:100%; min-height:640px; border:1px solid #cbd5e1; background:#fff; }
 @media print {
     @page { size: letter portrait; margin: 7mm; }
     html, body {
