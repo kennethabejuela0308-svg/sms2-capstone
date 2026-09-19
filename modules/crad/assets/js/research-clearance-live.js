@@ -27,11 +27,12 @@
     var detailEl = root.querySelector('[data-rsc-detail]');
     var pickEl = root.querySelector('[data-rsc-pick]');
     var closeBtn = root.querySelector('[data-rsc-close]');
+    var groupSelect = root.querySelector('[data-rsc-group]');
     var current = null;
     var selectedId = root.getAttribute('data-rsc-id') || '';
     var shouldScroll = false;
     var isCrad = role === 'crad_officer' || role === 'admin' || role === 'sms_admin' || role === 'superadmin';
-    var isInboxRole = role === 'adviser' || isCrad;
+    var isInboxRole = role === 'adviser';
 
     function post(action, extra) {
         var fd = extra instanceof FormData ? extra : new FormData();
@@ -120,6 +121,27 @@
                         applyClearance(data.clearance);
                     } else {
                         applyClearance(null);
+                    }
+                } else if (isCrad) {
+                    var cradRow = data.clearance;
+                    if (!cradRow && data.rows && data.rows.length) {
+                        cradRow = data.rows[0];
+                    }
+                    if (cradRow) {
+                        selectedId = String(cradRow.id);
+                        applyClearance(cradRow);
+                    } else {
+                        selectedId = '';
+                        applyClearance(null);
+                    }
+                    if (emptyEl) emptyEl.hidden = !!(data.rows && data.rows.length);
+                    if (groupSelect && data.rows) {
+                        var gid = selectedId;
+                        groupSelect.innerHTML = data.rows.map(function (row) {
+                            return '<option value="' + row.id + '"' + (String(row.id) === String(gid) ? ' selected' : '') + '>'
+                                + (row.leader_group_no || ('#' + row.id)) + '</option>';
+                        }).join('');
+                        groupSelect.hidden = data.rows.length < 2;
                     }
                 } else if (selectedId && data.clearance) {
                     selectedId = String(data.clearance.id);
