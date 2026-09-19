@@ -180,9 +180,17 @@ function rscDrawFormCopy($im, array $row, int $left, int $top, int $width): int
         ],
     ];
     foreach ($tasks as $task) {
-        [$leftText, $midText, $date, $sig, $th] = $task;
+        $leftText = (string) $task[0];
+        $midText = (string) $task[1];
+        $date = (string) $task[2];
+        $sig = (string) $task[3];
+        $th = (int) $task[4];
+        $extra = (string) ($task[5] ?? '');
         rscImageCell($im, $x, $y, $t1, $th, $black);
         rscImageText($im, $x + 6, $y + 8, $leftText, 9, $black, false, $t1 - 12);
+        if ($extra !== '') {
+            rscImageText($im, $x + 6, $y + 26, $extra, 9, $black, true, $t1 - 12);
+        }
         rscImageCell($im, $x + $t1, $y, $t2, $th, $black);
         rscImageText($im, $x + $t1 + 6, $y + 8, $midText, 9, $black, false, $t2 - 12);
         $sigIm = $sig !== '' ? rscImageFromDataUrl($sig) : null;
@@ -242,6 +250,8 @@ function rscSendFormPngDownload(PDO $crad, array $row): void
 {
     $fresh = rscRefreshExisting($crad, $row) ?: $row;
     $png = rscBuildFormPng($fresh);
+    $crad->prepare('UPDATE research_services_clearances SET export_hash = ? WHERE id = ?')
+        ->execute([hash('sha256', $png), (int) $fresh['id']]);
     $group = preg_replace('/[^A-Za-z0-9\-]/', '', (string) ($fresh['leader_group_no'] ?? 'clearance')) ?: 'clearance';
     header('Content-Type: image/png');
     header('Content-Disposition: attachment; filename="research-clearance-' . $group . '.png"');

@@ -58,26 +58,22 @@ renderBreadcrumbs($breadcrumbs);
                         <?php endforeach; ?>
                     </select>
                 <?php endif; ?>
-                <input type="file" class="form-control form-control-sm" style="max-width:260px;" data-rsc-file accept=".png,.jpg,.jpeg,image/png,image/jpeg">
+                <input type="file" class="form-control form-control-sm" style="max-width:260px;" data-rsc-file accept=".png,image/png">
                 <button type="button" class="btn btn-outline-primary" data-rsc-accept <?= ($public && in_array($public['status'], ['adviser_signed', 'crad_received'], true)) ? '' : 'hidden' ?>><?= smsIcon('upload', ['class' => 'me-1']) ?>Upload Image</button>
-                <button type="button" class="btn btn-outline-secondary" data-rsc-print <?= ($public && !empty($public['has_upload'])) ? '' : 'hidden' ?>><?= smsIcon('print', ['class' => 'me-1']) ?>Print</button>
-                <button type="button" class="btn btn-success" data-rsc-sign <?= ($public && !empty($public['has_upload']) && !empty($public['has_adviser_signature'])) ? '' : 'hidden' ?>><?= smsIcon('signature', ['class' => 'me-1']) ?>Sign Clearance</button>
+                <button type="button" class="btn btn-outline-secondary" data-rsc-print <?= ($public && !empty($public['form_verified'])) ? '' : 'hidden' ?>><?= smsIcon('print', ['class' => 'me-1']) ?>Print</button>
+                <button type="button" class="btn btn-success" data-rsc-sign <?= ($public && !empty($public['form_verified']) && !empty($public['has_adviser_signature'])) ? '' : 'hidden' ?>><?= smsIcon('signature', ['class' => 'me-1']) ?>Sign Clearance</button>
             </div>
         </div>
 
         <div class="alert alert-warning" data-rsc-upload-gate <?= ($public && empty($public['has_upload'])) ? '' : 'hidden' ?>>
             <?= smsIcon('upload', ['class' => 'me-2']) ?>
-            Upload the adviser <strong>Download Image</strong> (PNG or JPG) first. The clearance form stays hidden until you upload that image. Then you can sign as CRAD.
+            Upload only the official clearance PNG from Adviser → <strong>Download Image</strong> (must already have the adviser signature). Other images cannot be signed.
         </div>
 
-        <div data-rsc-upload-preview <?= ($public && !empty($public['has_upload'])) ? '' : 'hidden' ?>>
-            <div class="fw-semibold mb-2">Uploaded adviser-signed image</div>
-            <div data-rsc-upload-view></div>
-            <small class="text-muted" data-rsc-upload-name><?= e($public['uploaded_original'] ?? '') ?></small>
-        </div>
-        <div class="rsc-wrap" data-rsc-form hidden></div>
+        <div data-rsc-upload-preview hidden></div>
+        <div class="rsc-wrap" data-rsc-form <?= ($public && !empty($public['form_verified'])) ? '' : 'hidden' ?>><?= ($public && !empty($public['form_verified'])) ? ($public['form_html'] ?? '') : '' ?></div>
     </div>
 </div>
 <?php require __DIR__ . '/../includes/research-clearance-sig-modal.php'; ?>
-<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-one-form-1"></script>
+<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-form-ok-1"></script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>
