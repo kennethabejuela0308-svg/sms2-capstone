@@ -70,16 +70,11 @@ renderBreadcrumbs($breadcrumbs);
             Upload the printed Research Services Clearance that already has the <strong>Adviser, MIS, and AA</strong> signatures. The form appears only after a valid upload.
         </div>
 
-        <div class="alert alert-info d-flex flex-wrap align-items-center justify-content-between gap-2" data-rsc-mis-aa-note hidden>
-            <div>
-                <?= smsIcon('info-circle', ['class' => 'me-2']) ?>
-                <strong>Note:</strong> CRAD cannot sign until the Adviser, MIS, and AA signatures are on the uploaded clearance form.
-            </div>
-            <label for="rscClearanceFile" class="btn btn-sm btn-outline-primary mb-0"><?= smsIcon('upload', ['class' => 'me-1']) ?>Re-upload Image</label>
+        <div class="alert alert-info" data-rsc-mis-aa-note hidden>
+            <?= smsIcon('info-circle', ['class' => 'me-2']) ?>
+            <strong>Note:</strong> CRAD cannot sign until the Adviser, MIS, and AA signatures are on the uploaded clearance form.
         </div>
 
-        <div class="alert alert-success" data-rsc-upload-ok hidden></div>
-        <div data-rsc-upload-preview hidden></div>
         <div class="rsc-wrap" data-rsc-form hidden></div>
     </div>
 </div>

@@ -11,7 +11,7 @@
     var listBody = root.querySelector('[data-rsc-rows]');
     var sendBtn = root.querySelector('[data-rsc-send]');
     var acceptBtn = root.querySelector('[data-rsc-accept]');
-    var uploadOk = root.querySelector('[data-rsc-upload-ok]');
+    var uploadOk = null;
     var signBtn = root.querySelector('[data-rsc-sign]');
     var printBtn = root.querySelector('[data-rsc-print]');
     var downloadBtn = root.querySelector('[data-rsc-download]');
@@ -64,10 +64,17 @@
 
     function applyClearance(row) {
         current = row;
-        var showForm = !!(row && row.form_html) && (!isCrad || !!(row && row.form_verified && row.has_upload));
-        if (formBox && (showForm || !(formBox.innerHTML || '').trim())) {
-            formBox.hidden = !showForm;
-            formBox.innerHTML = showForm ? row.form_html : '';
+        var showUpload = !!(isCrad && row && row.has_upload && row.uploaded_url);
+        var showForm = !showUpload && !!(row && row.form_html) && (!isCrad || !!(row && row.form_verified && row.has_upload));
+        if (formBox) {
+            if (showUpload) {
+                formBox.hidden = false;
+                formBox.innerHTML = '<img class="rsc-upload-img" alt="Uploaded clearance form" src="'
+                    + row.uploaded_url + '">';
+            } else if (showForm || !(formBox.innerHTML || '').trim()) {
+                formBox.hidden = !showForm;
+                formBox.innerHTML = showForm ? row.form_html : '';
+            }
         }
         if (statusEl) statusEl.textContent = row ? (row.status_label || row.status) : '';
         if (sendBtn) sendBtn.hidden = !(row && row.status === 'draft' && role === 'student');
