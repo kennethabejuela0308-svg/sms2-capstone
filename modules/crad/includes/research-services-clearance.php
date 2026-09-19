@@ -776,8 +776,6 @@ function rscCradVerifyMarks(PDO $crad, array $clearance, bool $mis, bool $aa): a
 function rscCanCradSign(array $clearance): bool
 {
     return trim((string) ($clearance['adviser_signature'] ?? '')) !== ''
-        && (int) ($clearance['mis_verified'] ?? 0) === 1
-        && (int) ($clearance['aa_verified'] ?? 0) === 1
         && trim((string) ($clearance['uploaded_file'] ?? '')) !== ''
         && in_array((string) ($clearance['status'] ?? ''), ['adviser_signed', 'crad_received'], true);
 }
@@ -785,7 +783,7 @@ function rscCanCradSign(array $clearance): bool
 function rscCradSign(PDO $crad, array $clearance, string $signature, string $signerName): array
 {
     if (!rscCanCradSign($clearance)) {
-        return ['ok' => false, 'error' => 'Confirm the Adviser, MIS, and AA signatures on the uploaded form before CRAD can sign.'];
+        return ['ok' => false, 'error' => 'Upload the adviser-signed clearance image first, then CRAD can sign.'];
     }
     $sig = rscNormalizeSignature($signature);
     if ($sig === '') {
@@ -860,13 +858,16 @@ function rscStoreUpload(int $clearanceId, array $file): array
         return ['ok' => false, 'error' => 'Upload failed. Please try again.'];
     }
     $tmp = (string) ($file['tmp_name'] ?? '');
-    $name = (string) ($file['name'] ?? 'clearance.pdf');
+    $name = (string) ($file['name'] ?? 'clearance.png');
     if ($tmp === '' || !is_uploaded_file($tmp)) {
         return ['ok' => false, 'error' => 'Invalid upload.'];
     }
     $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-    if (!in_array($ext, ['pdf', 'png', 'jpg', 'jpeg'], true)) {
-        return ['ok' => false, 'error' => 'Upload a PDF or image of the clearance form.'];
+    if ($ext === 'jpeg') {
+        $ext = 'jpg';
+    }
+    if (!in_array($ext, ['png', 'jpg'], true)) {
+        return ['ok' => false, 'error' => 'Upload the clearance image (PNG or JPG) downloaded by the adviser.'];
     }
     $dir = ROOT_PATH . '/uploads/research-clearance';
     if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) {

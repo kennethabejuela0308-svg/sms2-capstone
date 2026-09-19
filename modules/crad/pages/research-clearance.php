@@ -68,28 +68,26 @@ renderBreadcrumbs($breadcrumbs);
     </section>
 
     <div class="rsc-empty" data-rsc-empty <?= $rows ? 'hidden' : '' ?>>Waiting for an adviser-signed Research Services Clearance.</div>
-    <div class="rsc-pick" data-rsc-pick <?= ($rows && !$public) ? '' : 'hidden' ?>>Open a row, then upload the printed clearance that already has the adviser signature.</div>
+    <div class="rsc-pick" data-rsc-pick <?= ($rows && !$public) ? '' : 'hidden' ?>>Open a row, then upload the PNG/JPG image downloaded by the adviser.</div>
     <div data-rsc-detail <?= $public ? '' : 'hidden' ?>>
         <div class="rsc-toolbar">
             <div class="rsc-status" data-rsc-status><?= e($public['status_label'] ?? '') ?></div>
             <div class="d-flex flex-wrap gap-2 align-items-center">
                 <button type="button" class="btn btn-outline-secondary" data-rsc-close><?= smsIcon('arrow-left', ['class' => 'me-1']) ?>Back to Inbox</button>
-                <input type="file" class="form-control form-control-sm" style="max-width:240px;" data-rsc-file accept=".pdf,.png,.jpg,.jpeg">
-                <button type="button" class="btn btn-outline-primary" data-rsc-accept <?= ($public && in_array($public['status'], ['adviser_signed', 'crad_received'], true)) ? '' : 'hidden' ?>><?= smsIcon('upload', ['class' => 'me-1']) ?>Upload Form</button>
+                <input type="file" class="form-control form-control-sm" style="max-width:260px;" data-rsc-file accept=".png,.jpg,.jpeg,image/png,image/jpeg">
+                <button type="button" class="btn btn-outline-primary" data-rsc-accept <?= ($public && in_array($public['status'], ['adviser_signed', 'crad_received'], true)) ? '' : 'hidden' ?>><?= smsIcon('upload', ['class' => 'me-1']) ?>Upload Image</button>
                 <button type="button" class="btn btn-outline-secondary" data-rsc-print <?= ($public && !empty($public['has_upload'])) ? '' : 'hidden' ?>><?= smsIcon('print', ['class' => 'me-1']) ?>Print</button>
                 <button type="button" class="btn btn-success" data-rsc-sign <?= ($public && !empty($public['can_crad_sign'])) ? '' : 'hidden' ?>><?= smsIcon('signature', ['class' => 'me-1']) ?>Sign Clearance</button>
             </div>
         </div>
         <div class="alert alert-warning" data-rsc-upload-gate <?= ($public && empty($public['has_upload'])) ? '' : 'hidden' ?>>
             <?= smsIcon('upload', ['class' => 'me-2']) ?>
-            The digital student form is hidden. Upload the printed Research Services Clearance that already has the adviser signature. After you upload it, you can check MIS / AA and sign.
+            Upload the clearance <strong>image</strong> (PNG or JPG) from the adviser Download Image. After that, you can sign as CRAD.
         </div>
         <div data-rsc-upload-preview <?= ($public && !empty($public['has_upload'])) ? '' : 'hidden' ?>>
-            <div class="fw-semibold mb-2">Uploaded file — you can now edit and sign the form below, even if this is a PDF.</div>
-            <details class="rsc-upload-file">
-                <summary>View uploaded file <small class="text-muted" data-rsc-upload-name><?= e($public['uploaded_original'] ?? '') ?></small></summary>
-                <div data-rsc-upload-view></div>
-            </details>
+            <div class="fw-semibold mb-2">Uploaded adviser-signed image — CRAD can sign the form now.</div>
+            <div data-rsc-upload-view></div>
+            <small class="text-muted" data-rsc-upload-name><?= e($public['uploaded_original'] ?? '') ?></small>
         </div>
         <section class="glass-panel p-3 mb-3" data-rsc-check-wrap <?= ($public && !empty($public['has_upload'])) ? '' : 'hidden' ?>>
             <div class="fw-semibold mb-2">CRAD signature check — MIS and AA are physical signatures, not computerized.</div>
@@ -101,5 +99,5 @@ renderBreadcrumbs($breadcrumbs);
     </div>
 </div>
 <?php require __DIR__ . '/../includes/research-clearance-sig-modal.php'; ?>
-<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-crad-sign-1"></script>
+<script src="<?= BASE_URL ?>/modules/crad/assets/js/research-clearance-live.js?v=rsc-img-1"></script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>
