@@ -1461,7 +1461,8 @@ function rscRefreshExisting(PDO $crad, ?array $row): ?array
     if (!$row) {
         return null;
     }
-    $fresh = rscEnsureForReadyGroup($crad, (int) ($row['research_group_id'] ?? 0));
+    $stage = rscNormalizeStage((string) ($row['research_stage'] ?? 'research_1'));
+    $fresh = rscEnsureForReadyGroup($crad, (int) ($row['research_group_id'] ?? 0), $stage);
     return $fresh ?: $row;
 }
 
@@ -1515,17 +1516,61 @@ function rscListForCrad(PDO $crad): array
     return rscRefreshRows($crad, $stmt->fetchAll() ?: []);
 }
 
-function rscClearanceDoneExists(PDO $crad, int $groupId): bool
+function rscClearanceDoneExists(PDO $crad, int $groupId, string $stage = 'research_1'): bool
 {
     rscEnsureSchema($crad);
+    $stage = rscNormalizeStage($stage);
     $stmt = $crad->prepare(
         "SELECT 1 FROM research_services_clearances
          WHERE research_group_id = ?
+           AND research_stage = ?
            AND status = 'clearance_done'
            AND TRIM(COALESCE(adviser_signature, '')) <> ''
            AND TRIM(COALESCE(crad_signature, '')) <> ''
          LIMIT 1"
     );
-    $stmt->execute([$groupId]);
+    $stmt->execute([$groupId, $stage]);
     return (bool) $stmt->fetchColumn();
+}
+
+function rscStudentInbox(PDO $crad, int $groupId): array
+{
+    $out = [];
+    foreach ([['research_1', true], ['research_2', false]] as [$stage, $needChapter]) {
+        $stage = rscNormalizeStage((string) $stage);
+        $chapterOk = !$needChapter || rscIsChapterReady($crad, $groupId);
+        $r1Done = $stage === 'research_1' || rscClearanceDoneExists($crad, $groupId, 'research_1');
+        $paymentOk = rscPaymentUnlocksClearance($crad, $groupId, null, $stage);
+        $ready = $chapterOk && $r1Done && $paymentOk;
+        $row = null;
+        if ($ready) {
+            $row = rscEnsureForReadyGroup($crad, $groupId, $stage);
+        } else {
+            $row = rscFindByGroup($crad, $groupId, $stage);
+        }
+        $public = $row ? rscPublicRow($row) : [
+            'id' => 0,
+            'research_group_id' => $groupId,
+            'research_stage' => $stage,
+            'stage_label' => rscStageLabel($stage),
+            'status' => '',
+            'status_label' => 'Not available yet',
+            'or_number' => '',
+            'form_html' => '',
+            'leader_group_no' => '',
+            'research_title' => '',
+        ];
+        $locked = '';
+        if ($stage === 'research_2' && !rscClearanceDoneExists($crad, $groupId, 'research_1')) {
+            $locked = 'Finish Research 1 clearance first.';
+        } elseif ($needChapter && !$chapterOk) {
+            $locked = 'Chapter 1-3 must be scored first.';
+        } elseif (!$paymentOk) {
+            $locked = 'Upload and wait for Admin approval of ' . rscStageLabel($stage) . ' college payment.';
+        }
+        $public['ready'] = $ready;
+        $public['locked_reason'] = $locked;
+        $out[] = $public;
+    }
+    return $out;
 }
