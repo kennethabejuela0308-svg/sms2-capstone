@@ -156,6 +156,25 @@ function rscEnsureSchema(?PDO $crad = null): void
             KEY idx_rsc_notif_recipient (recipient_user_id, recipient_role)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
+    rcpEnsureSchema($crad);
+}
+
+function rscApprovedPayment(PDO $crad, int $groupId): ?array
+{
+    $row = rcpFindByGroup($crad, $groupId);
+    if (!$row || (string) ($row['status'] ?? '') !== 'approved') {
+        return null;
+    }
+    return $row;
+}
+
+function rscPaymentUnlocksClearance(PDO $crad, int $groupId, ?array $clearance = null): bool
+{
+    $status = (string) ($clearance['status'] ?? '');
+    if (in_array($status, ['sent_to_adviser', 'adviser_signed', 'crad_received', 'clearance_done'], true)) {
+        return true;
+    }
+    return rcpIsApproved($crad, $groupId);
 }
 
 function rscStudentUrl(): string
@@ -674,6 +693,9 @@ function rscSendToAdviser(PDO $crad, array $clearance): array
 {
     if ((string) ($clearance['status'] ?? '') !== 'draft') {
         return ['ok' => false, 'error' => 'Clearance was already sent to the adviser.'];
+    }
+    if (!rscPaymentUnlocksClearance($crad, (int) ($clearance['research_group_id'] ?? 0), $clearance)) {
+        return ['ok' => false, 'error' => 'Admin must approve the college payment before you can send the clearance form.'];
     }
     $id = (int) $clearance['id'];
     $crad->prepare("UPDATE research_services_clearances SET status = 'sent_to_adviser', sent_at = NOW() WHERE id = ?")
