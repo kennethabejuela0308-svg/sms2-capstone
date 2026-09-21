@@ -1601,6 +1601,8 @@ document.addEventListener('DOMContentLoaded', function () {
     let pollTimer = null;
     let pendingRequest = false;
     let CURRENT = null;
+    let lastPayloadFp = '';
+    const pendingCoordinatorByKey = {};
 
     const esc = function (value) {
         return String(value == null ? '' : value)
@@ -1788,10 +1790,78 @@ document.addEventListener('DOMContentLoaded', function () {
         el('rcm-stat-pending', s.pending_groups ?? '-');
     }
 
+    function coordinatorSelectKey(select) {
+        return String(select.getAttribute('data-group') || '') + '|' + String(select.getAttribute('data-student') || '');
+    }
+
+    function capturePendingCoordinatorSelections() {
+        document.querySelectorAll('.rcm-coordinator-select').forEach(function (select) {
+            const key = coordinatorSelectKey(select);
+            if (!key || key === '|') return;
+            if (select.value) {
+                pendingCoordinatorByKey[key] = select.value;
+            } else {
+                delete pendingCoordinatorByKey[key];
+            }
+        });
+    }
+
+    function rememberCoordinatorSelection(select) {
+        if (!select) return;
+        const key = coordinatorSelectKey(select);
+        if (!key || key === '|') return;
+        if (select.value) {
+            pendingCoordinatorByKey[key] = select.value;
+        } else {
+            delete pendingCoordinatorByKey[key];
+        }
+    }
+
+    function clearPendingCoordinator(groupNumber, studentId) {
+        const key = String(groupNumber || '') + '|' + String(studentId || '');
+        delete pendingCoordinatorByKey[key];
+    }
+
+    function isAssignUiBusy() {
+        const active = document.activeElement;
+        if (active && active.classList && active.classList.contains('rcm-coordinator-select')) {
+            return true;
+        }
+        const confirmModal = document.getElementById('rcmAssignConfirmModal');
+        if (confirmModal && confirmModal.classList.contains('show')) {
+            return true;
+        }
+        const detailModal = document.querySelector('[data-rcm-modal]');
+        if (detailModal && detailModal.hidden === false) {
+            return true;
+        }
+        const reassignModal = document.getElementById('rcmReassignModal');
+        if (reassignModal && (reassignModal.classList.contains('show') || reassignModal.style.display === 'block')) {
+            return true;
+        }
+        return false;
+    }
+
+    function payloadFingerprint(data) {
+        if (!data) return '';
+        try {
+            return JSON.stringify({
+                stats: data.stats || {},
+                eligible: data.eligible || [],
+                pool: data.pool || [],
+                assignments: data.assignments || [],
+                roster: data.roster || []
+            });
+        } catch (e) {
+            return String(Date.now());
+        }
+    }
+
     function renderEligible(card, data) {
         const tbody = card.querySelector('[data-rcm-tbody]');
         const empty = card.querySelector('[data-rcm-empty]');
         if (!tbody) return;
+        capturePendingCoordinatorSelections();
         const pool = data.pool || [];
         const eligible = data.eligible || [];
 
@@ -1813,6 +1883,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     defaultValue = c.user_id > 0 ? String(c.user_id) : 'name:' + c.name;
                 }
             });
+            const rowKey = String(g.group_number || '') + '|' + String(g.student_id || '');
+            if (pendingCoordinatorByKey[rowKey]) {
+                defaultValue = pendingCoordinatorByKey[rowKey];
+            }
             const searchText = [g.group_number, g.group_name, g.research_title, g.adviser, g.proposal_number, g.student_id, suggested].join(' ').toLowerCase();
             const options = ['<option value="">Select coordinator…</option>'].concat(pool.map(function (c) {
                 const optValue = c.user_id > 0 ? String(c.user_id) : 'name:' + c.name;
@@ -1916,7 +1990,21 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function render(data) {
-        if (!data || !data.ok) return;
+        if (!data || data.ok === false) return;
+        const fp = payloadFingerprint(data);
+        if (fp && fp === lastPayloadFp) {
+            CURRENT = data;
+            const syncSkip = document.querySelector('[data-rcm-sync]');
+            if (syncSkip && data.server_time) {
+                const dSkip = new Date(String(data.server_time).replace(' ', 'T'));
+                if (!isNaN(dSkip.getTime())) {
+                    const monthsSkip = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                    syncSkip.textContent = 'Synced ' + monthsSkip[dSkip.getMonth()] + ' ' + dSkip.getDate() + ', ' + dSkip.getFullYear() + ' ' + dSkip.toLocaleTimeString('en-US', { hour12: true });
+                }
+            }
+            return;
+        }
+        lastPayloadFp = fp;
         CURRENT = data;
         renderStats(data);
         const cards = document.querySelectorAll('[data-rcm-card]');
@@ -1937,13 +2025,14 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function pollNow() {
-        if (pendingRequest) return;
+        if (pendingRequest || isAssignUiBusy()) return;
         pendingRequest = true;
         fetch(endpoint + '?ajax=coordinator-assignments&t=' + Date.now(), {
             headers: { 'X-Requested-With': 'fetch' }
         })
             .then(function (r) { return r.json(); })
             .then(function (data) {
+                if (isAssignUiBusy()) return;
                 render(data);
                 if (data && data.message) showFlash(data.message, data.ok !== false);
             })
@@ -1997,9 +2086,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let pendingAssignData = null;
 
-    function openAssignConfirm(btn, groupNumber, coordinatorLabel, researchTitle) {
+    function openAssignConfirm(btn, groupNumber, coordinatorLabel, researchTitle, coordinatorValue) {
         ensureAssignConfirmModal();
-        pendingAssignData = { btn: btn, groupNumber: groupNumber };
+        pendingAssignData = {
+            btn: btn,
+            groupNumber: groupNumber,
+            coordinator: coordinatorValue || ''
+        };
 
         const grpEl = document.getElementById('rcmConfirmGroupNumber');
         const titleEl = document.getElementById('rcmConfirmResearchTitle');
@@ -2020,7 +2113,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     window.bootstrap.Modal.getOrCreateInstance(modalEl).hide();
                 }
                 if (pendingAssignData) {
-                    doAssign(pendingAssignData.btn);
+                    doAssign(pendingAssignData.btn, pendingAssignData.coordinator);
                     pendingAssignData = null;
                 }
             };
@@ -2034,10 +2127,11 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function doAssign(btn) {
+    function doAssign(btn, coordinatorValue) {
         const tr = btn.closest('tr');
         const select = tr ? tr.querySelector('.rcm-coordinator-select') : null;
-        if (!select || !select.value) {
+        const coordinator = coordinatorValue || (select ? select.value : '') || '';
+        if (!coordinator) {
             showFlash('Please select a Research Coordinator first.', false);
             return;
         }
@@ -2050,11 +2144,13 @@ document.addEventListener('DOMContentLoaded', function () {
         fd.append('_token', CSRF);
         fd.append('group_number', btn.dataset.group);
         fd.append('student_id', btn.dataset.student || '');
-        fd.append('coordinator', select.value);
+        fd.append('coordinator', coordinator);
 
         fetch(endpoint, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'fetch' } })
             .then(function (r) { return r.json(); })
             .then(function (data) {
+                clearPendingCoordinator(btn.dataset.group, btn.dataset.student || '');
+                lastPayloadFp = '';
                 render(data);
                 if (data && data.message) showFlash(data.message, data.ok !== false);
             })
@@ -2067,7 +2163,21 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     }
 
+    function bindCoordinatorSelectMemory() {
+        document.querySelectorAll('.rcm-coordinator-select').forEach(function (select) {
+            if (select.dataset.rcmRememberBound === '1') return;
+            select.dataset.rcmRememberBound = '1';
+            select.addEventListener('change', function () {
+                rememberCoordinatorSelection(select);
+            });
+            select.addEventListener('focus', function () {
+                rememberCoordinatorSelection(select);
+            });
+        });
+    }
+
     function bindActions() {
+        bindCoordinatorSelectMemory();
         document.querySelectorAll('.rcm-assign-btn').forEach(function (btn) {
             btn.onclick = function () {
                 const tr = btn.closest('tr');
@@ -2081,10 +2191,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 const groupNumber = btn.dataset.group || '—';
                 const selectedOption = select.options[select.selectedIndex];
                 const coordinatorLabel = selectedOption ? selectedOption.text : '—';
+                const coordinatorValue = select.value;
+                rememberCoordinatorSelection(select);
                 const titleCell = tr.querySelector('td:nth-child(2) .rcm-title');
                 const researchTitle = titleCell ? titleCell.textContent.trim() : '—';
 
-                openAssignConfirm(btn, groupNumber, coordinatorLabel, researchTitle);
+                openAssignConfirm(btn, groupNumber, coordinatorLabel, researchTitle, coordinatorValue);
             };
         });
     }
@@ -2098,6 +2210,7 @@ document.addEventListener('DOMContentLoaded', function () {
         fetch(endpoint, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'fetch' } })
             .then(function (r) { return r.json(); })
             .then(function (data) {
+                lastPayloadFp = '';
                 render(data);
                 if (data && data.message) showFlash(data.message, data.ok !== false);
             })
@@ -2275,6 +2388,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 .then(function (r) { return r.json(); })
                 .then(function (data) {
                     closeModal();
+                    lastPayloadFp = '';
                     render(data);
                     if (data && data.message) showFlash(data.message, data.ok !== false);
                 })

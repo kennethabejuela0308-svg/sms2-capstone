@@ -441,7 +441,9 @@ $statusMeta = [
                             <div class="rm-action-row" data-action-controls>
                                 <?php if ($needsAiBeforeDecision && !$hasAiAnalysis): ?>
                                     <div class="rm-ai-gate-note" data-ai-gate-note>
-                                        <?= smsIcon('info-circle') ?>Run <strong>Generate to AI</strong> first. The AI will check the student’s grammar before you approve or request revision.
+                                        <?= smsIcon('info-circle') ?>
+                                        Run <strong>Generate to AI</strong> before <strong>Approve</strong> (grammar check).
+                                        You can still click <strong>Request Revision</strong> anytime — including when the file is an image or AI cannot read it — so the student can revise in the portal.
                                     </div>
                                 <?php endif; ?>
                                 <button type="button" class="rm-btn rm-btn-comment"
@@ -450,8 +452,7 @@ $statusMeta = [
                                 </button>
                                 <button type="button" class="rm-btn rm-btn-revision"
                                         data-bs-toggle="modal" data-bs-target="#revisionModal<?= $updateId ?>"
-                                        data-decision-btn="revision"
-                                        <?= ($needsAiBeforeDecision && !$hasAiAnalysis) ? 'disabled' : '' ?>>
+                                        data-decision-btn="revision">
                                     <?= smsIcon('redo') ?>Request Revision
                                 </button>
                                 <button type="button" class="rm-btn rm-btn-approve"
@@ -689,7 +690,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
                 const result = await resp.json();
                 if (!resp.ok || !result.success || !result.analysis) {
-                    alert(result.message || 'AI analysis failed. Please try again.');
+                    // Keep Request Revision available so adviser can send the student back to revise.
+                    if (card) {
+                        const revisionBtn = card.querySelector('[data-decision-btn="revision"]');
+                        if (revisionBtn) revisionBtn.disabled = false;
+                        const gate = card.querySelector('[data-ai-gate-note]');
+                        if (gate) {
+                            gate.innerHTML = '<?= smsIcon('info-circle') ?>AI could not analyze this file. You can still <strong>Request Revision</strong> so the student can upload a .docx or .txt in the portal. <strong>Approve</strong> stays locked until AI succeeds.';
+                        }
+                        const updateIdForModal = this.getAttribute('data-update-id');
+                        const revisionTextarea = document.querySelector('#revisionModal' + updateIdForModal + ' textarea[name="feedback_text"]');
+                        if (revisionTextarea && !revisionTextarea.value.trim()) {
+                            revisionTextarea.value = 'Please re-upload your research document as a .docx or .txt file (not an image), then resubmit this milestone for review.';
+                        }
+                    }
+                    alert((result.message || 'AI analysis failed.') + '\n\nYou can still click Request Revision to notify the student.');
                     this.disabled = false;
                     this.innerHTML = origHTML;
                     return;
@@ -697,7 +712,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 renderAiAnalysis(card, result.analysis, result.revision_text || '');
             } catch (err) {
                 console.error(err);
-                alert('AI analysis could not be completed. Please try again.');
+                if (card) {
+                    const revisionBtn = card.querySelector('[data-decision-btn="revision"]');
+                    if (revisionBtn) revisionBtn.disabled = false;
+                }
+                alert('AI analysis could not be completed.\n\nYou can still click Request Revision to notify the student.');
                 this.disabled = false;
                 this.innerHTML = origHTML;
                 return;
