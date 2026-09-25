@@ -1,0 +1,30 @@
+name: Validate production image
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docker-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build production image
+        run: docker build --tag sms2-production-ci .
+
+      - name: Verify required migration files are packaged
+        run: |
+          docker run --rm --entrypoint sh sms2-production-ci -c \
+            'test -r /var/www/html/database/sms2_db.sql && \
+             test -r /var/www/html/modules/crad/database/crad_db.sql'

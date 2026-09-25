@@ -1,0 +1,378 @@
+/* Review Committee — Grant Proposal Evaluation */
+.gre-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+.gre-header h1 {
+    font-size: 1.15rem;
+    font-weight: 800;
+    margin: 0 0 .35rem;
+    color: var(--sms-heading);
+}
+.gre-header p {
+    margin: 0;
+    font-size: .88rem;
+    color: var(--sms-text-muted);
+    max-width: 560px;
+}
+.gre-stat-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem;
+}
+.gre-stat {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    font-size: .78rem;
+    padding: .35rem .75rem;
+    border-radius: 999px;
+    border: 1px solid var(--sms-border);
+    background: var(--sms-surface-muted, #f8fafc);
+}
+.gre-stat.pending strong { color: #b45309; }
+.gre-stat.scored strong { color: #059669; }
+.gre-live-badge {
+    font-size: .72rem;
+    font-weight: 700;
+    color: var(--sms-primary);
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+}
+.gre-layout {
+    display: grid;
+    grid-template-columns: minmax(280px, 360px) 1fr;
+    gap: 1.25rem;
+    align-items: start;
+}
+@media (max-width: 991px) {
+    .gre-layout { grid-template-columns: 1fr; }
+}
+.gre-info-panel,
+.gre-score-panel {
+    background: var(--sms-card-bg, #fff);
+    border: 1px solid var(--sms-border);
+    border-radius: 14px;
+    padding: 1.25rem;
+}
+.gre-info-panel h2 {
+    font-size: 1rem;
+    font-weight: 800;
+    margin: 0 0 1rem;
+    line-height: 1.35;
+}
+
+/* Collapsible proposal info — Grant Program visible first */
+.gre-proposal-toggle {
+    border: 1px solid var(--sms-border);
+    border-radius: 10px;
+    background: #fff;
+    overflow: hidden;
+}
+.gre-proposal-toggle[open] {
+    border-color: rgba(37, 99, 235, .28);
+    box-shadow: 0 2px 10px rgba(37, 99, 235, .06);
+}
+.gre-proposal-summary {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .65rem;
+    padding: .85rem 1rem;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+.gre-proposal-summary::-webkit-details-marker { display: none; }
+.gre-proposal-summary-inner {
+    flex: 1;
+    min-width: 0;
+}
+.gre-proposal-summary-label {
+    display: block;
+    font-size: .62rem;
+    font-weight: 800;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--sms-text-muted);
+    margin-bottom: .2rem;
+}
+.gre-proposal-summary-value {
+    display: block;
+    font-size: .88rem;
+    font-weight: 800;
+    color: var(--sms-heading);
+    line-height: 1.35;
+}
+.gre-proposal-chevron {
+    flex-shrink: 0;
+    margin-top: .15rem;
+    font-size: .75rem;
+    color: var(--sms-text-muted);
+    transition: transform .2s ease;
+}
+.gre-proposal-toggle[open] .gre-proposal-chevron {
+    transform: rotate(180deg);
+}
+.gre-proposal-details {
+    padding: 0 1rem 1rem;
+    border-top: 1px solid var(--sms-border);
+}
+.gre-proposal-heading {
+    font-size: .95rem;
+    font-weight: 800;
+    margin: .85rem 0 1rem;
+    line-height: 1.35;
+    color: var(--sms-heading);
+    text-transform: uppercase;
+    letter-spacing: .02em;
+}
+.gre-docs-stack {
+    flex-direction: column;
+    align-items: stretch;
+    margin-top: .25rem;
+}
+.gre-doc-btn {
+    width: 100%;
+    justify-content: center;
+}
+.gre-meta {
+    margin: 0 0 1rem;
+}
+.gre-meta div {
+    margin-bottom: .65rem;
+}
+.gre-meta dt {
+    font-size: .62rem;
+    font-weight: 800;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--sms-text-muted);
+    margin-bottom: .1rem;
+}
+.gre-meta dd {
+    margin: 0;
+    font-size: .86rem;
+    font-weight: 600;
+    color: var(--sms-heading);
+}
+.gre-meta dd small {
+    display: block;
+    font-weight: 500;
+    color: var(--sms-text-muted);
+    font-size: .75rem;
+}
+.gre-block {
+    margin-bottom: 1rem;
+}
+.gre-block h3 {
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--sms-text-muted);
+    margin: 0 0 .35rem;
+}
+.gre-block p {
+    margin: 0;
+    font-size: .84rem;
+    line-height: 1.55;
+    color: var(--sms-text);
+}
+.gre-docs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin-top: .5rem;
+}
+.gre-score-panel h2 {
+    font-size: 1rem;
+    font-weight: 800;
+    margin: 0 0 .5rem;
+}
+.gre-rubric-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1rem;
+    font-size: .88rem;
+}
+.gre-rubric-table th,
+.gre-rubric-table td {
+    padding: .55rem .65rem;
+    border-bottom: 1px solid var(--sms-border);
+    text-align: left;
+}
+.gre-rubric-table thead th {
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--sms-text-muted);
+    background: var(--sms-surface-muted, #f8fafc);
+}
+.gre-rubric-table .gre-total-row td {
+    border-top: 2px solid var(--sms-primary);
+    background: rgba(37, 99, 235, .04);
+    font-size: .95rem;
+}
+.gre-rubric-readonly .gre-total-row td {
+    color: var(--sms-primary);
+}
+.gre-form-group {
+    margin-bottom: .85rem;
+}
+.gre-form-group .go-form-label {
+    display: block;
+    font-size: .84rem;
+    font-weight: 700;
+    margin-bottom: .3rem;
+}
+.gre-form-group .go-form-input {
+    width: 100%;
+    border: 1.5px solid var(--sms-border);
+    border-radius: 8px;
+    padding: .5rem .75rem;
+    font-size: .88rem;
+    background: var(--sms-surface-muted, #f8fafc);
+}
+.gre-scored-banner {
+    background: rgba(5, 150, 105, .08);
+    border: 1px solid rgba(5, 150, 105, .2);
+    color: #065f46;
+    border-radius: 10px;
+    padding: .75rem 1rem;
+    margin-bottom: 1rem;
+    font-size: .88rem;
+    font-weight: 600;
+}
+.gre-score-input {
+    max-width: 120px;
+    text-align: center;
+}
+.gre-recommendation-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .65rem;
+    margin-top: .35rem;
+}
+.gre-recommendation-option {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    padding: .55rem .85rem;
+    border: 1.5px solid var(--sms-border);
+    border-radius: 10px;
+    background: var(--sms-surface-muted, #f8fafc);
+    font-size: .86rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin: 0;
+}
+.gre-recommendation-option input {
+    margin: 0;
+}
+.gre-recommendation-option:has(input:checked) {
+    border-color: var(--sms-primary);
+    background: rgba(37, 99, 235, .06);
+    color: var(--sms-primary);
+}
+.gre-recommendation-hint {
+    margin: .45rem 0 0;
+    font-size: .78rem;
+    color: var(--sms-text-muted);
+}
+
+.gre-adviser-banner {
+    background: rgba(249, 115, 22, .1);
+    border: 1px solid rgba(249, 115, 22, .25);
+    color: #9a3412;
+}
+
+.gre-adviser-actions {
+    margin-top: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: .5rem;
+}
+
+.gre-adviser-hint {
+    font-size: .82rem;
+    color: var(--sms-text-muted);
+}
+
+.gre-prior-eval-section {
+    margin-top: 2rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--sms-border);
+}
+
+.gre-prior-eval-heading {
+    font-size: 1rem;
+    font-weight: 800;
+    margin: 0 0 .35rem;
+    color: var(--sms-heading);
+}
+
+.gre-prior-eval-note {
+    font-size: .84rem;
+    margin: 0 0 1rem;
+}
+
+.gre-committee-ref {
+    margin: 0 0 1.25rem;
+    border: 1px solid var(--sms-border);
+    border-radius: 12px;
+    background: var(--sms-surface-muted, #f8fafc);
+}
+
+.gre-committee-ref-summary {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .85rem 1rem;
+    cursor: pointer;
+    font-weight: 700;
+    color: var(--sms-primary);
+    list-style: none;
+}
+
+.gre-committee-ref-summary::-webkit-details-marker {
+    display: none;
+}
+
+.gre-committee-ref-body {
+    padding: 0 1rem 1rem;
+    border-top: 1px solid var(--sms-border);
+}
+
+.gaw-monitor-scores,
+.gre-detail-scores {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .65rem;
+    margin: 0 0 1rem;
+}
+
+.gaw-monitor-score-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .4rem .7rem;
+    border-radius: 999px;
+    font-size: .78rem;
+    font-weight: 700;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #334155;
+}
+
+.gaw-monitor-score-pill strong {
+    color: #0f172a;
+}
